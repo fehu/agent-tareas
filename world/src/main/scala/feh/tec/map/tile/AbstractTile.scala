@@ -1,4 +1,4 @@
-package feh.tec.agentos.map.tile
+package feh.tec.map.tile
 
 trait AbstractTile[Tile <: AbstractTile[Tile, Coordinate], Coordinate] {
   def coordinate: Coordinate

@@ -1,7 +1,7 @@
 package feh.tec.agentos.tarea1
 
-import feh.tec.agentos.map.{SimpleDirection, EnclosedMap, AbstractMap, AbstractSquareMap}
-import feh.tec.agentos.map.tile.OptionalTypedContainerTile
+import feh.tec.map.{SimpleDirection, EnclosedMap, AbstractMap, AbstractSquareMap}
+import feh.tec.map.tile.OptionalTypedContainerTile
 import java.util.UUID
 
 class Map(buildTilesMap: Map => collection.Map[Map#Coordinate, SqTile], xRange: Range, yRange: Range)

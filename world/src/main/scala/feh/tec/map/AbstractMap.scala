@@ -1,6 +1,7 @@
-package feh.tec.agentos.map
+package feh.tec.map
 
-import feh.tec.agentos.map.tile.AbstractTile
+import feh.tec.map.tile.AbstractTile
+
 
 trait AbstractMap {
   type Coordinate

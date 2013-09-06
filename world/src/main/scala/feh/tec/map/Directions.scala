@@ -1,4 +1,4 @@
-package feh.tec.agentos.map
+package feh.tec.map
 
 trait SimpleDirection
 
