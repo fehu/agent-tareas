@@ -1,25 +1,31 @@
-import org.sbtidea.SbtIdeaPlugin._
 import sbt._
-import sbt.Keys._
-import sbt.Keys.settings
-import sbt.ScalaVersion
+import Keys._
 
-object AgentosTarea1 extends Build{
+import org.sbtidea.SbtIdeaPlugin._
+
+object AgentosTarea1 extends Build {
+
   val ScalaVersion = "2.10.2"
 
-  val buildSettings = Defaults.defaultSettings ++ Seq(
-    name := "tarea-1",
+  val buildSettings = Defaults.defaultSettings ++ Seq (
     organization := "feh.tec.agentos",
-    version := "0.1",
-    scalaVersion := ScalaVersion
+    version      := "0.1-SNAPSHOT",
+    scalaVersion := ScalaVersion,
+//    scalacOptions ++= Seq("-explaintypes"),
+    scalacOptions in (Compile, doc) ++= Seq("-diagrams", "-diagrams-debug")
   )
 
-  lazy val agentosTarea1 = Project(
-    id = "agentos-tarea-1",
+  lazy val lwjglSettings = Nicol.nicolSettings ++ Seq(
+    LWJGLPlugin.lwjgl.version := "2.9.0"
+  )
+
+  lazy val root = Project(
+    id = "root",
     base = file("."),
     settings = buildSettings
   ).settings(ideaExcludeFolders := ".idea" :: ".idea_modules" :: Nil)
-   //.aggregate (world, lwjglVisualization)
+   .aggregate(agent, world, lwjglVisualization)
+
 
   lazy val agent = Project(
     id = "agent",
@@ -27,11 +33,11 @@ object AgentosTarea1 extends Build{
     settings = buildSettings
   )
 
-//  lazy val environment = Project(
-//    id = "world",
-//    base = file("world"),
-//    settings = buildSettings
-//  )
+  //  lazy val environment = Project(
+  //    id = "world",
+  //    base = file("world"),
+  //    settings = buildSettings
+  //  )
 
   lazy val world = Project(
     id = "world",
@@ -43,5 +49,5 @@ object AgentosTarea1 extends Build{
     id = "lwjgl",
     base = file("lwjgl"),
     settings = buildSettings ++ LWJGLPlugin.lwjglSettings
-  ) //dependsOn world
+  ) dependsOn world
 }
