@@ -19,6 +19,12 @@ object AgentosTarea1 extends Build {
     LWJGLPlugin.lwjgl.version := "2.9.0"
   )
 
+  object Dependencies{
+    val akka = "com.typesafe.akka" %% "akka-actor" % "2.2.0"
+  }
+
+  import Dependencies._
+
   lazy val root = Project(
     id = "root",
     base = file("."),
@@ -54,6 +60,8 @@ object AgentosTarea1 extends Build {
   lazy val lwjglVisualization = Project(
     id = "lwjgl",
     base = file("lwjgl"),
-    settings = buildSettings ++ LWJGLPlugin.lwjglSettings
+    settings = buildSettings ++ LWJGLPlugin.lwjglSettings ++ Seq(
+      libraryDependencies += akka
+    )
   ) dependsOn drawApi
 }

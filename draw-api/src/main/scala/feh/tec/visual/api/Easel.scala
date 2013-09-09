@@ -21,7 +21,7 @@ trait Easel{ easel =>
 
   def drawLine(start: Coordinate, end: Coordinate): DrawOp
   def drawRect(bottomLeft: Easel#Coordinate, topRight: Easel#Coordinate): DrawOp
-  def drawString(what: String, where: Easel#Coordinate, how: Easel#StrDrawOptions): DrawOp
+  def drawString(what: String, where: Coordinate, how: StrDrawOptions): DrawOp
 
   implicit class DrawOpWrapper(op: => Easel#DrawOp) {
     def withColor[R](color: java.awt.Color)(f: => R) = easel.withColor(color)(f)
@@ -50,7 +50,7 @@ trait Easel2DFloat extends Easel2D{
   type Coordinate = (Float, Float)
   type CoordinateUnit = Float
 
-  implicit def unitNumeric: Numeric[Easel2DFloat#CoordinateUnit] = implicitly[Numeric[Float]]
+  implicit def unitNumeric: Numeric[Easel2DFloat#CoordinateUnit] = Numeric.FloatIsFractional
 }
 
 trait TileDrawOptions[+E <: Easel]
@@ -66,7 +66,7 @@ case class BasicSquareTileDrawOptions[E <: Easel](sideSize: E#CoordinateUnit, li
 
 trait StringDrawOptions[+E <: Easel]
 {
-  def font: Font
+  def font: String
   def size: E#CoordinateUnit
   def color: Color
   def alignment: StringAlignment
@@ -82,7 +82,7 @@ object StringAlignment{
 
 case class BasicStringDrawOps[+E <: Easel]( alignment: StringAlignment,
                                             color: Color,
-                                            font: Font,
+                                            font: String,
                                             rotation: E#CoordinateUnit,
                                             size: E#CoordinateUnit
                                            ) extends StringDrawOptions[E]
@@ -91,4 +91,10 @@ trait MapDrawOptions[+E <: Easel]
 
 trait SquareMapDrawOptions[E <: Easel] extends MapDrawOptions[E]{
   def tileSideSize: E#CoordinateUnit
+}
+
+case class BasicSquareMapDrawOptions[E <: Easel](tileSideSize: E#CoordinateUnit) extends SquareMapDrawOptions[E]
+
+object BasicSquareMapDrawOptions{
+  def apply[E <: Easel](n: Int)(implicit easel: E): BasicSquareMapDrawOptions[E] = BasicSquareMapDrawOptions(easel.unitNumeric.fromInt(n))
 }

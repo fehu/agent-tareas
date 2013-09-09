@@ -26,7 +26,7 @@ class NicolLike2DEasel extends Easel with Easel2DFloat{
   def repr: Repr = GLUtils 
 
   protected val colorHolder = new ThreadLocal[Color]{
-    set(Color.black)
+    override def initialValue(): Color = Color.black
   }
   
   protected def setColor(c: Color) = colour(c.getRed, c.getGreen, c.getBlue, c.getAlpha)
@@ -54,7 +54,7 @@ class NicolLike2DEasel extends Easel with Easel2DFloat{
     vertex(end)
   }.toDrawOp
 
-  def drawRect(_bottomLeft: Easel#Coordinate, _topRight: Easel#Coordinate): DrawOp = GLUtils.draw(Lines) {
+  def drawRect(_bottomLeft: Easel#Coordinate, _topRight: Easel#Coordinate): DrawOp = GLUtils.draw(LineLoop) {
     mapCoordinates(_bottomLeft, _topRight){ (bottomLeft, topRight) =>
       vertex(bottomLeft)
       vertex(bottomLeft._1, topRight._2)
@@ -67,10 +67,12 @@ class NicolLike2DEasel extends Easel with Easel2DFloat{
     mapCoordinate(_bottomLeft){ bottomLeft =>
       mapCoordinateUnits(_width, _height){ (width, height) =>
         val topRight = (bottomLeft._1 + width, bottomLeft._2 + height)
-        vertex(bottomLeft)
-        vertex(bottomLeft._1, topRight._2)
-        vertex(topRight)
-        vertex(topRight._1, bottomLeft._2)
+        GLUtils.draw(LineLoop) {
+          vertex(bottomLeft)
+          vertex(bottomLeft._1, topRight._2)
+          vertex(topRight)
+          vertex(topRight._1, bottomLeft._2)
+        }
       }
   }.toDrawOp
 
@@ -82,18 +84,18 @@ class NicolLike2DEasel extends Easel with Easel2DFloat{
 //      translate(off._1, off._2)
 //      body
 //    })
-  protected val Fonts = mutable.Map.empty[java.awt.Font, nicol.font.Font]
+  protected val Fonts = mutable.Map.empty[(String, Int), nicol.font.Font]
 
-  def getFont(font: java.awt.Font) = Fonts get font getOrElse {
-    val nfont = nicol.font.Font(font.getFontName, font.getSize)
-    Fonts += font -> nfont
+  def getFont(fontName: String, size: Int) = Fonts get fontName -> size getOrElse {
+    val nfont = nicol.font.Font(fontName, size)
+    Fonts += fontName -> size -> nfont
     nfont
   }
 
-  def drawString(what: String, _where: Easel#Coordinate, _how: Easel#StrDrawOptions): DrawOp =
-    mapCoordinate(_where){ where =>
-      mapStrOps(_how){ how =>
-        val font = getFont(how.font)
+  def drawString(what: String, where: Coordinate, how: StrDrawOptions): DrawOp = {
+//    mapCoordinate(_where){ where =>
+//      mapStrOps(_how){ how =>
+        val font = getFont(how.font, how.size.toInt)
         how.alignment match{
           case StringAlignment.Left =>
             font.write(what, where, how.color.toFloatRgb, how.rotation)
@@ -102,7 +104,7 @@ class NicolLike2DEasel extends Easel with Easel2DFloat{
           case StringAlignment.Right =>
             font.write(what, (where._1 - font.stringWidth(what), where._2), how.color.toFloatRgb, how.rotation)
         }
-      }
+//      }
     }.toDrawOp
 
   protected def mapCoordinate[R](c: Easel#Coordinate)(f: Coordinate => R): R = c match {

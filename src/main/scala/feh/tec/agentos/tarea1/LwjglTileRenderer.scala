@@ -15,8 +15,8 @@ object LwjglTileRenderer {
   def create = new LwjglTile2DIntRenderer[Tile](renderers)
 
   def renderers =
-    new BasicLwjglSquareTileDrawer[Tile, TCoord, Easel] ::
-    new Generic2DLwjglContainerTileDrawer[Tile, TCoord, Easel, MObj](mapObjectDrawers) :: Nil
+    new Generic2DLwjglContainerTileDrawer[Tile, TCoord, Easel, MObj](mapObjectDrawers) ::
+    new BasicLwjglSquareTileDrawer[Tile, TCoord, Easel]  :: Nil
 
   def mapObjectDrawers = new MapObjDrawer :: Nil
 
@@ -36,9 +36,9 @@ object LwjglTileRenderer {
       BasicStringDrawOps(
         StringAlignment.Center,
         color,
-        Font.getFont("Arial"),
-        easel.unitNumeric.zero,
-        easel.unitNumeric.fromInt(12)
+        font = "Arial",
+        rotation = easel.unitNumeric.zero,
+        size = easel.unitNumeric.fromInt(12)
       ).asInstanceOf[Easel2D#StrDrawOptions] // todo ??
 
 
@@ -50,7 +50,7 @@ object LwjglTileRenderer {
 
       implicit def num = easel.unitNumeric.asInstanceOf[Numeric[Easel2D#CoordinateUnit]]
 
-      val newCoord: Easel2D#Coordinate = how match {
+      val newCoord: Coordinate = how match {
         case sq: SquareTileDrawOptions[Easel2D] => num match {
           case integral: Integral[Easel2D#CoordinateUnit] =>
             val halfSide = integral.quot(sq.sideSize, integral.fromInt(2))
@@ -59,10 +59,10 @@ object LwjglTileRenderer {
             val halfSide = fract.div(sq.sideSize, fract.fromInt(2))
             where.ops + halfSide
         }
-        case _ => where
+        case _ => where.asInstanceOf[Coordinate]
       }
 
-     easel.drawString(str, newCoord, strDrawOps)
+     easel.drawString(str, newCoord, strDrawOps.asInstanceOf[StrDrawOptions])
     }
   }
 }

@@ -70,7 +70,7 @@ case class SqTile(map: Map, coordinate: (Int, Int), contents: Option[MapObj])
 trait MapObj extends MapObject
 case class AgentAvatar(/*todo agent: Agent*/) extends MapObj
 case class Plug() extends MapObj
-case class Hole(plugged: Option[Plug]) extends MapObj{
+case class Hole(plugged: Option[Plug] = None) extends MapObj{
   def isPlugged = plugged.isDefined
 }
 

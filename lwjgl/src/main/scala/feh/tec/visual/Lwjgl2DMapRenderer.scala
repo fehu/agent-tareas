@@ -4,17 +4,14 @@ import feh.tec.visual.api.{SquareMapDrawOptions, MapRenderer}
 import feh.tec.map.{AbstractSquareMap, AbstractMap}
 import feh.tec.map.tile.{AbstractTile, SquareTile}
 
-trait Lwjgl2DMapRenderer[Map <: AbstractMap[Tile, Coordinate], Tile <: AbstractTile[Tile, Coordinate], Coordinate]
-  extends MapRenderer[Map, Tile , Coordinate]
-{
-  type E = NicolLike2DEasel
-}
+trait Lwjgl2DMapRenderer[Map <: AbstractMap[Tile, Coordinate], Tile <: AbstractTile[Tile, Coordinate], Coordinate, E <: NicolLike2DEasel]
+  extends MapRenderer[Map, Tile , Coordinate, E]
 
-class LwjglSquare2DMapRenderer[Map <: AbstractSquareMap[Tile], Tile <: SquareTile[Tile, (Int, Int)]]
+class LwjglSquare2DMapRenderer[Map <: AbstractSquareMap[Tile], Tile <: SquareTile[Tile, (Int, Int)], E <: NicolLike2DEasel]
   (val tileRenderer: LwjglTile2DIntRenderer[Tile],
    buildTDrawOps: (Tile, NicolLike2DEasel#MDrawOptions with SquareMapDrawOptions[NicolLike2DEasel]) => NicolLike2DEasel#TDrawOptions
   )
-  extends Lwjgl2DMapRenderer[Map, Tile, (Int, Int)]
+  extends Lwjgl2DMapRenderer[Map, Tile, (Int, Int), E]
 {
   def render(map: Map, how: E#MDrawOptions)(implicit easel: E) {
     how match {

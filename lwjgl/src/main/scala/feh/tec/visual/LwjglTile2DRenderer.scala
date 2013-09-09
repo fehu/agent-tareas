@@ -3,6 +3,9 @@ package feh.tec.visual
 import feh.tec.visual.api._
 import feh.tec.map.tile.{MapObjectContainer, MapObject, SquareTile, AbstractTile}
 import java.util.logging.{Level, Logger}
+import org.lwjgl.opengl.GL11._
+import nicol.opengl.GLUtils._
+import nicol.opengl.GLUtils
 
 trait LwjglTile2DRenderer[Tile <: AbstractTile[Tile, TCoordinate], TCoordinate] extends TileRenderer[Tile, TCoordinate]{
   override type E <: Easel2D
@@ -28,16 +31,21 @@ class LwjglTile2DIntRenderer[Tile <: AbstractTile[Tile, (Int, Int)]](val rendere
 
 trait LwjglTileDrawer[Tile <: AbstractTile[Tile, TCoordinate], TCoordinate, E <: Easel]{
   def doTheDrawing(tile: Tile, where: E#Coordinate, how: E#TDrawOptions)(implicit easel: E)
+//  def preDraw()
 }
 
 class BasicLwjglSquareTileDrawer[Tile <: SquareTile[Tile, TCoord], TCoord, E <: Easel2D]
   extends LwjglTileDrawer[Tile, TCoord, E]
 {
+//  def preDraw() { glEnable(GL_TEXTURE_2D) }
+
   def doTheDrawing(tile: Tile, where: E#Coordinate, how: E#TDrawOptions)(implicit easel: E) {
     how match {
       case ops: E#TDrawOptions with SquareTileDrawOptions[E] =>
-        easel.withColor(ops.lineColor){
-        easel.asInstanceOf[E].drawRect(where: E#Coordinate, ops.sideSize, ops.sideSize)
+        GLUtils.withoutTextures{
+          easel.withColor(ops.lineColor){
+            easel.asInstanceOf[E].drawRect(where: E#Coordinate, ops.sideSize, ops.sideSize)
+          }
         }
       case other =>
         println(s"BasicLwjglSquareTileDrawer doesn't know how to draw $other") // todo: use logger
@@ -52,6 +60,8 @@ class Generic2DLwjglContainerTileDrawer[Tile <: MapObjectContainer[Tile, TCoord,
   (val mapObjectDrawers: Seq[MapObjectLwjglTileDrawer[Tile, TCoord, MObj]])
   extends LwjglContainerTileDrawer[Tile, TCoord, E, MObj]
 {
+//  def preDraw() { glDisable(GL_TEXTURE_2D) }
+
   def doTheDrawing(tile: Tile, where: E#Coordinate, how: E#TDrawOptions)(implicit easel: E) {
     for {
       obj <- tile.containerObjectsToList
