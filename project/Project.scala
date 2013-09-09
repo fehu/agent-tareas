@@ -24,7 +24,7 @@ object AgentosTarea1 extends Build {
     base = file("."),
     settings = buildSettings
   ).settings(ideaExcludeFolders := ".idea" :: ".idea_modules" :: Nil)
-   .aggregate(agent, world, lwjglVisualization)
+   .dependsOn(agent, world, drawApi, lwjglVisualization)
 
 
   lazy val agent = Project(
@@ -45,9 +45,15 @@ object AgentosTarea1 extends Build {
     settings = buildSettings
   ) dependsOn agent
 
+  lazy val drawApi = Project(
+    id = "draw-api",
+    base = file("draw-api"),
+    settings = buildSettings
+  ) dependsOn world
+
   lazy val lwjglVisualization = Project(
     id = "lwjgl",
     base = file("lwjgl"),
     settings = buildSettings ++ LWJGLPlugin.lwjglSettings
-  ) dependsOn world
+  ) dependsOn drawApi
 }

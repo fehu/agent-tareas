@@ -1,18 +1,22 @@
 package feh.tec.agentos.tarea1
 
 import feh.tec.map.{SimpleDirection, EnclosedMap, AbstractMap, AbstractSquareMap}
-import feh.tec.map.tile.OptionalTypedContainerTile
+import feh.tec.map.tile.{SquareTile, OptionalMabObjectContainerTile, MapObject, OptionalTypedContainerTile}
 import java.util.UUID
 
-class Map(buildTilesMap: Map => collection.Map[Map#Coordinate, SqTile], xRange: Range, yRange: Range)
-  extends AbstractSquareMap with EnclosedMap
+/*
+  todo: move
+ */
+class Map(buildTilesMap: Map => collection.Map[(Int, Int), SqTile], xRange: Range, yRange: Range)
+  extends AbstractSquareMap[SqTile] with EnclosedMap[SqTile, (Int, Int)]
 { map =>
 
   type Tile = SqTile
+  type Coordinate = (Int, Int)
 
   lazy val tilesMap = buildTilesMap(this)
   def nNeighbours = 4
-  def tiles: Seq[Map#Tile] = tilesMap.values.toSeq
+  def tiles: Seq[Tile] = tilesMap.values.toSeq
   def get: PartialFunction[Map#Coordinate, Tile] = tilesMap
 
   lazy val coordinates = new CoordinatesMeta {
@@ -54,24 +58,24 @@ class Map(buildTilesMap: Map => collection.Map[Map#Coordinate, SqTile], xRange: 
     y <- yRange
   } assert(get.isDefinedAt(x -> y), s"Map tile is not defined at ($x, $y)")
 
-//  def createTile(coordinate: Coordinate, contents: Option[MapObject]) = SqTile(coordinate: Coordinate, contents)
+//  def createTile(coordinate: Coordinate, contents: Option[MapObj]) = SqTile(coordinate: Coordinate, contents)
 }
 
-case class SqTile(map: Map, coordinate: Map#Coordinate, contents: Option[MapObject])
-  extends OptionalTypedContainerTile[SqTile, MapObject, Map#Coordinate]
+case class SqTile(map: Map, coordinate: (Int, Int), contents: Option[MapObj])
+  extends OptionalMabObjectContainerTile[SqTile, MapObj, (Int, Int)] with SquareTile[SqTile, (Int, Int)]
 {
   def neighbours = map.getNeighbors(this)
 }
 
-trait MapObject
-case class AgentAvatar(/*todo agent: Agent*/) extends MapObject
-case class Plug(id: UUID) extends MapObject
-case class Hole(plugged: Option[Plug]) extends MapObject{
+trait MapObj extends MapObject
+case class AgentAvatar(/*todo agent: Agent*/) extends MapObj
+case class Plug() extends MapObj
+case class Hole(plugged: Option[Plug]) extends MapObj{
   def isPlugged = plugged.isDefined
 }
 
 object DummyMapGenerator{
-  def apply(xRange: Range, yRange: Range)(build: (Int, Int) => Option[MapObject]) =
+  def apply(xRange: Range, yRange: Range)(build: (Int, Int) => Option[MapObj]) =
     new Map(
       xRange = xRange,
       yRange = yRange,
