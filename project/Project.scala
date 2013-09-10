@@ -20,7 +20,9 @@ object AgentosTarea1 extends Build {
   )
 
   object Dependencies{
-    val akka = "com.typesafe.akka" %% "akka-actor" % "2.2.0"
+    lazy val akka = "com.typesafe.akka" %% "akka-actor" % "2.2.0"
+    lazy val reflectApi = "org.scala-lang" % "scala-reflect" % ScalaVersion
+    lazy val shapeless = "com.chuusai" % "shapeless_2.10.2" % "2.0.0-M1"
   }
 
   import Dependencies._
@@ -36,7 +38,9 @@ object AgentosTarea1 extends Build {
   lazy val agent = Project(
     id = "agent",
     base = file("agent"),
-    settings = buildSettings
+    settings = buildSettings ++ Seq(
+      libraryDependencies ++= Seq(akka, reflectApi, shapeless)
+    )
   )
 
   //  lazy val environment = Project(
@@ -60,8 +64,6 @@ object AgentosTarea1 extends Build {
   lazy val lwjglVisualization = Project(
     id = "lwjgl",
     base = file("lwjgl"),
-    settings = buildSettings ++ LWJGLPlugin.lwjglSettings ++ Seq(
-      libraryDependencies += akka
-    )
+    settings = buildSettings ++ LWJGLPlugin.lwjglSettings
   ) dependsOn drawApi
 }
