@@ -21,6 +21,7 @@ trait Environment[Coordinate, State, Global, Action <: AbstractAction]{ self =>
     implicit def state: TypeTag[State]
     implicit def global: TypeTag[Global]
     implicit def action: TypeTag[Action]
+    implicit def environment[Env <: Environment[Coordinate, State, Global, Action]]: TypeTag[Env]
   }
 
   def tags: TypeTags

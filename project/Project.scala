@@ -20,7 +20,7 @@ object AgentosTarea1 extends Build {
   )
 
   object Dependencies{
-    lazy val akka = "com.typesafe.akka" %% "akka-actor" % "2.2.0"
+    lazy val akka = "com.typesafe.akka" %% "akka-actor" % "2.2.1"
     lazy val reflectApi = "org.scala-lang" % "scala-reflect" % ScalaVersion
     lazy val shapeless = "com.chuusai" % "shapeless_2.10.2" % "2.0.0-M1"
   }
