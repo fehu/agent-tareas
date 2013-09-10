@@ -11,7 +11,7 @@ object AgentosTarea1 extends Build {
     organization := "feh.tec.agentos",
     version      := "0.1-SNAPSHOT",
     scalaVersion := ScalaVersion,
-//    scalacOptions ++= Seq("-explaintypes"),
+    scalacOptions ++= Seq("-explaintypes"),
     scalacOptions in (Compile, doc) ++= Seq("-diagrams", "-diagrams-debug")
   )
 

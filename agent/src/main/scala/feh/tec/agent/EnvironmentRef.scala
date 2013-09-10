@@ -3,6 +3,7 @@ package feh.tec.agent
 import scala.concurrent._
 import concurrent.duration._
 import feh.tec.util.{SideEffect, ScopedState}
+import akka.actor.Scheduler
 
 /**
  * provides access to current environment instance, which is hidden from agent
@@ -13,13 +14,14 @@ trait EnvironmentRef[Coordinate, State, Global, Action <: AbstractAction, Env <:
 
   def blocking: BlockingApi
   def async: AsyncApi
+  def sys: SystemApi
 
   trait BlockingApi{
     def withTimeout[R](t: Int)(r: => R): R
 
     def globalState: Global
     def stateOf(c: Coordinate): Option[State]
-    def affected(act: Action): SideEffect[EnvRef]
+    def affect(act: Action): SideEffect[EnvRef]
     def visibleStates: Map[Coordinate, State]
 
     /**
@@ -28,12 +30,17 @@ trait EnvironmentRef[Coordinate, State, Global, Action <: AbstractAction, Env <:
     def snapshot: Env with EnvironmentSnapshot[Coordinate, State, Global, Action, Env]
   }
 
-  trait AsyncApi{
+  trait SystemApi{
+    implicit def executionContext: ExecutionContext
+    def scheduler: Scheduler
+  }
+
+  trait AsyncApi {
     def withTimeout[R](t: Int)(r: => R): R
 
     def globalState: Future[Global]
     def stateOf(c: Coordinate): Future[Option[State]]
-    def affected(act: Action): Future[SideEffect[EnvRef]]
+    def affect(act: Action): Future[SideEffect[EnvRef]]
     def visibleStates: Future[Map[Coordinate, State]]
 
     /**
@@ -47,7 +54,7 @@ trait EnvironmentRef[Coordinate, State, Global, Action <: AbstractAction, Env <:
 trait EnvironmentRefBlockingApiImpl[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]]
   extends EnvironmentRef[Coordinate, State, Global, Action , Env]
 {
-  implicit def executionContext: ExecutionContext
+  implicit def executionContext = this.sys.executionContext
 
   def defaultBlockingTimeout: Int
   protected val blockingTimeoutScope = new ScopedState(defaultBlockingTimeout)
@@ -58,7 +65,7 @@ trait EnvironmentRefBlockingApiImpl[Coordinate, State, Global, Action <: Abstrac
     private def awaitResult[R](select: AsyncApi => Awaitable[R]): R = Await.result(select(async), blockingTimeoutScope.get millis)
     def globalState: Global = awaitResult(_.globalState)
     def stateOf(c: Coordinate): Option[State] = awaitResult(_.stateOf(c))
-    def affected(act: Action): SideEffect[EnvRef] = awaitResult(_.affected(act))
+    def affect(act: Action): SideEffect[EnvRef] = awaitResult(_.affect(act))
     def visibleStates: Map[Coordinate, State] = awaitResult(_.visibleStates)
     def snapshot: Env with EnvironmentSnapshot[Coordinate, State, Global, Action, Env] = awaitResult(_.snapshot)
   }

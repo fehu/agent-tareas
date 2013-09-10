@@ -1,6 +1,6 @@
 package feh.tec.agent
 
-import akka.actor.{ActorSystem, Actor}
+import akka.actor.{Scheduler, ActorSystem, Actor}
 import scala.reflect.runtime.universe._
 import scala.concurrent.{ExecutionContext, Future}
 import java.util.Calendar
@@ -70,6 +70,7 @@ trait EnvironmentOverseerActor[Coordinate, State, Global, Action <: AbstractActi
   }
 
   protected def refExecutionContext: ExecutionContext
+  protected def scheduler: Scheduler
 
   def defaultBlockingTimeout: Int
   def defaultFutureTimeout: Int
@@ -85,9 +86,12 @@ trait EnvironmentOverseerActor[Coordinate, State, Global, Action <: AbstractActi
       def defaultBlockingTimeout: Int = overseer.defaultBlockingTimeout
       protected val futureTimeoutScope = new ScopedState(defaultFutureTimeout)
 
-      implicit def executionContext: ExecutionContext = refExecutionContext
+      lazy val sys: SystemApi = new SystemApi {
+        implicit def executionContext: ExecutionContext = refExecutionContext
+        def scheduler: Scheduler = overseer.scheduler
+      }
 
-      def async = new AsyncApi{
+      lazy val async: AsyncApi = new AsyncApi{
         def withTimeout[R](t: Int)(r: => R): R = futureTimeoutScope.doWith(t)(r)
 
         implicit def timeout = Timeout(futureTimeoutScope.get)
@@ -101,7 +105,7 @@ trait EnvironmentOverseerActor[Coordinate, State, Global, Action <: AbstractActi
           .withFilter(_.ttag match { case _ :: tt2 :: Nil => tt2.tpe <:< typeOf[State] })
           .map(_.stateOpt.asInstanceOf[Option[State]])
 
-        def affected(act: Action) = (overseer.self ? Act(act))
+        def affect(act: Action) = (overseer.self ? Act(act))
           .mapTo[Response.ActionApplied[_]]
           .withFilter(_.a == Act)
           .map(_ => SideEffect(envRef))
