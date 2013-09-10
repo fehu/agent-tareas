@@ -78,6 +78,12 @@ trait EnvironmentSnapshot[Coordinate, State, Global, Action <: AbstractAction, E
   extends Environment[Coordinate, State, Global, Action, Env] /*with Determinism[Coordinate, State, Global, Action]*/{
   self: Env =>
 
+
+  val states: PartialFunction[Coordinate, State]
+  val effects: PartialFunction[Action, (Env) => Env]
+  val definedAt: Seq[Coordinate]
+  val globalState: Global
+
   /**
    * @return self, no effect should be produced
    */

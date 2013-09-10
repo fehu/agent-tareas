@@ -8,10 +8,15 @@ import scala.concurrent.Future
  *  An agent that lacks decision part
  */
 trait IndecisiveAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env]] {
-  trait AbstractPerception
-  trait AbstractDetailedPerception
+  trait AbstractGlobalPerception{
+    def perceived: Seq[Position]
+  }
 
-  type Perception <: AbstractPerception
+  trait AbstractDetailedPerception{
+    def detail(c: Position): Option[DetailedPerception]
+  }
+
+  type Perception <: AbstractGlobalPerception
   type DetailedPerception <: AbstractDetailedPerception
 
   type EnvRef = EnvironmentRef[Position, EnvState, EnvGlobal, Action, Env]
@@ -19,7 +24,7 @@ trait IndecisiveAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction, E
 
 
   def sense(env: EnvRef): Perception
-  def sense(env: EnvRef, c: Position): Option[DetailedPerception]
+  def detailed(env: EnvRef, c: Position): Option[DetailedPerception]
 
   def act(a: Action): SideEffect[EnvRef]
 }
@@ -31,10 +36,12 @@ sealed trait AgentExecution[Position, EnvState, EnvGlobal, Action <: AbstractAct
                             Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env]]
   extends IndecisiveAgent[Position, EnvState, EnvGlobal, Action, Env]
 {
-  def executionPattern: Exec
+  def executionLoop: Exec
 
-  def executionSequence: EnvRef => Action
-  def execution: Exec#Execution = executionPattern.execution
+  def lifetimeCycle: EnvRef => SideEffect[EnvRef]
+  def execution: Exec#Execution = executionLoop.execution
+
+  protected def executionSequence(decide: Perception => Action): EnvRef => SideEffect[EnvRef] = act _ compose decide compose sense
 }
 
 
@@ -48,15 +55,17 @@ sealed trait DecisiveAgent[Position, EnvState, EnvGlobal, Action <: AbstractActi
 }
 
 /**
- *  Stupid agent, that makes decisions based only on current environment state
+ *  Stupid agent, that makes decisions based only on current environment perception
  */
 trait DummyAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
                  Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env]]
-  extends AgentExecution[Position, EnvState, EnvGlobal, Action, Env, Exec]
+  extends DecisiveAgent[Position, EnvState, EnvGlobal, Action, Env, Exec]
 {
-  indecisiveSelf: IndecisiveAgent[Position, EnvState, EnvGlobal, Action, Env] =>
+  indecisiveSelf: AgentExecution[Position, EnvState, EnvGlobal, Action, Env, Exec] =>
 
-  def decide(currentEnv: EnvRef): Action
+  def decide(currentPerception: Perception): Action
+
+  def lifetimeCycle = executionSequence(decide)
 }
 
 /**
@@ -68,11 +77,15 @@ trait WiserAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <:
 {
   self: AgentExecution[Position, EnvState, EnvGlobal, Action, Env, Exec] with Ag =>
 
-  def decide(past: Past[Position, EnvState, EnvGlobal, Action, Env, Ag], currentEnv: EnvRef): Action
+  def decide(past: Past[Position, EnvState, EnvGlobal, Action, Env, Ag], currentPerception: Perception): Action
+
+  def past: Past[Position, EnvState, EnvGlobal, Action, Env, Ag]
+
+  def lifetimeCycle = executionSequence(decide(past, _))
 }
 
 /**
- *  An agent with an inner state
+ *  An agent with an inner state; no past participates in decision explicitly, but in can be stored in agent's inner state
  */
 trait StatefulAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
                     Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env], AgState]
@@ -84,7 +97,9 @@ trait StatefulAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env
 
   protected def changeState(f: AgState => AgState): SideEffect[AgState]
 
-  def decide(state: AgState, currentEnv: EnvRef): Action
+  def decide(state: AgState, currentPerception: Perception): Action
+
+  def lifetimeCycle = executionSequence(decide(state, _))
 }
 
 /**
@@ -92,9 +107,9 @@ trait StatefulAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env
  */
 trait Agent[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
             Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env]]
-  extends IndecisiveAgent[Position, EnvState, EnvGlobal, Action, Env]
+  extends AgentExecution[Position, EnvState, EnvGlobal, Action, Env, Exec]
 {
-  self: DecisiveAgent[Position, EnvState, EnvGlobal, Action, Env, Exec] =>
+  agent: DecisiveAgent[Position, EnvState, EnvGlobal, Action, Env, Exec] =>
 }
 
 /**
@@ -102,7 +117,27 @@ trait Agent[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Envi
  */
 trait ActorAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
                  Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env]]
-  extends Actor with IndecisiveAgent[Position, EnvState, EnvGlobal, Action, Env]
+  extends Actor with AgentExecution[Position, EnvState, EnvGlobal, Action, Env, Exec]
 {
   agent: DecisiveAgent[Position, EnvState, EnvGlobal, Action, Env, Exec] =>
+}
+
+trait MeasuredAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
+                    Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env], M <: AgentMeasure]{
+  agent: DecisiveAgent[Position, EnvState, EnvGlobal, Action, Env, Exec] =>
+
+  def measure: M
+}
+
+/**
+    For each possible percept sequence, an ideal rational agent should do whatever action is expected to maximize its performance measure,
+    on the basis of the evidence provided by the percept sequence and whatever built-in knowledge the agent has.
+ */
+trait IdealRationalAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
+                         Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env], M <: AgentMeasure]
+  extends MeasuredAgent[Position, EnvState, EnvGlobal, Action, Env, Exec, M]
+{
+  agent: DecisiveAgent[Position, EnvState, EnvGlobal, Action, Env, Exec] =>
+
+  def selectBest
 }

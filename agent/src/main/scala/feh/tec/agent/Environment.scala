@@ -5,9 +5,9 @@ import feh.tec.util.SideEffect
 import SideEffect._
 
 trait Environment[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]]{ self =>
-  protected def states: PartialFunction[Coordinate, State]
-  protected def effects: PartialFunction[Action, Env => Env]
-  protected def definedAt: Seq[Coordinate]
+  def states: PartialFunction[Coordinate, State]
+  def effects: PartialFunction[Action, Env => Env]
+  def definedAt: Seq[Coordinate]
 
   def globalState: Global
   def stateOf(c: Coordinate): Option[State]
@@ -23,7 +23,7 @@ trait Environment[Coordinate, State, Global, Action <: AbstractAction, Env <: En
     implicit def environment: TypeTag[Env]
   }
 
-  def tags: TypeTags
+  val tags: TypeTags
 }
 
 // it shouldn't be possible to mix in traits that have same method defined due to self type definition
@@ -142,4 +142,33 @@ trait AnyTimeDynamicChange[Coordinate, State, Global, Action <: AbstractAction, 
   self: Environment[Coordinate, State, Global, Action, Env] with Env  =>
 
   def change(func: Env => Env): Env = func(this)
+}
+
+trait EnvironmentImplementation[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]] {
+  self: Environment[Coordinate, State, Global, Action, Env] =>
+}
+
+trait MutableEnvironment[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]]
+  extends EnvironmentImplementation[Coordinate, State, Global, Action, Env]
+{
+  self: Environment[Coordinate, State, Global, Action, Env] =>
+
+  def initStates: PartialFunction[Coordinate, State]
+  private var _states = initStates
+  def states: PartialFunction[Coordinate, State] = _states
+  def states_=(pf: PartialFunction[Coordinate, State]) = _states = pf
+
+  def initGlobalState: Global
+  private var _globalState = initGlobalState
+  def globalState: Global = _globalState
+  def globalState_=(g: Global) = _globalState = g
+}
+
+trait ImmutableEnvironment[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]]
+  extends EnvironmentImplementation[Coordinate, State, Global, Action, Env]
+{
+  self: Environment[Coordinate, State, Global, Action, Env] =>
+
+  override val states: PartialFunction[Coordinate, State]
+  override val globalState: Global
 }

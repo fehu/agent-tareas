@@ -14,9 +14,10 @@ import scala.reflect._
  *  produces environment references
  */
 trait EnvironmentOverseer[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]] {
-  protected[agent] def updateEnvironment(f: Env => SideEffect[Env]): Env
   def currentEnvironment: Env
   def env = currentEnvironment
+
+  protected[agent] def updateEnvironment(f: Env => Env): SideEffect[Env]
 
   def snapshot: EnvironmentSnapshot[Coordinate, State, Global, Action, Env]
   def ref: EnvironmentRef[Coordinate, State, Global, Action, Env]
@@ -65,7 +66,7 @@ trait EnvironmentOverseerActor[Coordinate, State, Global, Action <: AbstractActi
     case Get.VisibleStates => sender ! Response.VisibleStates(env.visibleStates)
     case Get.Snapshot => sender ! Response.Snapshot(snapshot, Calendar.getInstance().getTimeInMillis)
     case a@Act(act) if a.ttag.tpe <:< typeOf[Action] => 
-      updateEnvironment(_.affected(act.asInstanceOf[Action]))
+      updateEnvironment(_.affected(act.asInstanceOf[Action]).execute)
       sender ! Response.ActionApplied(act)
   }
 
@@ -126,3 +127,33 @@ trait EnvironmentOverseerActor[Coordinate, State, Global, Action <: AbstractActi
   }
 }
 
+trait EnvironmentOverseerImplementation[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]]{
+  self: EnvironmentOverseer[Coordinate, State, Global, Action, Env] =>
+}
+
+trait MutableEnvironmentOverseer[Coordinate, State, Global, Action <: AbstractAction,
+    Env <: Environment[Coordinate, State, Global, Action, Env] with MutableEnvironment[Coordinate, State, Global, Action, Env]]
+  extends EnvironmentOverseerImplementation[Coordinate, State, Global, Action, Env]
+{
+  self: EnvironmentOverseer[Coordinate, State, Global, Action, Env] =>
+
+  override val currentEnvironment: Env
+
+  protected[agent] def updateEnvironment(f: (Env) => Env): SideEffect[Env] = SideEffect(f(env))
+}
+
+trait ImmutableEnvironmentOverseer[Coordinate, State, Global, Action <: AbstractAction,
+    Env <: Environment[Coordinate, State, Global, Action, Env] with ImmutableEnvironment[Coordinate, State, Global, Action, Env]]
+  extends EnvironmentOverseerImplementation[Coordinate, State, Global, Action, Env]
+{
+  self: EnvironmentOverseer[Coordinate, State, Global, Action, Env] =>
+
+  def initialEnvironment: Env
+  protected var environment = initialEnvironment
+  def currentEnvironment: Env = environment
+  protected[agent] def updateEnvironment(f: (Env) => Env): SideEffect[Env] = SideEffect{
+    val e = f(env)
+    environment = e
+    e
+  }
+}
