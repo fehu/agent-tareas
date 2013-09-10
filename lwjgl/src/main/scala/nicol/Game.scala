@@ -6,6 +6,9 @@ import akka.actor.ActorDSL._
 import org.lwjgl.opengl.Display
 import java.util.{Calendar, UUID}
 
+/**
+ * Modified for scala 2.10; since Actors frameworks is no longer a part of scala distribution, using akka actors.
+ */
 abstract class Game(entry: Scene){
   val name = Display.getTitle.replaceAll("\\s", "-")
   implicit val system = ActorSystem(s"${UUID.randomUUID()}-$name")
