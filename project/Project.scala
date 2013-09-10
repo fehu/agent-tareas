@@ -39,7 +39,7 @@ object AgentosTarea1 extends Build {
     id = "agent",
     base = file("agent"),
     settings = buildSettings ++ Seq(
-      libraryDependencies ++= Seq(akka, reflectApi, shapeless)
+      libraryDependencies ++= Seq(akka, reflectApi)
     )
   )
 
