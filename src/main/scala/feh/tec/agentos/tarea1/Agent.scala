@@ -19,8 +19,8 @@ class DummyAgent[Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Actio
 {
   def decide(currentPerception: Perception) = ???
 
-  type Perception = this.type
-  type DetailedPerception = this.type
+  type Perception = AbstractGlobalPerception
+  type DetailedPerception = AbstractDetailedPerception
 
   def env = ???
 

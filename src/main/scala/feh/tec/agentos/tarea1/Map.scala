@@ -3,6 +3,7 @@ package feh.tec.agentos.tarea1
 import feh.tec.map.{SimpleDirection, EnclosedMap, AbstractMap, AbstractSquareMap}
 import feh.tec.map.tile.{SquareTile, OptionalMabObjectContainerTile, MapObject, OptionalTypedContainerTile}
 import java.util.UUID
+import feh.tec.util.RangeWrapper._
 
 /*
   todo: move
@@ -75,7 +76,29 @@ case class Hole(plugged: Option[Plug] = None) extends MapObj{
 }
 
 object DummyMapGenerator{
-  def apply(xRange: Range, yRange: Range)(build: (Int, Int) => Option[MapObj]) =
+  trait DummyMapGeneratorHelpers
+  trait DummyMapGeneratorHelpersBuilder[H <: DummyMapGeneratorHelpers]{
+    def build(xRange: Range, yRange: Range): H
+  }
+
+  trait DummyMapGeneratorRandomPositionSelectHelper extends DummyMapGeneratorHelpers{
+    def uniqueRandomPosition: (Int, Int)
+  }
+
+  implicit object DummyMapGeneratorRandomPositionSelectHelperBuilder
+    extends DummyMapGeneratorHelpersBuilder[DummyMapGeneratorRandomPositionSelectHelper]
+  {
+    def build(xRange: Range, yRange: Range) = new DummyMapGeneratorRandomPositionSelectHelper{
+      val uniqueRandomPosition: (Int, Int) = xRange.randomSelect -> yRange.randomSelect
+    }
+  }
+
+  def withHelpers[H <: DummyMapGeneratorHelpers](xRange: Range, yRange: Range)
+                                                (build: H => (Int, Int) => Option[MapObj])
+                                                (implicit hb: DummyMapGeneratorHelpersBuilder[H]): Map =
+    apply(xRange, yRange)(build(hb.build(xRange, yRange)))
+
+  def apply(xRange: Range, yRange: Range)(build: (Int, Int) => Option[MapObj]): Map =
     new Map(
       xRange = xRange,
       yRange = yRange,

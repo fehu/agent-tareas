@@ -123,7 +123,8 @@ trait ActorAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <:
 }
 
 trait MeasuredAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
-                    Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env], M <: AgentMeasure]{
+                    Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env],
+                    M <: AgentMeasure[Position, EnvState, EnvGlobal, Action, Env, Exec]]{
   agent: DecisiveAgent[Position, EnvState, EnvGlobal, Action, Env, Exec] =>
 
   def measure: M
@@ -134,10 +135,11 @@ trait MeasuredAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env
     on the basis of the evidence provided by the percept sequence and whatever built-in knowledge the agent has.
  */
 trait IdealRationalAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
-                         Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env], M <: AgentMeasure]
+                         Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env],
+                         M <: AgentMeasure[Position, EnvState, EnvGlobal, Action, Env, Exec]]
   extends MeasuredAgent[Position, EnvState, EnvGlobal, Action, Env, Exec, M]
 {
   agent: DecisiveAgent[Position, EnvState, EnvGlobal, Action, Env, Exec] =>
 
-  def selectBest
+  def selectTheBestBehavior(possibleActions: List[Action]): Action
 }

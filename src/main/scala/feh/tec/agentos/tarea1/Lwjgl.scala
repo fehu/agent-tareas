@@ -14,13 +14,19 @@ object LwjglTest{
     BasicSquareTileDrawOptions[NicolLike2DEasel](50, Color.white, None)
   )
 
-  def genMap = DummyMapGenerator(0 until 10, 0 until 10){
-    (x, y) =>
-      val r = Random.nextDouble()
+  def genMap = {
+    import DummyMapGenerator._
 
-      if(r < 0.2) Some(Hole())
-      else if (r > 0.8) Some(Plug())
-      else None
+    withHelpers[DummyMapGeneratorRandomPositionSelectHelper](0 until 10, 0 until 10){ h =>
+      (x, y) =>
+        if (x -> y == h.uniqueRandomPosition) Some(AgentAvatar())
+        else {
+          val r = Random.nextDouble()
+          if(r < 0.2) Some(Hole())
+          else if (r > 0.8) Some(Plug())
+          else None
+        }
+    }
   }
 
   def mapDrawOps(implicit easel: NicolLike2DEasel) = BasicSquareMapDrawOptions[NicolLike2DEasel](50)

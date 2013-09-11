@@ -25,7 +25,7 @@ object LwjglTileRenderer {
       def drawIt(txt: String, c: Color) = drawStringInTileWithOffset(txt, where, how, stringDrawOps(c))
 
       obj match{
-        case AgentAvatar() => // todo
+        case AgentAvatar() =>       drawIt("A", Color.green)
         case Plug() =>              drawIt("P", Color.blue)
         case Hole(Some(Plug())) =>  drawIt("x", Color.yellow)
         case Hole(None) =>          drawIt("O", Color.red)
