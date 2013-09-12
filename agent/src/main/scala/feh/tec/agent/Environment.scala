@@ -144,6 +144,37 @@ trait AnyTimeDynamicChange[Coordinate, State, Global, Action <: AbstractAction, 
   def change(func: Env => Env): Env = func(this)
 }
 
+/**
+ * an environment that has a behavior prediction interface
+ * i think  actual prediction should be handled by [[feh.tec.agent.PredictingEnvironmentOverseer]]
+ */
+trait PredictableEnvironment[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]]
+  extends Determinism[Coordinate, State, Global, Action, Env]
+{
+  self: Environment[Coordinate, State, Global, Action, Env] with Env =>
+
+  type Prediction
+}
+
+trait PredictableDeterministicEnvironment[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]]
+  extends PredictableEnvironment[Coordinate, State, Global, Action, Env]
+{
+  self: Environment[Coordinate, State, Global, Action, Env] with Env with Deterministic[Coordinate, State, Global, Action, Env] =>
+
+  type Prediction = EnvironmentSnapshot[Coordinate, State, Global, Action, Env]
+}
+
+trait PredictableNonDeterministicEnvironment[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]]
+  extends PredictableEnvironment[Coordinate, State, Global, Action, Env]
+{
+  self: Environment[Coordinate, State, Global, Action, Env] with Env with NonDeterministic[Coordinate, State, Global, Action, Env] =>
+
+  /**
+   * map probability -> Environment Snapshot in of that case
+   */
+  type Prediction = Map[Double, EnvironmentSnapshot[Coordinate, State, Global, Action, Env]]
+}
+
 trait EnvironmentImplementation[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]] {
   self: Environment[Coordinate, State, Global, Action, Env] =>
 }

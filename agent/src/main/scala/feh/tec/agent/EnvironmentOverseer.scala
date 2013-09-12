@@ -132,7 +132,8 @@ trait EnvironmentOverseerImplementation[Coordinate, State, Global, Action <: Abs
 }
 
 trait MutableEnvironmentOverseer[Coordinate, State, Global, Action <: AbstractAction,
-    Env <: Environment[Coordinate, State, Global, Action, Env] with MutableEnvironment[Coordinate, State, Global, Action, Env]]
+                                 Env <: Environment[Coordinate, State, Global, Action, Env]
+                                   with MutableEnvironment[Coordinate, State, Global, Action, Env]]
   extends EnvironmentOverseerImplementation[Coordinate, State, Global, Action, Env]
 {
   self: EnvironmentOverseer[Coordinate, State, Global, Action, Env] =>
@@ -143,7 +144,8 @@ trait MutableEnvironmentOverseer[Coordinate, State, Global, Action <: AbstractAc
 }
 
 trait ImmutableEnvironmentOverseer[Coordinate, State, Global, Action <: AbstractAction,
-    Env <: Environment[Coordinate, State, Global, Action, Env] with ImmutableEnvironment[Coordinate, State, Global, Action, Env]]
+                                   Env <: Environment[Coordinate, State, Global, Action, Env]
+                                     with ImmutableEnvironment[Coordinate, State, Global, Action, Env]]
   extends EnvironmentOverseerImplementation[Coordinate, State, Global, Action, Env]
 {
   self: EnvironmentOverseer[Coordinate, State, Global, Action, Env] =>
@@ -157,3 +159,17 @@ trait ImmutableEnvironmentOverseer[Coordinate, State, Global, Action <: Abstract
     e
   }
 }
+
+trait PredictingEnvironmentOverseer[Coordinate, State, Global, Action <: AbstractAction,
+                                    Env <: Environment[Coordinate, State, Global, Action, Env]
+                                      with PredictableEnvironment[Coordinate, State, Global, Action, Env]]{
+  self: EnvironmentOverseer[Coordinate, State, Global, Action, Env] =>
+
+  def predict(a: Action): Env#Prediction
+
+}
+
+trait PredictingMutableEnvironmentOverseer[Coordinate, State, Global, Action <: AbstractAction,
+                                           Env <: Environment[Coordinate, State, Global, Action, Env]
+                                             with PredictableEnvironment[Coordinate, State, Global, Action, Env]
+                                             with MutableEnvironment[Coordinate, State, Global, Action, Env]]

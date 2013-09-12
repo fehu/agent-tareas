@@ -26,6 +26,7 @@ class Environment(buildTilesMap: Map => collection.Map[(Int, Int), SqTile],
   with AbstractMapEnvironment[Map, Tile, Coordinate, State, Global, Action, Environment]
   with FullyAccessible[Coordinate, State, Global, Action, Environment]
   with Deterministic[Coordinate, State, Global, Action, Environment]
+  with PredictableDeterministicEnvironment[Coordinate, State, Global, Action, Environment]
   with Static[Coordinate, State, Global, Action, Environment]
   with MutableEnvironment[Coordinate, State, Global, Action, Environment]
 {
@@ -47,6 +48,7 @@ class Overseer(actorSystem: ActorSystem,
                initEnvironment: Environment)
   extends EnvironmentOverseerActor[Coordinate, State, Global, Action, Environment]
   with MutableEnvironmentOverseer[Coordinate, State, Global, Action, Environment]
+  with PredictingEnvironmentOverseer[Coordinate, State, Global, Action, Environment]
 {
   
   overseer =>
@@ -57,19 +59,28 @@ class Overseer(actorSystem: ActorSystem,
   override val currentEnvironment: Environment = initEnvironment
 
 
-  def snapshot: EnvironmentSnapshot[Coordinate, State, Global, Action, Environment] =
-    new Environment(null, env.xRange, env.yRange, env.effects, env.initStates, env.initGlobalState)
-      with EnvironmentSnapshot[Coordinate, State, Global, Action, Environment]
-    {
-      override val states = initStates
-      override def states_=(pf: PartialFunction[Environment.Coordinate, Environment.State]) {}
-      override val globalState = initGlobalState
-      override def globalState_=(g: Environment.Global) {}
-      override lazy val tilesMap = env.tilesMap
+  def snapshot: EnvironmentSnapshot[Coordinate, State, Global, Action, Environment] = SnapshotBuilder.snapshot()
 
-      /**
-       * @return self, no effect should be produced
-       */
-      override def affected(act: Environment.Action) = super[EnvironmentSnapshot].affected(act)
-    }
+  protected lazy val SnapshotBuilder = new SnapshotBuilder
+
+  class SnapshotBuilder{
+    def snapshot(_states: PartialFunction[Coordinate, State] = env.states,
+                 _globalState: Global = env.globalState,
+                 _tilesMap: collection.Map[(Int, Int), SqTile] = env.tilesMap ): EnvironmentSnapshot[Coordinate, State, Global, Action, Environment] =
+      new Environment(null, env.xRange, env.yRange, env.effects, _states, _globalState)
+        with EnvironmentSnapshot[Coordinate, State, Global, Action, Environment]
+      {
+        override val states = _states
+        override def states_=(pf: PartialFunction[Environment.Coordinate, Environment.State]) {}
+        override val globalState = _globalState
+        override def globalState_=(g: Environment.Global) {}
+        override lazy val tilesMap = _tilesMap
+
+        /**
+         * @return self, no effect should be produced
+         */
+        override def affected(act: Environment.Action) = super[EnvironmentSnapshot].affected(act)
+      }
+  }
+
 }
