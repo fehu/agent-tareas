@@ -90,3 +90,13 @@ trait EnvironmentSnapshot[Coordinate, State, Global, Action <: AbstractAction, E
 //  abstract override def affected(act: Action): EnvironmentSnapshot[Coordinate, State, Global, Action, Env] = this
   def affected(act: Action): SideEffect[Env] = SideEffect(this)
 }
+
+trait CustomisableEnvironmentSnapshot[Coordinate, State, Global, Action <: AbstractAction,
+                                      Env <: Environment[Coordinate, State, Global, Action, Env]
+                                        with MutableEnvironment[Coordinate, State, Global, Action, Env]]
+  extends MutableEnvironment[Coordinate, State, Global, Action, Env]
+{
+  self: Env =>
+
+  def snapshot(): EnvironmentSnapshot[Coordinate, State, Global, Action, Env]
+}

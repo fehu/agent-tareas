@@ -48,7 +48,7 @@ class Overseer(actorSystem: ActorSystem,
                initEnvironment: Environment)
   extends EnvironmentOverseerActor[Coordinate, State, Global, Action, Environment]
   with MutableEnvironmentOverseer[Coordinate, State, Global, Action, Environment]
-  with PredictingEnvironmentOverseer[Coordinate, State, Global, Action, Environment]
+  with PredictingMutableDeterministicEnvironmentOverseer[Coordinate, State, Global, Action, Environment]
 {
   
   overseer =>
@@ -61,9 +61,9 @@ class Overseer(actorSystem: ActorSystem,
 
   def snapshot: EnvironmentSnapshot[Coordinate, State, Global, Action, Environment] = SnapshotBuilder.snapshot()
 
-  protected lazy val SnapshotBuilder = new SnapshotBuilder
+  protected lazy val SnapshotBuilder = new SnapshotBuilder(env)
 
-  class SnapshotBuilder{
+  class SnapshotBuilder(env: Environment){
     def snapshot(_states: PartialFunction[Coordinate, State] = env.states,
                  _globalState: Global = env.globalState,
                  _tilesMap: collection.Map[(Int, Int), SqTile] = env.tilesMap ): EnvironmentSnapshot[Coordinate, State, Global, Action, Environment] =
@@ -71,16 +71,23 @@ class Overseer(actorSystem: ActorSystem,
         with EnvironmentSnapshot[Coordinate, State, Global, Action, Environment]
       {
         override val states = _states
-        override def states_=(pf: PartialFunction[Environment.Coordinate, Environment.State]) {}
+        override def states_=(pf: PartialFunction[Coordinate, State]) {}
         override val globalState = _globalState
-        override def globalState_=(g: Environment.Global) {}
+        override def globalState_=(g: Global) {}
         override lazy val tilesMap = _tilesMap
-
-        /**
-         * @return self, no effect should be produced
-         */
-        override def affected(act: Environment.Action) = super[EnvironmentSnapshot].affected(act)
+        override def affected(act: Action) = super[EnvironmentSnapshot].affected(act)
       }
   }
 
+  /**
+   * a snapshot of mutable environment that have setter functions active and has
+   */
+  def mutableSnapshot(): CustomisableEnvironmentSnapshot[Coordinate, State, Global, Action, Environment] with Environment =
+    new Environment(null, env.xRange, env.yRange, env.effects, env.states, env.globalState)
+      with CustomisableEnvironmentSnapshot[Coordinate, State, Global, Action, Environment]
+    {
+      lazy val SnapshotBuilder = new SnapshotBuilder(this)
+
+      def snapshot(): EnvironmentSnapshot[Coordinate, State, Global, Action, Environment] = SnapshotBuilder.snapshot()
+    }
 }

@@ -136,7 +136,7 @@ trait MeasuredAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env
  */
 trait IdealRationalAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
                          Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env],
-                         M <: AgentMeasure[Position, EnvState, EnvGlobal, Action, Env, Exec]]
+                         M <: AgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action, Env, Exec]]
   extends MeasuredAgent[Position, EnvState, EnvGlobal, Action, Env, Exec, M]
 {
   agent: DecisiveAgent[Position, EnvState, EnvGlobal, Action, Env, Exec] =>

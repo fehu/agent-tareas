@@ -173,3 +173,25 @@ trait PredictingMutableEnvironmentOverseer[Coordinate, State, Global, Action <: 
                                            Env <: Environment[Coordinate, State, Global, Action, Env]
                                              with PredictableEnvironment[Coordinate, State, Global, Action, Env]
                                              with MutableEnvironment[Coordinate, State, Global, Action, Env]]
+  extends PredictingEnvironmentOverseer[Coordinate, State, Global, Action, Env] with MutableEnvironmentOverseer[Coordinate, State, Global, Action, Env]
+{
+  self: EnvironmentOverseer[Coordinate, State, Global, Action, Env] =>
+
+  /**
+   * a snapshot of mutable environment that have setter functions active and has
+   */
+  def mutableSnapshot(): CustomisableEnvironmentSnapshot[Coordinate, State, Global, Action, Env] with Env
+}
+
+trait PredictingMutableDeterministicEnvironmentOverseer[Coordinate, State, Global, Action <: AbstractAction,
+                                                       Env <: Environment[Coordinate, State, Global, Action, Env]
+                                                         with PredictableDeterministicEnvironment[Coordinate, State, Global, Action, Env]
+                                                         with MutableEnvironment[Coordinate, State, Global, Action, Env]]
+  extends PredictingMutableEnvironmentOverseer[Coordinate, State, Global, Action, Env]
+{
+  self: EnvironmentOverseer[Coordinate, State, Global, Action, Env] =>
+
+  def predict(a: Action): Env#Prediction = env.effects(a)(mutableSnapshot())
+    .asInstanceOf[CustomisableEnvironmentSnapshot[Coordinate, State, Global, Action, Env] with Env]
+    .snapshot()
+}
