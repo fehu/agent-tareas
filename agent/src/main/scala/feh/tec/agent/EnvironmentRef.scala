@@ -10,7 +10,7 @@ import akka.actor.Scheduler
  */
 trait EnvironmentRef[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]]{
 
-  type EnvRef = EnvironmentRef[Coordinate, State, Global, Action, Env]
+//  type EnvRef = EnvironmentRef[Coordinate, State, Global, Action, Env]
 
   def blocking: BlockingApi
   def async: AsyncApi
@@ -21,7 +21,7 @@ trait EnvironmentRef[Coordinate, State, Global, Action <: AbstractAction, Env <:
 
     def globalState: Global
     def stateOf(c: Coordinate): Option[State]
-    def affect(act: Action): SideEffect[EnvRef]
+    def affect(act: Action): SideEffect[Env#Ref]
     def visibleStates: Map[Coordinate, State]
 
     /**
@@ -40,7 +40,7 @@ trait EnvironmentRef[Coordinate, State, Global, Action <: AbstractAction, Env <:
 
     def globalState: Future[Global]
     def stateOf(c: Coordinate): Future[Option[State]]
-    def affect(act: Action): Future[SideEffect[EnvRef]]
+    def affect(act: Action): Future[SideEffect[Env#Ref]]
     def visibleStates: Future[Map[Coordinate, State]]
 
     /**
@@ -49,6 +49,14 @@ trait EnvironmentRef[Coordinate, State, Global, Action <: AbstractAction, Env <:
     def snapshot: Future[Env with EnvironmentSnapshot[Coordinate, State, Global, Action, Env]]
   }
 
+}
+
+trait PredictableEnvironmentRef[Coordinate, State, Global, Action <: AbstractAction,
+                                Env <: Environment[Coordinate, State, Global, Action, Env] with PredictableEnvironment[Coordinate, State, Global, Action, Env]]
+  extends EnvironmentRef[Coordinate, State, Global, Action, Env]
+{
+  def predict(a: Action): Env#Prediction
+  def asyncPredict(a: Action): Future[Env#Prediction]
 }
 
 trait EnvironmentRefBlockingApiImpl[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]]
@@ -65,7 +73,7 @@ trait EnvironmentRefBlockingApiImpl[Coordinate, State, Global, Action <: Abstrac
     private def awaitResult[R](select: AsyncApi => Awaitable[R]): R = Await.result(select(async), blockingTimeoutScope.get millis)
     def globalState: Global = awaitResult(_.globalState)
     def stateOf(c: Coordinate): Option[State] = awaitResult(_.stateOf(c))
-    def affect(act: Action): SideEffect[EnvRef] = awaitResult(_.affect(act))
+    def affect(act: Action): SideEffect[Env#Ref] = awaitResult(_.affect(act))
     def visibleStates: Map[Coordinate, State] = awaitResult(_.visibleStates)
     def snapshot: Env with EnvironmentSnapshot[Coordinate, State, Global, Action, Env] = awaitResult(_.snapshot)
   }

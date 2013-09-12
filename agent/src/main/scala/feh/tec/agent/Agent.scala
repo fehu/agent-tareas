@@ -1,15 +1,17 @@
 package feh.tec.agent
 
 import akka.actor.Actor
-import feh.tec.util.SideEffect
+import feh.tec.util.{UUIDed, HasUUID, SideEffect}
 import scala.concurrent.Future
+import java.util.UUID
 
 /**
  *  An agent that lacks decision part
  */
-trait IndecisiveAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env]] {
+trait IndecisiveAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env]]{
   trait AbstractGlobalPerception{
     def perceived: Seq[Position]
+    def position: Position
   }
 
   trait AbstractDetailedPerception{
@@ -19,15 +21,18 @@ trait IndecisiveAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction, E
   type Perception <: AbstractGlobalPerception
   type DetailedPerception <: AbstractDetailedPerception
 
-  type EnvRef = EnvironmentRef[Position, EnvState, EnvGlobal, Action, Env]
+  type EnvRef = Env#Ref //<: EnvironmentRef[Position, EnvState, EnvGlobal, Action, Env]
   def env: EnvRef
-
 
   def sense(env: EnvRef): Perception
   def detailed(env: EnvRef, c: Position): Option[DetailedPerception]
 
   def act(a: Action): SideEffect[EnvRef]
+
+  val id: AgentId = AgentId()
 }
+
+case class AgentId(uuid: UUID = UUID.randomUUID()) extends HasUUID
 
 /** Abstract trait for agents execution;
  *  [[feh.tec.agent.DecisiveAgent]] and [[feh.tec.agent.Agent]] implementations make it necessary to mix-in at least one of execution patterns in them
@@ -110,6 +115,8 @@ trait Agent[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Envi
   extends AgentExecution[Position, EnvState, EnvGlobal, Action, Env, Exec]
 {
   agent: DecisiveAgent[Position, EnvState, EnvGlobal, Action, Env, Exec] =>
+
+  def act(a: Action) = env.blocking.affect(a)
 }
 
 /**
@@ -124,7 +131,7 @@ trait ActorAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <:
 
 trait MeasuredAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
                     Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env],
-                    M <: AgentMeasure[Position, EnvState, EnvGlobal, Action, Env, Exec]]{
+                    M <: AgentMeasure[Position, EnvState, EnvGlobal, Action, Env]]{
   agent: DecisiveAgent[Position, EnvState, EnvGlobal, Action, Env, Exec] =>
 
   def measure: M
@@ -134,12 +141,26 @@ trait MeasuredAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env
     For each possible percept sequence, an ideal rational agent should do whatever action is expected to maximize its performance measure,
     on the basis of the evidence provided by the percept sequence and whatever built-in knowledge the agent has.
  */
-trait IdealRationalAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
+trait IdealRationalAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction,
+                         Env <: Environment[Position, EnvState, EnvGlobal, Action, Env] with PredictableEnvironment[Position, EnvState, EnvGlobal, Action, Env],
                          Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env],
-                         M <: AgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action, Env, Exec]]
-  extends MeasuredAgent[Position, EnvState, EnvGlobal, Action, Env, Exec, M]
+                         M <: AgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action, Env]]
+  extends IndecisiveAgent[Position, EnvState, EnvGlobal, Action, Env] with MeasuredAgent[Position, EnvState, EnvGlobal, Action, Env, Exec, M]
 {
   agent: DecisiveAgent[Position, EnvState, EnvGlobal, Action, Env, Exec] =>
 
-  def selectTheBestBehavior(possibleActions: List[Action]): Action
+//  override type EnvRef = EnvironmentRef[Position, EnvState, EnvGlobal, Action, Env] with PredictableEnvironmentRef[Position, EnvState, EnvGlobal, Action, Env]
+
+
+//  override def env: PredictableEnvironmentRef[Position, EnvState, EnvGlobal, Action, Env]
+
+  protected def calcPerformance(prediction: Env#Prediction): M#Measure
+
+  def selectTheBestBehavior(possibleActions: List[Action]): Action = {
+    for{
+      a <- possibleActions
+      prediction = env.predict(a)
+      performance = calcPerformance(prediction)
+    } yield a -> performance
+  }.maxBy(_._2)(measure.measureNumeric.asInstanceOf[Numeric[M#Measure]])._1
 }

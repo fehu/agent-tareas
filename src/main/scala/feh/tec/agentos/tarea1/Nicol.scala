@@ -4,6 +4,7 @@ import feh.tec.visual.NicolLike2DEasel
 import feh.tec.visual.api.BasicSquareMapDrawOptions
 import nicol._
 import nicol.input.Key._
+import feh.tec.agent.AgentId
 
 class NicolTestMain(val map: Map, buildMapDrawOps: NicolLike2DEasel => BasicSquareMapDrawOptions[NicolLike2DEasel]) extends LoopScene with SyncableScene with ShowFPS{
 
@@ -40,4 +41,8 @@ class NicolTestMain(val map: Map, buildMapDrawOps: NicolLike2DEasel => BasicSqua
   }
 }
 
-object NicolTestApp extends Game(Init("Test", 800, 600) >> new NicolTestMain(LwjglTest.genMap, implicit easel => LwjglTest.mapDrawOps))
+object NicolTestAppAgentHolder extends ThreadLocal[Option[AgentId]]{
+  override def initialValue(): Option[AgentId] = None
+}
+
+object NicolTestApp extends Game(Init("Test", 800, 600) >> new NicolTestMain(LwjglTest.genMap(NicolTestAppAgentHolder.get()), implicit easel => LwjglTest.mapDrawOps))

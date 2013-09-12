@@ -45,7 +45,7 @@ trait OptionalMabObjectContainerTile[Tile <: AbstractTile[Tile, Coordinate], Con
   def containerObjectsToList: List[Contents] = contents.toList
 }
 
-trait MabObjectListContainerTile[Tile <: AbstractTile[Tile, Coordinate], Contents <: MapObject, Coordinate]
+trait MapObjectListContainerTile[Tile <: AbstractTile[Tile, Coordinate], Contents <: MapObject, Coordinate]
   extends TypedListContainerTile[Tile, Coordinate, Contents] with MapObjectContainer[Tile, Coordinate, Contents]
 {
   def isOptionalContainer: Boolean = false
@@ -53,4 +53,4 @@ trait MabObjectListContainerTile[Tile <: AbstractTile[Tile, Coordinate], Content
   def containerObjectsToList: List[Contents] = contents
 }
 
-trait SquareTile[Tile <: AbstractTile[Tile, Coordinate], Coordinate] extends AbstractTile[Tile, Coordinate]
+trait SquareTile[Tile <: SquareTile[Tile, Coordinate], Coordinate] extends AbstractTile[Tile, Coordinate]

@@ -1,6 +1,8 @@
 package feh.tec.map
 
 import feh.tec.map.tile.{SquareTile, AbstractTile}
+import java.util.UUID
+import feh.tec.agent.AgentId
 
 
 trait AbstractMap[Tile <: AbstractTile[Tile, Coordinate], Coordinate] {
@@ -32,4 +34,10 @@ trait AbstractSquareMap[Tile <: SquareTile[Tile, (Int, Int)]] extends AbstractMa
  */
 trait EnclosedMap[Tile <: AbstractTile[Tile, Coordinate], Coordinate] extends AbstractMap[Tile, Coordinate]{
   def nNeighbours: Int
+}
+
+trait AgentsPositionsProvidingMap[Tile <: AbstractTile[Tile, Coordinate], Coordinate]{
+  self: AbstractMap[Tile, Coordinate] =>
+
+  def agentsPositions: collection.Map[AgentId, Tile]
 }

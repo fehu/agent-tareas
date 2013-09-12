@@ -3,11 +3,14 @@ package feh.tec.agent
 import akka.actor.{Scheduler, ActorSystem, Actor}
 import scala.reflect.runtime.universe._
 import scala.concurrent.{ExecutionContext, Future}
-import java.util.Calendar
+import java.util.{UUID, Calendar}
 import akka.pattern._
-import feh.tec.util.{SideEffect, ScopedState}
+import feh.tec.util.{HasUUID, UUIDed, SideEffect, ScopedState}
 import akka.util.Timeout
 import scala.reflect._
+import scala.concurrent.duration.FiniteDuration
+import feh.tec.util.PipeWrapper
+import scala.concurrent.duration._
 
 /**
  *  manages the environment, hides actual environment change implementation
@@ -20,7 +23,7 @@ trait EnvironmentOverseer[Coordinate, State, Global, Action <: AbstractAction, E
   protected[agent] def updateEnvironment(f: Env => Env): SideEffect[Env]
 
   def snapshot: EnvironmentSnapshot[Coordinate, State, Global, Action, Env]
-  def ref: EnvironmentRef[Coordinate, State, Global, Action, Env]
+  def ref: Env#Ref
 }
 
 protected[agent] object EnvironmentOverseerActor{
@@ -70,7 +73,7 @@ trait EnvironmentOverseerActor[Coordinate, State, Global, Action <: AbstractActi
       sender ! Response.ActionApplied(act)
   }
 
-  protected def refExecutionContext: ExecutionContext
+  protected def externalExecutionContext: ExecutionContext // of system, not env overseer actor
   protected def scheduler: Scheduler
 
   def defaultBlockingTimeout: Int
@@ -79,16 +82,17 @@ trait EnvironmentOverseerActor[Coordinate, State, Global, Action <: AbstractActi
   /*
    * todo: used typed actors
    */
-  def ref: EnvironmentRef[Coordinate, State, Global, Action, Env] =
-    new EnvironmentRef[Coordinate, State, Global, Action, Env] with EnvironmentRefBlockingApiImpl[Coordinate, State, Global, Action, Env]
+  trait BaseEnvironmentRef extends EnvironmentRef[Coordinate, State, Global, Action, Env] with EnvironmentRefBlockingApiImpl[Coordinate, State, Global, Action, Env]
     {
-      envRef =>
+      self =>
+
+      def envRef = self.asInstanceOf[Env#Ref]
 
       def defaultBlockingTimeout: Int = overseer.defaultBlockingTimeout
       protected val futureTimeoutScope = new ScopedState(defaultFutureTimeout)
 
       lazy val sys: SystemApi = new SystemApi {
-        implicit def executionContext: ExecutionContext = refExecutionContext
+        implicit def executionContext: ExecutionContext = externalExecutionContext
         def scheduler: Scheduler = overseer.scheduler
       }
 
@@ -167,6 +171,36 @@ trait PredictingEnvironmentOverseer[Coordinate, State, Global, Action <: Abstrac
 
   def predict(a: Action): Env#Prediction
 
+}
+
+trait PredictingEnvironmentOverseerActor[Coordinate, State, Global, Action <: AbstractAction,
+                                         Env <: Environment[Coordinate, State, Global, Action, Env]
+                                           with PredictableEnvironment[Coordinate, State, Global, Action, Env]]
+  extends PredictingEnvironmentOverseer[Coordinate, State, Global, Action, Env] with EnvironmentOverseerActor[Coordinate, State, Global, Action, Env]
+{
+  agent =>
+
+  case class Predict(a: Action) extends UUIDed
+  case class Prediction(uuid: UUID, p: Env#Prediction) extends HasUUID
+
+  def predictMaxDelay: FiniteDuration
+
+  private implicit def executionContext: ExecutionContext = externalExecutionContext
+
+  override def receive: Actor.Receive = super.receive orElse {
+    case msg@Predict(a) => scheduler.scheduleOnce(Duration.Zero){
+      sender ! Prediction(msg.uuid, predict(a))
+    }
+  }
+
+  trait PredictableEnvironmentRefImpl extends PredictableEnvironmentRef[Coordinate, State, Global, Action, Env]{
+    def predict(a: Action): Env#Prediction = agent predict a
+
+    def asyncPredict(a: Action): Future[Env#Prediction] = Predict(a) |> { msg =>
+      (agent.self ? msg)(predictMaxDelay)
+        .mapTo[Prediction].havingSameUUID(msg).map(_.p)
+    }
+  }
 }
 
 trait PredictingMutableEnvironmentOverseer[Coordinate, State, Global, Action <: AbstractAction,

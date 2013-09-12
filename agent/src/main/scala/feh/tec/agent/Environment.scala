@@ -5,6 +5,8 @@ import feh.tec.util.SideEffect
 import SideEffect._
 
 trait Environment[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]]{ self =>
+  type Ref <: EnvironmentRef[Coordinate, State, Global, Action, Env]
+
   def states: PartialFunction[Coordinate, State]
   def effects: PartialFunction[Action, Env => Env]
   def definedAt: Seq[Coordinate]
@@ -148,15 +150,19 @@ trait AnyTimeDynamicChange[Coordinate, State, Global, Action <: AbstractAction, 
  * an environment that has a behavior prediction interface
  * i think  actual prediction should be handled by [[feh.tec.agent.PredictingEnvironmentOverseer]]
  */
-trait PredictableEnvironment[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]]
+trait PredictableEnvironment[Coordinate, State, Global, Action <: AbstractAction,
+                             Env <: Environment[Coordinate, State, Global, Action, Env] with PredictableEnvironment[Coordinate, State, Global, Action, Env]]
   extends Determinism[Coordinate, State, Global, Action, Env]
 {
   self: Environment[Coordinate, State, Global, Action, Env] with Env =>
 
+  type Ref <: EnvironmentRef[Coordinate, State, Global, Action, Env] with PredictableEnvironmentRef[Coordinate, State, Global, Action, Env]
+
   type Prediction
 }
 
-trait PredictableDeterministicEnvironment[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]]
+trait PredictableDeterministicEnvironment[Coordinate, State, Global, Action <: AbstractAction,
+                                          Env <: Environment[Coordinate, State, Global, Action, Env] with PredictableEnvironment[Coordinate, State, Global, Action, Env]]
   extends PredictableEnvironment[Coordinate, State, Global, Action, Env]
 {
   self: Environment[Coordinate, State, Global, Action, Env] with Env with Deterministic[Coordinate, State, Global, Action, Env] =>
@@ -164,7 +170,8 @@ trait PredictableDeterministicEnvironment[Coordinate, State, Global, Action <: A
   type Prediction = EnvironmentSnapshot[Coordinate, State, Global, Action, Env]
 }
 
-trait PredictableNonDeterministicEnvironment[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]]
+trait PredictableNonDeterministicEnvironment[Coordinate, State, Global, Action <: AbstractAction,
+                                             Env <: Environment[Coordinate, State, Global, Action, Env] with PredictableEnvironment[Coordinate, State, Global, Action, Env]]
   extends PredictableEnvironment[Coordinate, State, Global, Action, Env]
 {
   self: Environment[Coordinate, State, Global, Action, Env] with Env with NonDeterministic[Coordinate, State, Global, Action, Env] =>

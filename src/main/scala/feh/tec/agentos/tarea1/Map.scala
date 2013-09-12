@@ -1,15 +1,17 @@
 package feh.tec.agentos.tarea1
 
-import feh.tec.map.{SimpleDirection, EnclosedMap, AbstractMap, AbstractSquareMap}
-import feh.tec.map.tile.{SquareTile, OptionalMabObjectContainerTile, MapObject, OptionalTypedContainerTile}
+import feh.tec.map._
+import feh.tec.map.tile.{SquareTile, OptionalMabObjectContainerTile, MapObject}
 import java.util.UUID
 import feh.tec.util.RangeWrapper._
+import scala.{Predef, collection, Some}
+import feh.tec.agent.AgentId
 
 /*
   todo: move
  */
 class Map(buildTilesMap: Map => collection.Map[(Int, Int), SqTile], xRange: Range, yRange: Range)
-  extends AbstractSquareMap[SqTile] with EnclosedMap[SqTile, (Int, Int)]
+  extends AbstractSquareMap[SqTile] with EnclosedMap[SqTile, (Int, Int)] with AgentsPositionsProvidingMap[SqTile, (Int, Int)]
 { map =>
 
   type Tile = SqTile
@@ -19,6 +21,8 @@ class Map(buildTilesMap: Map => collection.Map[(Int, Int), SqTile], xRange: Rang
   def nNeighbours = 4
   def tiles: Seq[Tile] = tilesMap.values.toSeq
   def get: PartialFunction[Map#Coordinate, Tile] = tilesMap
+
+  def asMap = tilesMap
 
   lazy val coordinates = new CoordinatesMeta {
     def xRange: Range = map.xRange
@@ -43,7 +47,7 @@ class Map(buildTilesMap: Map => collection.Map[(Int, Int), SqTile], xRange: Rang
     neighbors
   }
 
-  def findNeighbors(tile: Tile): Seq[Tile] = {
+  protected def findNeighbors(tile: Tile): Seq[Tile] = {
     val edge = onCoordinateGridEdge(tile)
 
     Seq(
@@ -59,7 +63,30 @@ class Map(buildTilesMap: Map => collection.Map[(Int, Int), SqTile], xRange: Rang
     y <- yRange
   } assert(get.isDefinedAt(x -> y), s"Map tile is not defined at ($x, $y)")
 
-//  def createTile(coordinate: Coordinate, contents: Option[MapObj]) = SqTile(coordinate: Coordinate, contents)
+
+  def agentsPositions: collection.Map[AgentId, Tile] = ???
+}
+
+object Map{
+  class SnapshotBuilder extends MapSnapshotBuilder[Map, SqTile, (Int, Int)]{
+    lazy val tilesSnapshotBuilder = new SqTile.SnapshotBuilder
+
+    def snapshot(m: Map): MapSnapshot[Map, SqTile, (Int, Int)] = new Map(null, m.coordinates.xRange, m.coordinates.yRange) with MapSnapshot[Map, SqTile, (Int, Int)]{
+      lazy val tilesSnapshots: Seq[TileSnapshot[SqTile, (Int, Int)]] = tilesSnapshotsMap.values.toSeq
+
+      override lazy val tilesMap: collection.Map[(Int, Int), SqTile] = ???
+      val tilesSnapshotsMap: collection.Map[(Int, Int), TileSnapshot[SqTile, Coordinate]] =
+        m.tilesMap.mapValues(tilesSnapshotBuilder.snapshot)
+
+      def getSnapshot: PartialFunction[Coordinate, TileSnapshot[SqTile, Coordinate]] = tilesSnapshotsMap
+
+      override def getNeighbors(tile: Tile): Seq[Tile] = ???
+      def getNeighborsSnapshots(tile: Tile): Seq[TileSnapshot[SqTile, Coordinate]] = super.getNeighbors(tile).map(tilesSnapshotBuilder.snapshot)
+
+      override protected def findNeighbors(tile: Tile): Seq[Tile] = ???
+      def findNeighborsSnapshots(tile: Tile): Seq[TileSnapshot[SqTile, Coordinate]] = super.findNeighbors(tile).map(tilesSnapshotBuilder.snapshot)
+    }
+  }
 }
 
 case class SqTile(map: Map, coordinate: (Int, Int), contents: Option[MapObj])
@@ -68,8 +95,16 @@ case class SqTile(map: Map, coordinate: (Int, Int), contents: Option[MapObj])
   def neighbours = map.getNeighbors(this)
 }
 
+object SqTile{
+  class SnapshotBuilder extends TileSnapshotBuilder[SqTile, (Int, Int)]{
+    def snapshot(t: SqTile): TileSnapshot[SqTile, (Int, Int)] = new SqTile(t.map, t.coordinate, t.contents) with TileSnapshot[SqTile, (Int, Int)]{
+      def neighboursSnapshots: Seq[TileSnapshot[SqTile, (Int, Int)]] = super[SqTile].neighbours.map(snapshot)
+    }
+  }
+}
+
 trait MapObj extends MapObject
-case class AgentAvatar(/*todo agent: Agent*/) extends MapObj
+case class AgentAvatar(ag: AgentId) extends MapObj
 case class Plug() extends MapObj
 case class Hole(plugged: Option[Plug] = None) extends MapObj{
   def isPlugged = plugged.isDefined

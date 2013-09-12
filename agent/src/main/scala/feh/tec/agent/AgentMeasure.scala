@@ -1,7 +1,6 @@
 package feh.tec.agent
 
-trait AgentMeasure[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
-                   Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env]]
+trait AgentMeasure[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env]]
 {
   type Arguments
   type Measure
@@ -10,39 +9,51 @@ trait AgentMeasure[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env 
   def measure(arg: Arguments): Measure
 
   type EnvRef = EnvironmentRef[Position, EnvState, EnvGlobal, Action, Env]
-  type Ag = Agent[Position, EnvState, EnvGlobal, Action, Env, Exec]
+  type Ag = IndecisiveAgent[Position, EnvState, EnvGlobal, Action, Env]
   type Snapshot = EnvironmentSnapshot[Position, EnvState, EnvGlobal, Action, Env]
 }
 
 trait AgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action <: AbstractAction,
-                                       Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
-                                       Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env]]
-  extends AgentMeasure[Position, EnvState, EnvGlobal, Action, Env, Exec]
+                                       Env <: Environment[Position, EnvState, EnvGlobal, Action, Env]]
+  extends AgentMeasure[Position, EnvState, EnvGlobal, Action, Env]
 
 
 trait StatelessAgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action <: AbstractAction,
-                              Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
-                              Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env]]
-  extends AgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action, Env, Exec]
+                                       Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
+                                       M <: StatelessAgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action, Env, M]]
+  extends AgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action, Env]
 {
+  self: M =>
+
   import StatelessAgentPerformanceMeasure._
 
-  type Arguments = (Snapshot, Seq[Criterion[Position, EnvState, EnvGlobal, Action, Env, Exec, this.type]])
+  type Arguments = (Snapshot, Seq[Criterion[Position, EnvState, EnvGlobal, Action, Env, M]])
 
   import measureNumeric._
 
-  def performance(snapshot: Snapshot)(implicit criteria: Seq[Criterion[Position, EnvState, EnvGlobal, Action, Env, Exec, this.type]]): Measure =
+  def performance(snapshot: Snapshot)(implicit criteria: Seq[Criterion[Position, EnvState, EnvGlobal, Action, Env, M]]): Measure =
     (zero /: criteria)( (acc, criterion) =>
-      acc + criterion.assess(snapshot)
+      acc + criterion.assess(snapshot).asInstanceOf[Measure]
   )
 
   def measure(arg: Arguments): Measure = performance(arg._1)(arg._2)
 }
 
+class StatelessAgentPerformanceDoubleMeasure[Position, EnvState, EnvGlobal, Action <: AbstractAction,
+                                             Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
+                                             M <: StatelessAgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action, Env, M]]
+  extends StatelessAgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action, Env, M]
+{
+  self: M =>
+
+  type Measure = Double
+  implicit val measureNumeric = Numeric.DoubleIsFractional
+}
+
+
 object StatelessAgentPerformanceMeasure{
   case class Criterion[Position, EnvState, EnvGlobal, Action <: AbstractAction,
                        Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
-                       Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env],
-                       M <: StatelessAgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action, Env, Exec]]
+                       M <: StatelessAgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action, Env, M]]
     (assess: M#Snapshot => M#Measure)
 }

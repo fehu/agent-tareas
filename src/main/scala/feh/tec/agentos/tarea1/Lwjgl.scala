@@ -6,6 +6,7 @@ import java.awt.Color
 import scala.util.Random
 import feh.tec.visual.api._
 import nicol._
+import feh.tec.agent.AgentId
 
 object LwjglTest{
   def createEasel = new NicolLike2DEasel
@@ -14,12 +15,12 @@ object LwjglTest{
     BasicSquareTileDrawOptions[NicolLike2DEasel](50, Color.white, None)
   )
 
-  def genMap = {
+  def genMap(ag: Option[AgentId]) = {
     import DummyMapGenerator._
 
     withHelpers[DummyMapGeneratorRandomPositionSelectHelper](0 until 10, 0 until 10){ h =>
       (x, y) =>
-        if (x -> y == h.uniqueRandomPosition) Some(AgentAvatar())
+        if (ag.isDefined && x -> y == h.uniqueRandomPosition) Some(AgentAvatar(ag.get))
         else {
           val r = Random.nextDouble()
           if(r < 0.2) Some(Hole())
@@ -31,11 +32,11 @@ object LwjglTest{
 
   def mapDrawOps(implicit easel: NicolLike2DEasel) = BasicSquareMapDrawOptions[NicolLike2DEasel](50)
 
-  def game = {
+  def game(ag: Option[AgentId]) = {
     implicit val easel = createEasel
 
     new LwjglTileGame[TCoord, SqTile, Map, NicolLike2DEasel](
-      map = genMap,
+      map = genMap(ag),
       mapRenderer = createMapRenderer,
       mapDrawOps = mapDrawOps,
       drawEnvSettings = BasicDrawEnvironmentSettings("test", 600, 800, false),
@@ -49,5 +50,5 @@ object LwjglTest{
 
   }
 }
-
-object LwjglTestApp extends TileGameRunner(LwjglTest.game)
+// doesn't work, sue Nicol
+//object LwjglTestApp extends TileGameRunner(LwjglTest.game(LwjglTestAppAgentHolder.get))
