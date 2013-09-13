@@ -8,6 +8,8 @@ class SideEffect[+R](effect: => R){
   def more[R2](other: => R2) = new SideEffect[R2]({effect; other})
   def then[R2](f: R => R2): SideEffect[R2] = more(f(effect))
   def flatThen[R2](f: R => SideEffect[R2]): SideEffect[R2] = more(f(effect).execute)
+
+  def foreach(eff: R => Unit) = new SideEffect[R]({val e = effect; eff; e})
 }
 
 object SideEffect{

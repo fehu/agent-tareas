@@ -159,11 +159,27 @@ trait IdealRationalAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction
 
   protected def calcPerformance(prediction: Env#Prediction): M#Measure
 
-  def selectTheBestBehavior(possibleActions: List[Action]): Action = {
+  def chooseTheBestBehavior(possibleActions: Set[Action]): Action = {
     for{
       a <- possibleActions
       prediction = env.predict(a)
       performance = calcPerformance(prediction)
     } yield a -> performance
   }.maxBy(_._2)(measure.measureNumeric.asInstanceOf[Numeric[M#Measure]])._1
+}
+
+/**
+ * LOL the name
+ */
+trait IdealDummyAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction,
+                      Env <: Environment[Position, EnvState, EnvGlobal, Action, Env] with PredictableEnvironment[Position, EnvState, EnvGlobal, Action, Env],
+                      Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env],
+                      M <: AgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action, Env]]
+  extends IdealRationalAgent[Position, EnvState, EnvGlobal, Action, Env, Exec, M] with DummyAgent[Position, EnvState, EnvGlobal, Action, Env, Exec]
+{
+  self: AgentExecution[Position, EnvState, EnvGlobal, Action, Env, Exec] =>
+
+  def possibleBehaviors: Set[Action]
+
+  def decide(currentPerception: Perception): Action = chooseTheBestBehavior(possibleBehaviors)
 }

@@ -14,14 +14,16 @@ import scala.Predef
 import scala.collection.mutable
 
 trait MapEnvironment[Map <: AbstractMap[Tile, Coordinate],
-                             Tile <: AbstractTile[Tile, Coordinate],
-                             Coordinate,
-                             State <: MapState[Coordinate, Tile, Map],
-                             Global <: MapGlobalState[Coordinate, Tile, Map],
-                             Action <: MapAction[Coordinate, Tile, Map],
-                             Env <: MapEnvironment[Map, Tile, Coordinate, State, Global, Action, Env]]
+                     Tile <: AbstractTile[Tile, Coordinate],
+                     Coordinate,
+                     State <: MapState[Coordinate, Tile, Map],
+                     Global <: MapGlobalState[Coordinate, Tile, Map],
+                     Action <: MapAction[Coordinate, Tile, Map],
+                     Env <: MapEnvironment[Map, Tile, Coordinate, State, Global, Action, Env]]
   extends Environment[Coordinate, State, Global, Action, Env] with AbstractMap[Tile, Coordinate]
 {
+  self: Map =>
+
   override type Ref <: MapEnvironmentRef[Coordinate, State, Global, Action, Env, Tile, Map]
 }
 
@@ -42,7 +44,7 @@ trait MutableMapEnvironment[Map <: AbstractMap[Tile, Coordinate],
                             State <: MapState[Coordinate, Tile, Map],
                             Global <: MapGlobalState[Coordinate, Tile, Map],
                             Action <: MapAction[Coordinate, Tile, Map],
-                            Env <: MutableMapEnvironment[Map, Tile, Coordinate, State, Global, Action, Env]]
+                            Env <: MutableMapEnvironment[Map, Tile, Coordinate, State, Global, Action, Env] with Map]
 //                              with MutableEnvironment[Coordinate, State, Global, Action, Env]]
   extends MapEnvironment[Map, Tile, Coordinate, State, Global, Action, Env] with MutableEnvironment[Coordinate, State, Global, Action, Env]
   with AgentsPositionsProvidingMap[Tile, Coordinate]
@@ -86,12 +88,10 @@ trait MapEnvironmentRef[Coordinate, State <: MapState[Coordinate, Tile, Map], Gl
 {
   def getMap(e: Env#Ref): MapSnapshot[Map, Tile, Coordinate]
   def getMap(s: EnvironmentSnapshot[Coordinate, State, Global, Action, Env]): MapSnapshot[Map, Tile, Coordinate]
-  def getTile(t: Coordinate): Option[Tile]
   def position(a: AbstractAgent[Coordinate, State, Global, Action, Env] with InAbstractMapEnvironment[Coordinate, State, Global, Action, Env, Tile, Map]): Coordinate
 
   def asyncGetMap(e: Env#Ref): Future[MapSnapshot[Map, Tile, Coordinate]]
   def asyncGetMap(s: EnvironmentSnapshot[Coordinate, State, Global, Action, Env]): Future[MapSnapshot[Map, Tile, Coordinate]]
-  def asyncGetTile(t: Coordinate): Future[Option[Tile]]
   def asyncPosition(a: AbstractAgent[Coordinate, State, Global, Action, Env] with InAbstractMapEnvironment[Coordinate, State, Global, Action, Env, Tile, Map]): Future[Coordinate]
 }
 
@@ -135,9 +135,7 @@ trait InAbstractMapEnvironment[Position,
     val sensed = sense(env)
     if(sensed.perceived contains c) Some(
       new MapDetailedPerception {
-        private val myposition = sense(env).position
-
-        def shortcut: Route[Position] = shortestRoute(myposition, c)
+        def shortcut: Route[Position] = shortestRouteFinder.shortestRoute(sensed.mapSnapshot)(sensed.position, c)
 
         type ActualDetailedPerception = MapState[Position, Tile, Map]
         def where: Position = c
@@ -148,7 +146,7 @@ trait InAbstractMapEnvironment[Position,
 
 
 
-  def shortestRoute(from: Position, to: Position): Route[Position]
+  def shortestRouteFinder: ShortestRouteFinder[Map, Tile, Position]
 
   def mapStateBuilder: MapStateBuilder[Position, Tile, Map, EnvState]
 
@@ -170,8 +168,7 @@ trait MapEnvironmentOverseer[Map <: AbstractMap[Tile, Coordinate],
                              State <: MapState[Coordinate, Tile, Map],
                              Global <: MapGlobalState[Coordinate, Tile, Map],
                              Action <: MapAction[Coordinate, Tile, Map],
-                             Env <: /*Environment[Coordinate, State, Global, Action, Env]
-                               with */MapEnvironment[Map, Tile, Coordinate, State, Global, Action, Env]]{
+                             Env <: MapEnvironment[Map, Tile, Coordinate, State, Global, Action, Env]]{
   self: EnvironmentOverseer[Coordinate, State, Global, Action, Env] =>
 
   def getMap(): MapSnapshot[Map, Tile, Coordinate]
@@ -224,14 +221,12 @@ trait MapEnvironmentOverseerActor[Map <: AbstractMap[Tile, Coordinate],
   trait MapEnvironmentRefImpl extends MapEnvironmentRef[Coordinate, State, Global, Action, Env, Tile, Map]{
     def getMap(e: Env#Ref): MapSnapshot[Map, Tile, Coordinate] = agent.getMap()
     def getMap(s: EnvironmentSnapshot[Coordinate, State, Global, Action, Env]): MapSnapshot[Map, Tile, Coordinate] = agent.getMap(s)
-    def getTile(t: Coordinate): Option[Tile] =
     def position(a: Ag): Coordinate = agent.position(a)
 
     def asyncGetMap(e: Env#Ref): Future[MapSnapshot[Map, Tile, Coordinate]] =
       agent.send(GetMapByEnvRef(e)).awaitingResponse[MapBySnapshot](positionMaxDelay).map(_.snapshot)
     def asyncGetMap(s: EnvironmentSnapshot[Coordinate, State, Global, Action, Env]): Future[MapSnapshot[Map, Tile, Coordinate]] =
       agent.send(GetMapBySnapshot(s)).awaitingResponse[MapBySnapshot](positionMaxDelay).map(_.snapshot)
-    def asyncGetTile(t: Coordinate): Future[Option[Tile]] =
     def asyncPosition(a: Ag): Future[Coordinate] =
       agent.send(GetPosition(a)).awaitingResponse[Position](positionMaxDelay).map(_.position)
   }

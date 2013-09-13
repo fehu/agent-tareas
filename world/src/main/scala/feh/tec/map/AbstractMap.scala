@@ -41,9 +41,3 @@ trait AgentsPositionsProvidingMap[Tile <: AbstractTile[Tile, Coordinate], Coordi
 
   def agentsPositions: collection.Map[AgentId, Tile]
 }
-
-trait ShortestRouteFinder[Tile <: AbstractTile[Tile, Coordinate], Coordinate] {
-  self: AbstractMap[Tile, Coordinate] =>
-
-  def shortestRoute(from: Position, to: Position): Route[Position]
-}

@@ -24,6 +24,8 @@ trait EnvironmentOverseer[Coordinate, State, Global, Action <: AbstractAction, E
 
   def snapshot: EnvironmentSnapshot[Coordinate, State, Global, Action, Env]
   def ref: Env#Ref
+
+  protected def affect(a: Action): SideEffect[Env]
 }
 
 protected[agent] object EnvironmentOverseerActor{
@@ -63,13 +65,16 @@ trait EnvironmentOverseerActor[Coordinate, State, Global, Action <: AbstractActi
   val tags = env.tags
   import tags._
 
+
+  protected def affect(act: Action): SideEffect[Env] = updateEnvironment(_.affected(act).execute)
+
   def receive: Actor.Receive = {
     case Get.GlobalState => sender ! Response.GlobalState(env.globalState)
     case g@Get.StateOf(c) if g.ttag.tpe =:= typeOf[Coordinate] => sender ! Response.StateOf(c, env.stateOf(c.asInstanceOf[Coordinate]))
     case Get.VisibleStates => sender ! Response.VisibleStates(env.visibleStates)
     case Get.Snapshot => sender ! Response.Snapshot(snapshot, Calendar.getInstance().getTimeInMillis)
-    case a@Act(act) if a.ttag.tpe <:< typeOf[Action] => 
-      updateEnvironment(_.affected(act.asInstanceOf[Action]).execute)
+    case a@Act(act) if a.ttag.tpe <:< typeOf[Action] =>
+      affect(act.asInstanceOf[Action])
       sender ! Response.ActionApplied(act)
   }
 
