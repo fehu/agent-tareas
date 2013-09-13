@@ -110,7 +110,7 @@ case class Hole(plugged: Option[Plug] = None) extends MapObj{
   def isPlugged = plugged.isDefined
 }
 
-object DummyMapGenerator{
+object DummyMapGenerator{ outer =>
   trait DummyMapGeneratorHelpers
   trait DummyMapGeneratorHelpersBuilder[H <: DummyMapGeneratorHelpers]{
     def build(xRange: Range, yRange: Range): H
@@ -128,21 +128,30 @@ object DummyMapGenerator{
     }
   }
 
-  def withHelpers[H <: DummyMapGeneratorHelpers](xRange: Range, yRange: Range)
-                                                (build: H => (Int, Int) => Option[MapObj])
-                                                (implicit hb: DummyMapGeneratorHelpersBuilder[H]): Map =
-    apply(xRange, yRange)(build(hb.build(xRange, yRange)))
+//  def withHelpers[H <: DummyMapGeneratorHelpers](xRange: Range, yRange: Range)
+//                                                (build: H => (Int, Int) => Option[MapObj])
+//                                                (implicit hb: DummyMapGeneratorHelpersBuilder[H]): Map =
+
+
+  def withHelpers[H <: DummyMapGeneratorHelpers](implicit hb: DummyMapGeneratorHelpersBuilder[H]) = new WithHelpers[H]
+
+  class WithHelpers[H <: DummyMapGeneratorHelpers](implicit hb: DummyMapGeneratorHelpersBuilder[H]) {
+    def apply(xRange: Range, yRange: Range)(build: H => (Int, Int) => Option[MapObj]): Map = outer.apply(xRange, yRange)(build(hb.build(xRange, yRange)))
+    def buildTilesMap(xRange: Range, yRange: Range)(build: H => (Int, Int) => Option[MapObj]) = outer.buildTilesMap(xRange, yRange)(build(hb.build(xRange, yRange)))
+  }
 
   def apply(xRange: Range, yRange: Range)(build: (Int, Int) => Option[MapObj]): Map =
     new Map(
       xRange = xRange,
       yRange = yRange,
-      buildTilesMap = map => (
-        for{
-          x <- xRange
-          y <- yRange
-          c = x -> y
-        } yield c -> SqTile(map, c, build.tupled(c))
-      ).toMap
+      buildTilesMap = buildTilesMap(xRange, yRange)(build)
     )
+
+  def buildTilesMap(xRange: Range, yRange: Range)(build: (Int, Int) => Option[MapObj]) = (map: Map) => (
+    for{
+      x <- xRange
+      y <- yRange
+      c = x -> y
+    } yield c -> SqTile(map, c, build.tupled(c))
+    ).toMap
 }

@@ -7,6 +7,7 @@ import scala.util.Random
 import feh.tec.visual.api._
 import nicol._
 import feh.tec.agent.AgentId
+import feh.tec.agentos.tarea1.DummyMapGenerator.DummyMapGeneratorRandomPositionSelectHelper
 
 object LwjglTest{
   def createEasel = new NicolLike2DEasel
@@ -18,16 +19,18 @@ object LwjglTest{
   def genMap(ag: Option[AgentId]) = {
     import DummyMapGenerator._
 
-    withHelpers[DummyMapGeneratorRandomPositionSelectHelper](0 until 10, 0 until 10){ h =>
-      (x, y) =>
-        if (ag.isDefined && x -> y == h.uniqueRandomPosition) Some(AgentAvatar(ag.get))
-        else {
-          val r = Random.nextDouble()
-          if(r < 0.2) Some(Hole())
-          else if (r > 0.8) Some(Plug())
-          else None
-        }
-    }
+    withHelpers[DummyMapGeneratorRandomPositionSelectHelper].apply(0 until 10, 0 until 10)(mapBuildingFunc(ag))
+  }
+
+  def mapBuildingFunc(ag: Option[AgentId]): DummyMapGeneratorRandomPositionSelectHelper => (Int, Int) => Option[MapObj] = {
+    h => (x, y) =>
+      if (ag.isDefined && x -> y == h.uniqueRandomPosition) Some(AgentAvatar(ag.get))
+      else {
+        val r = Random.nextDouble()
+        if(r < 0.2) Some(Hole())
+        else if (r > 0.8) Some(Plug())
+        else None
+      }
   }
 
   def mapDrawOps(implicit easel: NicolLike2DEasel) = BasicSquareMapDrawOptions[NicolLike2DEasel](50)

@@ -32,7 +32,8 @@ trait MapGlobalState[Coordinate, Tile <: AbstractTile[Tile, Coordinate], Map <: 
 trait MapState[Coordinate, Tile <: AbstractTile[Tile, Coordinate], Map <: AbstractMap[Tile, Coordinate]]
 trait MapStateBuilder[Coordinate, Tile <: AbstractTile[Tile, Coordinate], Map <: AbstractMap[Tile, Coordinate],
                       State <: MapState[Coordinate, Tile, Map]]{
-  def build: Tile => State
+  def build(tile: Tile): State
+  def build(snapshot: TileSnapshot[Tile, Coordinate]): State
 }
 
 trait MutableMapEnvironment[Map <: AbstractMap[Tile, Coordinate],
@@ -85,10 +86,12 @@ trait MapEnvironmentRef[Coordinate, State <: MapState[Coordinate, Tile, Map], Gl
 {
   def getMap(e: Env#Ref): MapSnapshot[Map, Tile, Coordinate]
   def getMap(s: EnvironmentSnapshot[Coordinate, State, Global, Action, Env]): MapSnapshot[Map, Tile, Coordinate]
+  def getTile(t: Coordinate): Option[Tile]
   def position(a: AbstractAgent[Coordinate, State, Global, Action, Env] with InAbstractMapEnvironment[Coordinate, State, Global, Action, Env, Tile, Map]): Coordinate
 
   def asyncGetMap(e: Env#Ref): Future[MapSnapshot[Map, Tile, Coordinate]]
   def asyncGetMap(s: EnvironmentSnapshot[Coordinate, State, Global, Action, Env]): Future[MapSnapshot[Map, Tile, Coordinate]]
+  def asyncGetTile(t: Coordinate): Future[Option[Tile]]
   def asyncPosition(a: AbstractAgent[Coordinate, State, Global, Action, Env] with InAbstractMapEnvironment[Coordinate, State, Global, Action, Env, Tile, Map]): Future[Coordinate]
 }
 
@@ -109,6 +112,8 @@ trait InAbstractMapEnvironment[Position,
 
   trait MapPerception extends AbstractGlobalPerception{
     def connectedStates: TilesConnections
+
+    def mapSnapshot: MapSnapshot[Map, Tile, Position]
   }
 
   trait MapDetailedPerception extends AbstractDetailedPerception{
@@ -117,15 +122,35 @@ trait InAbstractMapEnvironment[Position,
 
   def sense(env: EnvRef): Perception =
     new MapPerception{
-      lazy val connectedStates: TilesConnections = TilesConnections(env.getMap(env), perceived, position)
+      val mapSnapshot = env.getMap(env)
+
+      lazy val connectedStates: TilesConnections = TilesConnections(mapSnapshot, perceived, position)
 
       val perceived: Seq[Position] = env.blocking.visibleStates.keys.toSeq
 
       val position: Position = env.position(agent)
     }
 
+  def detailed(env: EnvRef, c: Position): Option[DetailedPerception] =     {
+    val sensed = sense(env)
+    if(sensed.perceived contains c) Some(
+      new MapDetailedPerception {
+        private val myposition = sense(env).position
+
+        def shortcut: Route[Position] = shortestRoute(myposition, c)
+
+        type ActualDetailedPerception = MapState[Position, Tile, Map]
+        def where: Position = c
+        def what: ActualDetailedPerception = mapStateBuilder.build(sensed.mapSnapshot.getSnapshot(c))
+      })
+    else None
+  }
+
+
 
   def shortestRoute(from: Position, to: Position): Route[Position]
+
+  def mapStateBuilder: MapStateBuilder[Position, Tile, Map, EnvState]
 
   /**
    *   root should contain `tileState` of agent's position
@@ -199,12 +224,14 @@ trait MapEnvironmentOverseerActor[Map <: AbstractMap[Tile, Coordinate],
   trait MapEnvironmentRefImpl extends MapEnvironmentRef[Coordinate, State, Global, Action, Env, Tile, Map]{
     def getMap(e: Env#Ref): MapSnapshot[Map, Tile, Coordinate] = agent.getMap()
     def getMap(s: EnvironmentSnapshot[Coordinate, State, Global, Action, Env]): MapSnapshot[Map, Tile, Coordinate] = agent.getMap(s)
+    def getTile(t: Coordinate): Option[Tile] =
     def position(a: Ag): Coordinate = agent.position(a)
 
     def asyncGetMap(e: Env#Ref): Future[MapSnapshot[Map, Tile, Coordinate]] =
       agent.send(GetMapByEnvRef(e)).awaitingResponse[MapBySnapshot](positionMaxDelay).map(_.snapshot)
     def asyncGetMap(s: EnvironmentSnapshot[Coordinate, State, Global, Action, Env]): Future[MapSnapshot[Map, Tile, Coordinate]] =
       agent.send(GetMapBySnapshot(s)).awaitingResponse[MapBySnapshot](positionMaxDelay).map(_.snapshot)
+    def asyncGetTile(t: Coordinate): Future[Option[Tile]] =
     def asyncPosition(a: Ag): Future[Coordinate] =
       agent.send(GetPosition(a)).awaitingResponse[Position](positionMaxDelay).map(_.position)
   }

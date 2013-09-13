@@ -15,7 +15,10 @@ trait IndecisiveAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction, E
   }
 
   trait AbstractDetailedPerception{
-    def detail(c: Position): Option[DetailedPerception]
+    type ActualDetailedPerception
+
+    def where: Position
+    def what: ActualDetailedPerception
   }
 
   type Perception <: AbstractGlobalPerception

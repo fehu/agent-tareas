@@ -2,7 +2,7 @@ package feh.tec.map
 
 import feh.tec.map.tile.{SquareTile, AbstractTile}
 import java.util.UUID
-import feh.tec.agent.AgentId
+import feh.tec.agent.{Route, AgentId}
 
 
 trait AbstractMap[Tile <: AbstractTile[Tile, Coordinate], Coordinate] {
@@ -40,4 +40,10 @@ trait AgentsPositionsProvidingMap[Tile <: AbstractTile[Tile, Coordinate], Coordi
   self: AbstractMap[Tile, Coordinate] =>
 
   def agentsPositions: collection.Map[AgentId, Tile]
+}
+
+trait ShortestRouteFinder[Tile <: AbstractTile[Tile, Coordinate], Coordinate] {
+  self: AbstractMap[Tile, Coordinate] =>
+
+  def shortestRoute(from: Position, to: Position): Route[Position]
 }
