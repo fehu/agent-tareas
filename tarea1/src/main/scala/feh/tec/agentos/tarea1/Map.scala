@@ -18,11 +18,12 @@ class Map(buildTilesMap: Map => collection.Map[(Int, Int), SqTile], xRange: Rang
   type Coordinate = (Int, Int)
 
   lazy val tilesMap = buildTilesMap(this)
+
+  def tilesToMap = tilesMap
+
   def nNeighbours = 4
   def tiles: Seq[Tile] = tilesMap.values.toSeq
   def get: PartialFunction[Map#Coordinate, Tile] = tilesMap
-
-  def asMap = tilesMap
 
   lazy val coordinates = new CoordinatesMeta {
     def xRange: Range = map.xRange
@@ -32,12 +33,14 @@ class Map(buildTilesMap: Map => collection.Map[(Int, Int), SqTile], xRange: Rang
 
   import SimpleDirection._
 
-  protected def onCoordinateGridEdge(tile: Tile): Option[SimpleDirection] = tile.coordinate match{
+  def onCoordinateGridEdge(c: (Int, Int)): Option[SimpleDirection] = c match{
     case (x, _) if x == xRange.min => Some(Left)
     case (x, _) if x == xRange.max => Some(Right)
     case (_, y) if y == yRange.min => Some(Bottom)
     case (_, y) if y == yRange.max => Some(Top)
   }
+
+  def onCoordinateGridEdge(tile: Tile): Option[SimpleDirection] = onCoordinateGridEdge(tile.coordinate)
 
   protected val neighborsMap = collection.mutable.Map.empty[Tile, Seq[Tile]]
 
@@ -58,10 +61,13 @@ class Map(buildTilesMap: Map => collection.Map[(Int, Int), SqTile], xRange: Rang
     )
   }
 
-  protected def assertDefinedAtAllCoordinates() = for{
-    x <- xRange
-    y <- yRange
-  } assert(get.isDefinedAt(x -> y), s"Map tile is not defined at ($x, $y)")
+  // todo: ensure assert is always after creation executed
+  protected def assertDefinedAtAllCoordinates(){
+    for{
+      x <- xRange
+      y <- yRange
+    } assert(get.isDefinedAt(x -> y), s"Map tile is not defined at ($x, $y)")
+  }
 
 
   def agentsPositions: collection.Map[AgentId, Tile] = ???
@@ -76,7 +82,7 @@ object Map{
 
       override lazy val tilesMap: collection.Map[(Int, Int), SqTile] = ???
       val tilesSnapshotsMap: collection.Map[(Int, Int), TileSnapshot[SqTile, Coordinate]] =
-        m.tilesMap.mapValues(tilesSnapshotBuilder.snapshot)
+        m.tilesToMap.mapValues(tilesSnapshotBuilder.snapshot)
 
       def getSnapshot: PartialFunction[Coordinate, TileSnapshot[SqTile, Coordinate]] = tilesSnapshotsMap
 
@@ -87,6 +93,24 @@ object Map{
       def findNeighborsSnapshots(tile: Tile): Seq[TileSnapshot[SqTile, Coordinate]] = super.findNeighbors(tile).map(tilesSnapshotBuilder.snapshot)
     }
   }
+
+  implicit class DirectionOps(map: Map){
+    def tileTo(from: (Int, Int), direction: SimpleDirection): SqTile = map.get(positionTo(from, direction))
+
+    import SimpleDirection._
+
+    def positionTo(from: (Int, Int), direction: SimpleDirection): (Int, Int) = direction match{
+      case Up if map.onCoordinateGridEdge(from).exists(_ == Top)      => from._1 -> map.coordinates.yRange.min
+      case Up                                                         => from._1 -> (from._2 + 1)
+      case Down if map.onCoordinateGridEdge(from).exists(_ == Bottom) => from._1 -> map.coordinates.yRange.max
+      case Down                                                       => from._1 -> (from._2 - 1)
+      case Left if map.onCoordinateGridEdge(from).exists(_ == Left)   => map.coordinates.xRange.max -> from._2
+      case Left                                                       => (from._1 - 1) -> from._2
+      case Right if map.onCoordinateGridEdge(from).exists(_ == Right) => map.coordinates.xRange.min -> from._2
+      case Right                                                      => (from._1 + 1) -> from._2
+    }
+  }
+
 }
 
 case class SqTile(map: Map, coordinate: (Int, Int), contents: Option[MapObj])
@@ -103,10 +127,16 @@ object SqTile{
   }
 }
 
-trait MapObj extends MapObject
-case class AgentAvatar(ag: AgentId) extends MapObj
-case class Plug() extends MapObj
+trait MapObj extends MapObject{
+  def isAgent: Boolean = false
+  def isPlug: Boolean = false
+  def isHole: Boolean = false
+}
+case class AgentAvatar(ag: AgentId) extends MapObj {override def isAgent = true}
+case class Plug() extends MapObj { override def isPlug = true }
 case class Hole(plugged: Option[Plug] = None) extends MapObj{
+  override def isHole: Boolean = true
+
   def isPlugged = plugged.isDefined
 }
 
@@ -127,11 +157,6 @@ object DummyMapGenerator{ outer =>
       val uniqueRandomPosition: (Int, Int) = xRange.randomSelect -> yRange.randomSelect
     }
   }
-
-//  def withHelpers[H <: DummyMapGeneratorHelpers](xRange: Range, yRange: Range)
-//                                                (build: H => (Int, Int) => Option[MapObj])
-//                                                (implicit hb: DummyMapGeneratorHelpersBuilder[H]): Map =
-
 
   def withHelpers[H <: DummyMapGeneratorHelpers](implicit hb: DummyMapGeneratorHelpersBuilder[H]) = new WithHelpers[H]
 

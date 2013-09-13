@@ -179,7 +179,7 @@ trait IdealDummyAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction,
 {
   self: AgentExecution[Position, EnvState, EnvGlobal, Action, Env, Exec] =>
 
-  def possibleBehaviors: Set[Action]
+  def possibleBehaviors(currentPerception: Perception): Set[Action]
 
-  def decide(currentPerception: Perception): Action = chooseTheBestBehavior(possibleBehaviors)
+  def decide(currentPerception: Perception): Action = chooseTheBestBehavior(possibleBehaviors(currentPerception))
 }

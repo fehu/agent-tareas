@@ -11,11 +11,12 @@ import scala.collection.immutable
 import feh.tec.visiual.AsyncMapDrawingEnvironmentOverseer
 import feh.tec.visual.NicolLike2DEasel
 import feh.tec.visual.api.MapRenderer
+import feh.tec.util._
 
 object Environment{
   type Tile = SqTile
   type Coordinate = Map#Coordinate
-  type State = MapState[Coordinate, Tile, Map]
+  type State = MState
   type Global = NoGlobal
   type Action = Move
   type Easel = NicolLike2DEasel
@@ -48,6 +49,8 @@ class Environment(buildTilesMap: Map => Seq[Tile],
     implicit def environment: TypeTag[Environment] = typeTag[Environment]
   }
 
+  assertDefinedAtAllCoordinates()
+
   val initStates: PartialFunction[Coordinate, State] = tilesMap.mapValues(mapStateBuilder.build)
 
   def initTiles: Seq[Tile] = buildTilesMap(this)
@@ -56,9 +59,11 @@ class Environment(buildTilesMap: Map => Seq[Tile],
     case AgentAvatar(agentId) => agentId
   }
 
-  override lazy val tilesMap = asMap
+  override lazy val tilesMap = collection.Map.empty[(Int, Int), Tile]
+  override def get: PartialFunction[Coordinate, Tile] = super[MutableMapEnvironment].get
 
-  override def tilesAsMap = super[MutableMapEnvironment].tilesAsMap
+  override def tilesToMap: collection.Map[(Int, Int), SqTile] = tilesAsMap
+
   override def tiles: Seq[Tile] = super[MutableMapEnvironment].tiles
   override def agentsPositions: collection.Map[AgentId, Tile] = super[MutableMapEnvironment].agentsPositions
 }
@@ -101,7 +106,7 @@ class Overseer(actorSystem: ActorSystem,
         override def states_=(pf: PartialFunction[Coordinate, State]) {}
         override val globalState = _globalState
         override def globalState_=(g: Global) {}
-        override lazy val tilesMap = _tilesMap
+        override lazy val tilesMap = _tilesMap.toMap
         override def affected(act: Action) = super[EnvironmentSnapshot].affected(act)
       }
   }
@@ -145,6 +150,25 @@ case object MoveSouth extends Move
 case object MoveWest extends Move
 case object MoveEast extends Move
 
+object Move{
+  def apply(direction: SimpleDirection): Move = move(direction)
+  def apply(move: Move): SimpleDirection = direction(move)
+
+  def move: PartialFunction[SimpleDirection, Move] = {
+    case SimpleDirection.Up => MoveNorth
+    case SimpleDirection.Down => MoveSouth
+    case SimpleDirection.Left => MoveWest
+    case SimpleDirection.Right => MoveEast
+  }
+
+  def direction: PartialFunction[Move, SimpleDirection] = {
+    case MoveNorth => SimpleDirection.Up
+    case MoveSouth => SimpleDirection.Down
+    case MoveWest => SimpleDirection.Left
+    case MoveEast => SimpleDirection.Right
+  }
+}
+
 trait NoGlobal extends MapGlobalState[Coordinate, Tile, Map]
 case object NoGlobal extends NoGlobal
 
@@ -153,3 +177,23 @@ case class OverseerTimeouts(defaultBlockingTimeout: Int,
                             predictMaxDelay: FiniteDuration,
                             getMapMaxDelay: FiniteDuration,
                             positionMaxDelay: FiniteDuration)
+
+case class MState(self: Boolean = false,
+                  otherAgent: Boolean = false,
+                  hole: Boolean = false,
+                  pluggedHole: Boolean = false,
+                  plug: Boolean = false) extends MapState[Coordinate, Tile, Map]{
+  def empty = !(self || otherAgent || hole || plug)
+}
+
+class MStateBuilder(selfId: AgentId) extends MapStateBuilder[Coordinate, Tile, Map,MState]{
+  def build(tile: Tile): MState = tile.contents match {
+    case Some(AgentAvatar(id@AgentId(_))) if selfId == id => MState(self = true)
+    case Some(AgentAvatar(_)) => MState(otherAgent = true)
+    case Some(Plug()) => MState(plug = true)
+    case Some(Hole(Some(_))) => MState(pluggedHole = true)
+    case Some(Hole(None)) => MState(hole = true)
+    case None => MState()
+  }
+  def build(snapshot: TileSnapshot[Tile, Coordinate]): MState = build(snapshot: Tile)
+}

@@ -18,8 +18,6 @@ trait AbstractSquareMap[Tile <: SquareTile[Tile, (Int, Int)]] extends AbstractMa
     def y = t.coordinate._2
   }
 
-  assertDefinedAtAllCoordinates()
-
   def coordinates: CoordinatesMeta
   protected def assertDefinedAtAllCoordinates()
 

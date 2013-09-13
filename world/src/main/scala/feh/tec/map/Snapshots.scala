@@ -10,6 +10,12 @@ trait TileSnapshot[Tile <: AbstractTile[Tile, Coordinate], Coordinate] extends A
   override def neighbours: Seq[Tile] = ???
 
   def neighboursSnapshots: Seq[TileSnapshot[Tile, Coordinate]]
+
+  def asTile: Tile with TileSnapshot[Tile, Coordinate] = self
+}
+
+object TileSnapshot{
+  implicit def asTile[Tile <: AbstractTile[Tile, Coordinate], Coordinate](s: TileSnapshot[Tile, Coordinate]) = s.asTile
 }
 
 trait MapSnapshot[+Map <: AbstractMap[Tile, Coordinate], Tile <: AbstractTile[Tile, Coordinate], Coordinate]

@@ -55,22 +55,34 @@ trait MutableMapEnvironment[Map <: AbstractMap[Tile, Coordinate],
   private val _tilesMap = mutable.HashMap(zipTilesWithCoords(initTiles): _*)
   private val _agentsPositions = mutable.HashMap(calcAgentsPositions: _*)
 
+  def get: PartialFunction[Coordinate, Tile] = _tilesMap
+
   private def zipTilesWithCoords(tiles: Seq[Tile]) = initTiles.map(t => t.coordinate -> t)
   private def setTiles(tiles: Seq[Tile]) = _tilesMap ++= zipTilesWithCoords(tiles)
+  private def setTile(tile: Tile) = _tilesMap += tile.coordinate -> tile
 
   def tilesAsMap = _tilesMap.toMap
 
   def tiles: Seq[Tile] = tilesAsMap.values.toSeq
+
+  protected def updateAgentInTile(newTile: Tile): Tile = {
+    agentInTile(newTile).foreach{
+      _agentsPositions += _ -> newTile
+    }
+    newTile
+  }
+
+  private implicit class TileTransformFuncWrapper(f: Tile => Tile){
+    def ensuringSameCoordinates: Tile => Tile = old => f(old).ensuring(_.coordinate == old.coordinate)
+  }
+
   def transformTiles(f: Tile => Tile): Env = {
-    setTiles(tiles.map{ tile =>
-      val newTile = f(tile)
+    setTiles(tiles.map(updateAgentInTile _ compose f.ensuringSameCoordinates))
+    this
+  }
 
-      agentInTile(newTile).foreach{
-        _agentsPositions += _ -> newTile
-      }
-
-      newTile
-    })
+  def transformTile(pos: Coordinate)(f: Tile => Tile): Env = {
+    setTile(get(pos) |> (updateAgentInTile _ compose f.ensuringSameCoordinates))
     this
   }
 
