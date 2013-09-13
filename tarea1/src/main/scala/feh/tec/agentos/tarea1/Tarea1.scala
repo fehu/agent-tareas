@@ -11,6 +11,14 @@ import feh.tec.agentos.tarea1.Tarea1.Agents.MyDummyAgent
 import scala.concurrent.Future
 import feh.tec.visual.api.{SquareMapDrawOptions, MapRenderer}
 import feh.tec.visual.{NicolLike2DEasel, LwjglTile2DIntRenderer, LwjglSquare2DMapRenderer}
+import nicol._
+import nicol.input.Key._
+import feh.tec.agent.AgentId
+import feh.tec.agentos.tarea1.OverseerTimeouts
+import feh.tec.agent.StatelessAgentPerformanceMeasure.Criterion
+import feh.tec.agent.AgentId
+import feh.tec.agentos.tarea1.OverseerTimeouts
+import feh.tec.agent.StatelessAgentPerformanceMeasure.Criterion
 
 object Tarea1 {
   object Agents{
@@ -108,7 +116,29 @@ object Tarea1App extends App{
 
   val ag = new MyDummyAgent(overseer.ref, setup.criteria, setup.findPossibleActions, Agents.Id.dummy)
 
-  val agStop = ag.execution()
+  def startNicol() = Init("Tarea1 v. 0.01", 800, 600) >> StubScene
 
+  startNicol()
+
+  val agStop = ag.execution()
 }
 
+
+object StubScene extends LoopScene with SyncableScene with ShowFPS{
+  def update: Option[Scene] = {
+    sync
+    showFPS
+
+    keyEvent {
+      e =>
+        e released {
+          case _ =>
+        }
+        e pressed {
+          case "escape" =>
+//            NicolTestApp.stop
+            End
+        }
+    }
+  }
+}

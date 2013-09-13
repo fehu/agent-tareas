@@ -42,7 +42,7 @@ class NicolTestMain(val map: Map, buildMapDrawOps: NicolLike2DEasel => BasicSqua
 }
 
 object NicolTestAppAgentHolder extends ThreadLocal[Option[AgentId]]{
-  override def initialValue(): Option[AgentId] = None
+  override def initialValue(): Option[AgentId] = Some(AgentId())
 }
 
 object NicolTestApp extends Game(Init("Test", 800, 600) >> new NicolTestMain(LwjglTest.genMap(NicolTestAppAgentHolder.get()), implicit easel => LwjglTest.mapDrawOps))

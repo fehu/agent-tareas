@@ -1,5 +1,7 @@
 import sbt._
 import Keys._
+import sbtunidoc.Plugin._
+import UnidocKeys._
 
 import org.sbtidea.SbtIdeaPlugin._
 
@@ -15,7 +17,7 @@ object AgentosTarea1 extends Build {
     scalacOptions in (Compile, doc) ++= Seq("-diagrams", "-diagrams-debug")
   )
 
-  lazy val lwjglSettings = Nicol.nicolSettings ++ Seq(
+  lazy val lwjglSettings = LWJGLPlugin.lwjglSettings /*Nicol.nicolSettings*/ ++ Seq(
     LWJGLPlugin.lwjgl.version := "2.9.0"
   )
 
@@ -30,9 +32,16 @@ object AgentosTarea1 extends Build {
   lazy val root = Project(
     id = "root",
     base = file("."),
-    settings = buildSettings
+    settings = buildSettings ++ unidocSettings
   ).settings(ideaExcludeFolders := ".idea" :: ".idea_modules" :: Nil)
-   .dependsOn(agent, world, drawApi, lwjglVisualization)
+   .aggregate(agent, world, drawApi, lwjglVisualization, agTarea1)
+
+
+  lazy val agTarea1 =  Project(
+    id = "agTarea1",
+    base = file("tarea1"),
+    settings = buildSettings
+  ) dependsOn (agent, world, drawApi, lwjglVisualization)
 
 
   lazy val agent = Project(
@@ -64,6 +73,6 @@ object AgentosTarea1 extends Build {
   lazy val lwjglVisualization = Project(
     id = "lwjgl",
     base = file("lwjgl"),
-    settings = buildSettings ++ LWJGLPlugin.lwjglSettings
+    settings = buildSettings ++ lwjglSettings
   ) dependsOn drawApi
 }

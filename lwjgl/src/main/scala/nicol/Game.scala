@@ -18,7 +18,7 @@ abstract class Game(entry: Scene){
   protected val theGame = actor(new Act {
     become{
       case "start" => entry.apply
-      case "delayedStop" => system.scheduler.scheduleOnce(1000 millis, self, "stop")
+      case "delayedStop" => system.scheduler.scheduleOnce(20 millis, self, "stop")
       case "stop" => system.stop(self)
     }
 
