@@ -7,6 +7,7 @@ import feh.tec.map.tile.AbstractTile
 import feh.tec.agent.EnvironmentOverseer
 import scala.concurrent.duration.Duration
 
+//todo: move from api module
 @deprecated("it should have nicol-game init like structure in the drawing thread in order to have openGL context; for a while rely on Nicol Game and Init ")
 trait AsyncMapDrawingEnvironmentOverseer[Map <: AbstractMap[Tile, Coordinate],
                                          Tile <: AbstractTile[Tile, Coordinate],
