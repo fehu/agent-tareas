@@ -6,11 +6,12 @@ import java.util.UUID
 import feh.tec.util.RangeWrapper._
 import scala.{Predef, collection, Some}
 import feh.tec.agent.{Route, AgentId}
+import scala.collection.mutable
 
 /*
   todo: move
  */
-class Map(buildTilesMap: Map => collection.Map[(Int, Int), SqTile], xRange: Range, yRange: Range)
+class Map(buildTilesMap: Map => Predef.Map[(Int, Int), SqTile], xRange: Range, yRange: Range)
   extends AbstractSquareMap[SqTile] with EnclosedMap[SqTile, (Int, Int)] with AgentsPositionsProvidingMap[SqTile, (Int, Int)]
 { map =>
 
@@ -33,23 +34,13 @@ class Map(buildTilesMap: Map => collection.Map[(Int, Int), SqTile], xRange: Rang
 
   import SimpleDirection._
 
-  def onCoordinateGridEdge(c: (Int, Int)): Seq[SimpleDirection] =  {
-    val leftRight = PartialFunction.condOpt(c){
-      case (x, _) if x == xRange.min => Left
-      case (x, _) if x == xRange.max => Right
-    }
-    val bottomTop = PartialFunction.condOpt(c){
-      case (_, y) if y == yRange.min => Bottom
-      case (_, y) if y == yRange.max => Top
-    }
-    (leftRight :: bottomTop :: Nil).flatten
-  }
-
+  def onCoordinateGridEdge(c: (Int, Int)): Seq[SimpleDirection] = MapHelper.onCoordinateGridEdge(xRange, yRange, c)
   def onCoordinateGridEdge(tile: Tile): Seq[SimpleDirection] = onCoordinateGridEdge(tile.coordinate)
 
   protected val neighborsMap = collection.mutable.Map.empty[Tile, Seq[Tile]]
 
-  def getNeighbors(tile: Tile) = neighborsMap get tile getOrElse neighborsMap.synchronized{
+  def getNeighbors(c: Coordinate): Seq[Tile] = getNeighbors(get(c))
+  def getNeighbors(tile: Tile): Seq[Tile] = neighborsMap get tile getOrElse neighborsMap.synchronized{
     val neighbors = findNeighbors(tile)
     neighborsMap += tile -> neighbors
     neighbors
@@ -75,7 +66,7 @@ class Map(buildTilesMap: Map => collection.Map[(Int, Int), SqTile], xRange: Rang
   }
 
 
-  def agentsPositions: collection.Map[AgentId, Tile] = ???
+  def agentsPositions: Predef.Map[AgentId, Tile] = ??? // to be overridden
 }
 
 object Map{
@@ -85,8 +76,8 @@ object Map{
     def snapshot(m: Map): MapSnapshot[Map, SqTile, (Int, Int)] = new Map(null, m.coordinates.xRange, m.coordinates.yRange) with MapSnapshot[Map, SqTile, (Int, Int)]{
       lazy val tilesSnapshots: Seq[TileSnapshot[SqTile, (Int, Int)]] = tilesSnapshotsMap.values.toSeq
 
-      override lazy val tilesMap: collection.Map[(Int, Int), SqTile] = ???
-      val tilesSnapshotsMap: collection.Map[(Int, Int), TileSnapshot[SqTile, Coordinate]] =
+      override lazy val tilesMap: Predef.Map[(Int, Int), SqTile] = ???
+      val tilesSnapshotsMap: Predef.Map[(Int, Int), TileSnapshot[SqTile, Coordinate]] =
         m.tilesToMap.mapValues(tilesSnapshotBuilder.snapshot)
 
       def getSnapshot: PartialFunction[Coordinate, TileSnapshot[SqTile, Coordinate]] = tilesSnapshotsMap
@@ -102,27 +93,45 @@ object Map{
     }
   }
 
+  lazy val snapshotBuilder = new SnapshotBuilder
+
   implicit class DirectionOps(map: Map){
     def tileTo(from: (Int, Int), direction: SimpleDirection): SqTile = map.get(positionTo(from, direction))
 
-    import SimpleDirection._
-
-    def positionTo(from: (Int, Int), direction: SimpleDirection): (Int, Int) = {
-      val onEdge = map.onCoordinateGridEdge(from)
-      val res = direction match{
-        case Up if onEdge.exists(_ == Top)      => from._1 -> map.coordinates.yRange.min
-        case Up                                 => from._1 -> (from._2 + 1)
-        case Down if onEdge.exists(_ == Bottom) => from._1 -> map.coordinates.yRange.max
-        case Down                               => from._1 -> (from._2 - 1)
-        case Left if onEdge.exists(_ == Left)   => map.coordinates.xRange.max -> from._2
-        case Left                               => (from._1 - 1) -> from._2
-        case Right if onEdge.exists(_ == Right) => map.coordinates.xRange.min -> from._2
-        case Right                              => (from._1 + 1) -> from._2
-      }
-      res
-    }
+    def positionTo = MapHelper.positionTo(map.coordinates.xRange, map.coordinates.yRange) _
   }
 
+}
+
+object MapHelper{
+  import SimpleDirection._
+
+  def onCoordinateGridEdge(xRange: Range, yRange: Range, c: (Int, Int)): Seq[SimpleDirection] =  {
+    val leftRight = PartialFunction.condOpt(c){
+      case (x, _) if x == xRange.min => Left
+      case (x, _) if x == xRange.max => Right
+    }
+    val bottomTop = PartialFunction.condOpt(c){
+      case (_, y) if y == yRange.min => Bottom
+      case (_, y) if y == yRange.max => Top
+    }
+    (leftRight :: bottomTop :: Nil).flatten
+  }
+
+
+  def positionTo(xRange: Range, yRange: Range)(from: (Int, Int), direction: SimpleDirection): (Int, Int) = {
+    val onEdge = onCoordinateGridEdge(xRange, yRange, from)
+    direction match{
+      case Up if onEdge.exists(_ == Top)      => from._1 -> yRange.min
+      case Up                                 => from._1 -> (from._2 + 1)
+      case Down if onEdge.exists(_ == Bottom) => from._1 -> yRange.max
+      case Down                               => from._1 -> (from._2 - 1)
+      case Left if onEdge.exists(_ == Left)   => xRange.max -> from._2
+      case Left                               => (from._1 - 1) -> from._2
+      case Right if onEdge.exists(_ == Right) => xRange.min -> from._2
+      case Right                              => (from._1 + 1) -> from._2
+    }
+  }
 }
 
 case class SqTile(map: Map, coordinate: (Int, Int), contents: Option[MapObj])
@@ -190,7 +199,99 @@ object DummyMapGenerator{ outer =>
 }
 
 class MapShortestRouteFinder extends ShortestRouteFinder[Map, SqTile, (Int, Int)]{
-  def shortestRoute(map: Map)(from: (Int, Int), to: (Int, Int)): Route[(Int, Int)] = ???
+  def shortestRoutes(map: Map)(from: (Int, Int), to: Set[(Int, Int)]): Predef.Map[(Int, Int), Route[(Int, Int)]] =
+    shortestRoutes(Map.snapshotBuilder.snapshot(map))(from, to)
 
-  def shortestRoute(snapshot: MapSnapshot[Map, SqTile, (Int, Int)])(from: (Int, Int), to: (Int, Int)): Route[(Int, Int)] = ???
+  def shortestRoutes(snapshot: MapSnapshot[Map, SqTile, (Int, Int)])(from: (Int, Int), to: Set[(Int, Int)]): Predef.Map[(Int, Int), Route[(Int, Int)]] = {
+    val graph = mapAsGraph(snapshot, from)
+    val floydWarshall = new FloydWarshall
+    floydWarshall.findShortestRoutes(graph, from, to)()
+  }
+
+  def mapAsGraph(snapshot: MapSnapshot[Map, SqTile, (Int, Int)], rootCoord: (Int, Int)): Graph = {
+    def findConnections(tile: TileSnapshot[SqTile, (Int, Int)]): Seq[((Int, Int), (Int, Int))] =
+      tile.neighboursSnapshots.filterNot(_.asTile.contents.exists(_.isHole)).map(tile.coordinate -> _.coordinate)
+
+    val filteredSnapshots = snapshot.tilesSnapshots.filterNot(_.asTile.contents.exists(_.isHole))
+    val nodesConnections: Seq[((Int, Int), (Int, Int))] = filteredSnapshots.flatMap(findConnections)
+    def nodesMap = filteredSnapshots.map(ts => ts.coordinate -> buildGraphNode(ts)).toMap
+
+    def connections(coordinate: (Int, Int)) = nodesConnections.filter(_._1 == coordinate)
+      .map(_._1).map(snapshot.getSnapshot andThen buildGraphNode).toList
+
+    def buildGraphNode(ts: TileSnapshot[SqTile, (Int, Int)]): GraphNode =
+      GraphNode(ts.asTile.contents, ts.coordinate)(connections(ts.coordinate))
+
+    Graph(nodesMap, nodesConnections)
+  }
+}
+
+case class Graph(nodesMap: Predef.Map[(Int, Int), GraphNode], connections: Seq[((Int, Int), (Int, Int))])
+case class GraphNode(contents: Option[MapObj], coord: (Int, Int))(getConnections: => List[GraphNode]){
+  lazy val connections: List[GraphNode] = getConnections
+}
+
+/**
+ *  http://en.wikipedia.org/wiki/Floyd%E2%80%93Warshall_algorithm
+ *  todo: move to [[feh.tec.map]] package
+ */
+class FloydWarshall{
+  type Coord = (Int, Int)
+
+  def findMinimalDistances(gr: Graph): Predef.Map[(Coord, Coord), Int] = {
+    val dists = mutable.HashMap.empty[(Coord, Coord), Option[Int]]
+    def dist(c1: Coord, c2: Coord) = dists(c1 -> c2) getOrElse sys.error("smth is wrong in Floyd-Warshall")
+    def update(c1: Coord, c2: Coord, d: Int) = dists += (c1 -> c2) -> Some(d)
+
+    // init known distances
+    for((from, to) <- gr.connections) {
+      update(from, from, 0)
+      update(from, to, 1)
+    }
+
+    val coordsSeq = gr.nodesMap.keys
+
+    for{
+      k <- coordsSeq
+      i <- coordsSeq
+      j <- coordsSeq
+      newDist = dist(i, k) + dist(k, j)
+      if newDist < dist(i, j)
+    } update(i, j, newDist)
+
+    dists.toMap.mapValues(_.get)
+  }
+
+  /**
+   *
+   * @return one route per destination even if there are more
+   */
+  def findShortestRoutes(gr: Graph, from: Coord, to: Set[Coord])
+                        (minDistMap: Predef.Map[(Coord, Coord), Int] = findMinimalDistances(gr)): Predef.Map[Coord, Route[Coord]] = {
+    val routes = mutable.HashMap.empty[Coord, (Route[Coord], Int)]
+    def appendStep(destination: Coord, step: Coord, distance: Int) = {
+      routes.get(destination)
+        .map(r => routes += destination -> ((r._1 / step) -> distance))
+        .getOrElse(routes += destination -> (Route(step) -> distance))
+
+      distance == 0
+    }
+    val finished = mutable.HashSet.empty[Coord]
+
+
+    def rec(pos: Coord){
+      val conn = gr.nodesMap(pos).connections
+      for{
+        dest <- to filterNot finished.contains
+        dists = conn.map(n => n -> minDistMap(n.coord, dest))
+        (min, distLeft) = dists.minBy(_._2)
+      } {
+        if(appendStep(dest, min.coord, distLeft)) finished += dest
+        else rec(min.coord)
+      }
+    }
+
+    rec(from)
+    routes.mapValues(_._1).toMap
+  }
 }

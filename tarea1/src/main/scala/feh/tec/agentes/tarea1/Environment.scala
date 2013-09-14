@@ -63,10 +63,10 @@ class Environment(buildTilesMap: Map => Seq[Tile],
   override lazy val tilesMap = initTiles.map(t => t.coordinate -> t).toMap
   override def get: PartialFunction[Coordinate, Tile] = super[MutableMapEnvironment].get
 
-  override def tilesToMap: collection.Map[(Int, Int), SqTile] = tilesAsMap
+  override def tilesToMap: Predef.Map[(Int, Int), SqTile] = tilesAsMap
 
   override def tiles: Seq[Tile] = super[MutableMapEnvironment].tiles
-  override def agentsPositions: collection.Map[AgentId, Tile] = super[MutableMapEnvironment].agentsPositions
+  override def agentsPositions: Predef.Map[AgentId, Tile] = super[MutableMapEnvironment].agentsPositions
 }
 
 class Overseer(actorSystem: ActorSystem,
@@ -99,7 +99,7 @@ class Overseer(actorSystem: ActorSystem,
   class SnapshotBuilder(env: Environment){
     def snapshot(_states: PartialFunction[Coordinate, State] = env.states,
                  _globalState: Global = env.globalState,
-                 _tilesMap: collection.Map[(Int, Int), SqTile] = env.tilesAsMap ): EnvironmentSnapshot[Coordinate, State, Global, Action, Environment] =
+                 _tilesMap: Predef.Map[(Int, Int), SqTile] = env.tilesAsMap ): EnvironmentSnapshot[Coordinate, State, Global, Action, Environment] =
       new Environment(null, env.xRange, env.yRange, env.effects, _globalState, mapStateBuilder)
         with EnvironmentSnapshot[Coordinate, State, Global, Action, Environment]
       {
@@ -129,7 +129,7 @@ class Overseer(actorSystem: ActorSystem,
       def snapshot(): EnvironmentSnapshot[Coordinate, State, Global, Action, Environment] = SnapshotBuilder.snapshot()
     }
 
-  lazy val mapSnapshotBuilder = new Map.SnapshotBuilder
+  lazy val mapSnapshotBuilder = Map.snapshotBuilder
 
   def getMap(): MapSnapshot[Map, Tile, Coordinate] = mapSnapshotBuilder.snapshot(env)
 

@@ -87,7 +87,7 @@ trait MutableMapEnvironment[Map <: AbstractMap[Tile, Coordinate],
 
   protected def agentInTile(tile: Tile): Option[AgentId]
 
-  def agentsPositions: collection.Map[AgentId, Tile] = _agentsPositions
+  def agentsPositions = _agentsPositions.toMap
 }
 
 trait MapEnvironmentRef[Coordinate, State <: MapState[Coordinate, Tile, Map], Global <: MapGlobalState[Coordinate, Tile, Map],

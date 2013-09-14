@@ -97,6 +97,8 @@ trait EnvironmentSnapshot[Coordinate, State, Global, Action <: AbstractAction, E
    */
 //  abstract override def affected(act: Action): EnvironmentSnapshot[Coordinate, State, Global, Action, Env] = this
   def affected(act: Action): SideEffect[Env] = SideEffect(this)
+
+  def asEnv: Env with EnvironmentSnapshot[Coordinate, State, Global, Action, Env] = self
 }
 
 trait CustomisableEnvironmentSnapshot[Coordinate, State, Global, Action <: AbstractAction,

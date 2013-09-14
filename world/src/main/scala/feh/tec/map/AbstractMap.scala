@@ -37,5 +37,5 @@ trait EnclosedMap[Tile <: AbstractTile[Tile, Coordinate], Coordinate] extends Ab
 trait AgentsPositionsProvidingMap[Tile <: AbstractTile[Tile, Coordinate], Coordinate]{
   self: AbstractMap[Tile, Coordinate] =>
 
-  def agentsPositions: collection.Map[AgentId, Tile]
+  def agentsPositions: Predef.Map[AgentId, Tile]
 }

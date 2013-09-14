@@ -15,6 +15,8 @@ import feh.tec.agent.AgentId
 import feh.tec.agent.StatelessAgentPerformanceMeasure.Criterion
 import Map._
 import feh.tec.util.LiftWrapper
+import feh.tec.agentes.tarea1.Criteria.{ClosestPairIntraDistanceCriterion, NumberOfHolesCriterion, PlugsMovingAgentCriteria}
+import scala.util.Random
 
 object Tarea1 {
   object Agents{
@@ -160,7 +162,16 @@ object Tarea1App extends App{
       Criterion[Position, EnvState, EnvGlobal, Action, Env, Measure](assess)
 
     def criteria: Seq[Criterion[Position, EnvState, EnvGlobal, Action, Env, Measure]] =
-      criteria(_ => 1) :: Nil // todo
+      new PlugsMovingAgentCriteria
+//        with NumberOfHolesCriterion
+//        with ClosestPairIntraDistanceCriterion
+      {
+//        def numberOfHolesWeight: Double = -10
+//        def closestPairIntraDistanceWeight: Int = 2
+
+//        protected lazy val shortestRouteFinder: MapShortestRouteFinder = new MapShortestRouteFinder
+        override def toList = criterion(_ => Random.nextDouble()) :: Nil
+      }.toList
   }
 
   object visual{
