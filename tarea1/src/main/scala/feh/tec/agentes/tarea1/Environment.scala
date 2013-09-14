@@ -13,6 +13,7 @@ import feh.tec.visual.api.MapRenderer
 import scala.Some
 import feh.tec.agent.AgentId
 import akka.event.Logging
+import feh.tec.util.{DebuggingSetup, GlobalDebugging, Debugging}
 
 object Environment{
   type Tile = SqTile
@@ -82,6 +83,7 @@ class Overseer(actorSystem: ActorSystem,
   with PredictingEnvironmentOverseerWithActor[Coordinate, State, Global, Action, Environment]
   with MapEnvironmentOverseerWithActor[Map, Tile, Coordinate, State, Global, Action, Environment]
   with AsyncMapDrawingEnvironmentOverseer[Map, Tile, Coordinate, State, Global, Action, Environment, Easel]
+  with GlobalDebugging
 {
   
   overseer =>
@@ -155,6 +157,15 @@ class Overseer(actorSystem: ActorSystem,
   protected def environmentOverseerActorProps = Props(classOf[EnvironmentOverseerActor], actorResponseFuncs)
 
   val actorRef: ActorRef = actorSystem.actorOf(environmentOverseerActorProps)
+
+  def debugMessagePrefix: String = "[Overseer]"
+
+  override def predict(a: Action): Environment#Prediction = {
+    a debugLog "Predicting for action"
+    super.predict(a)
+  }
+
+  protected def setup: DebuggingSetup = Tarea1.Debug
 }
 
 class EnvironmentOverseerActor(responses: PartialFunction[Any, () => Unit]) extends Actor{

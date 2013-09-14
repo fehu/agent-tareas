@@ -1,12 +1,18 @@
 package feh.tec.util
 
 trait StateInScope[T]{
-  def default: T
+  protected def default: T
 
-  protected var state = default
-  def get: T = state
+  private val _state = new ThreadLocal[T]{
+    override def initialValue(): T = default
+  }
 
-//  def doWith[R](t: T, r: => R): R = doWith(t)(r)
+  protected def state_=(t: T) = _state.set(t)
+
+  def get: T = _state.get
+  def state = get
+
+  def doWith[R](t: T, f: T => R): R = doWith(t)(f(t))
   def doWith[R](t: T)(r: => R): R = {
     val old = get
     state = t
@@ -17,6 +23,4 @@ trait StateInScope[T]{
 }
 
 
-class ScopedState[T](_default: T) extends StateInScope[T]{
-  def default: T = _default
-}
+class ScopedState[T](protected val default: T) extends StateInScope[T]

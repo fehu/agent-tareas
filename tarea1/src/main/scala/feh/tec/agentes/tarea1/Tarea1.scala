@@ -14,11 +14,13 @@ import nicol.input.Key._
 import feh.tec.agent.AgentId
 import feh.tec.agent.StatelessAgentPerformanceMeasure.Criterion
 import Map._
-import feh.tec.util.LiftWrapper
+import feh.tec.util.{GlobalDebuggingSetup, LiftWrapper}
 import feh.tec.agentes.tarea1.Criteria.{ClosestPairIntraDistanceCriterion, NumberOfHolesCriterion, PlugsMovingAgentCriteria}
 import scala.util.Random
 
 object Tarea1 {
+  object Debug extends GlobalDebuggingSetup
+
   object Agents{
     object Id{
       val dummy = AgentId(UUID.randomUUID())
@@ -163,14 +165,15 @@ object Tarea1App extends App{
 
     def criteria: Seq[Criterion[Position, EnvState, EnvGlobal, Action, Env, Measure]] =
       new PlugsMovingAgentCriteria
-//        with NumberOfHolesCriterion
-//        with ClosestPairIntraDistanceCriterion
+        with NumberOfHolesCriterion
+        with ClosestPairIntraDistanceCriterion
       {
-//        def numberOfHolesWeight: Double = -10
-//        def closestPairIntraDistanceWeight: Int = 2
+        def numberOfHolesWeight: Double = -10
+        def closestPairIntraDistanceWeight: Int = 2
 
-//        protected lazy val shortestRouteFinder: MapShortestRouteFinder = new MapShortestRouteFinder
-        override def toList = criterion(_ => Random.nextDouble()) :: Nil
+        protected lazy val shortestRouteFinder: MapShortestRouteFinder = new MapShortestRouteFinder
+//        override def toList = criterion(_ => Random.nextDouble()) :: Nil
+        def debug: Boolean = true
       }.toList
   }
 
@@ -183,6 +186,8 @@ object Tarea1App extends App{
       def tileSideSize: NicolLike2DEasel#CoordinateUnit = visual.tileSideSize
     }
   }
+
+  Tarea1.Debug() = true
 
   val env = environment(Option(Agents.Id.dummy))
   val overseer = Tarea1.overseer(env, timeouts, visual.mapRenderer, visual.easel, visual.howToDrawTheMap)

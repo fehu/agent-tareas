@@ -7,6 +7,7 @@ import feh.tec.util.RangeWrapper._
 import scala.{Predef, collection, Some}
 import feh.tec.agent.{Route, AgentId}
 import scala.collection.mutable
+import feh.tec.util.ScopedState
 
 /*
   todo: move
@@ -202,19 +203,35 @@ class MapShortestRouteFinder extends ShortestRouteFinder[Map, SqTile, (Int, Int)
   def shortestRoutes(map: Map)(from: (Int, Int), to: Set[(Int, Int)]): Predef.Map[(Int, Int), Route[(Int, Int)]] =
     shortestRoutes(Map.snapshotBuilder.snapshot(map))(from, to)
 
-  def shortestRoutes(snapshot: MapSnapshot[Map, SqTile, (Int, Int)])(from: (Int, Int), to: Set[(Int, Int)]): Predef.Map[(Int, Int), Route[(Int, Int)]] = {
-    val graph = mapAsGraph(snapshot, from)
-    val floydWarshall = new FloydWarshall
-    floydWarshall.findShortestRoutes(graph, from, to)()
+  lazy val floydWarshall = new FloydWarshall
+
+  private val scopedDistMap = new ScopedState[Option[FloydWarshall#MinDistMap]](None)
+  private val scopedGraph = new ScopedState[Option[Graph]](None)
+
+  def withMinDistMap[R](minDistMap: FloydWarshall#MinDistMap, f: MapShortestRouteFinder => R): R = withMinDistMap(minDistMap)(f(this))
+  def withMinDistMap[R](minDistMap: FloydWarshall#MinDistMap)(r:  => R): R = scopedDistMap.doWith(Option(minDistMap))(r)
+
+  def onGraph[R](gr: Graph, f: MapShortestRouteFinder => R): R = onGraph(gr)(f(this))
+  def onGraph[R](gr: Graph)(r: => R): R = scopedGraph.doWith(Option(gr))(r)
+
+  private def buildMinDistMap = floydWarshall.findMinimalDistances _
+  private def getMinDistMap(gr: Graph) = scopedDistMap.get getOrElse buildMinDistMap(gr)
+
+  private def getGraph(snapshot: MapSnapshot[Map, SqTile, (Int, Int)]) =
+    scopedGraph.get getOrElse  mapAsGraph(snapshot)
+
+  def shortestRoutes(snapshot: MapSnapshot[Map, SqTile, (Int, Int)])
+                    (from: (Int, Int), to: Set[(Int, Int)]): Predef.Map[(Int, Int), Route[(Int, Int)]] = {
+    val graph = getGraph(snapshot)
+    floydWarshall.findShortestRoutes(graph, from, to)(getMinDistMap(graph))
   }
 
-  def mapAsGraph(snapshot: MapSnapshot[Map, SqTile, (Int, Int)], rootCoord: (Int, Int)): Graph = {
+  def mapAsGraph(snapshot: MapSnapshot[Map, SqTile, (Int, Int)]): Graph = {
     def findConnections(tile: TileSnapshot[SqTile, (Int, Int)]): Seq[((Int, Int), (Int, Int))] =
       tile.neighboursSnapshots.filterNot(_.asTile.contents.exists(_.isHole)).map(tile.coordinate -> _.coordinate)
 
     val filteredSnapshots = snapshot.tilesSnapshots.filterNot(_.asTile.contents.exists(_.isHole))
     val nodesConnections: Seq[((Int, Int), (Int, Int))] = filteredSnapshots.flatMap(findConnections)
-    def nodesMap = filteredSnapshots.map(ts => ts.coordinate -> buildGraphNode(ts)).toMap
 
     def connections(coordinate: (Int, Int)) = nodesConnections.filter(_._1 == coordinate)
       .map(_._1).map(snapshot.getSnapshot andThen buildGraphNode).toList
@@ -222,8 +239,22 @@ class MapShortestRouteFinder extends ShortestRouteFinder[Map, SqTile, (Int, Int)
     def buildGraphNode(ts: TileSnapshot[SqTile, (Int, Int)]): GraphNode =
       GraphNode(ts.asTile.contents, ts.coordinate)(connections(ts.coordinate))
 
+    val nodesMap = filteredSnapshots.map(ts => ts.coordinate -> buildGraphNode(ts)).toMap
+
     Graph(nodesMap, nodesConnections)
   }
+
+  def findClosest(map: Map)(relativelyTo: (Int, Int), what: (Int, Int) => Boolean): Option[((Int, Int), Int)] =
+    findClosest(Map.snapshotBuilder.snapshot(map))(relativelyTo, what)
+  def findClosest(snapshot: MapSnapshot[Map, SqTile, (Int, Int)])(relativelyTo: (Int, Int), what: (Int, Int) => Boolean): Option[((Int, Int), Int)] = {
+    val gr = getGraph(snapshot)
+    val minDist = getMinDistMap(gr)
+    val acceptablePairs =  minDist.withFilter(_._1._1 == relativelyTo).withFilter(what.tupled apply _._1._2).map{case ((_, c), d) => c -> d}
+
+    if(acceptablePairs.nonEmpty) Option(acceptablePairs.minBy(_._2))
+    else None
+  }
+
 }
 
 case class Graph(nodesMap: Predef.Map[(Int, Int), GraphNode], connections: Seq[((Int, Int), (Int, Int))])
@@ -237,11 +268,12 @@ case class GraphNode(contents: Option[MapObj], coord: (Int, Int))(getConnections
  */
 class FloydWarshall{
   type Coord = (Int, Int)
+  type MinDistMap = Predef.Map[((Int, Int), (Int, Int)), Int]
 
-  def findMinimalDistances(gr: Graph): Predef.Map[(Coord, Coord), Int] = {
-    val dists = mutable.HashMap.empty[(Coord, Coord), Option[Int]]
-    def dist(c1: Coord, c2: Coord) = dists(c1 -> c2) getOrElse sys.error("smth is wrong in Floyd-Warshall")
-    def update(c1: Coord, c2: Coord, d: Int) = dists += (c1 -> c2) -> Some(d)
+  def findMinimalDistances(gr: Graph): MinDistMap = {
+    val dists = mutable.HashMap.empty[(Coord, Coord), Float].withDefault(_ => Float.PositiveInfinity) // it's flaot only to put Inf
+    def dist(c1: Coord, c2: Coord) = dists(c1 -> c2) //getOrElse sys.error("smth is wrong in Floyd-Warshall")
+    def update(c1: Coord, c2: Coord, f: Float) = dists += (c1 -> c2) -> f
 
     // init known distances
     for((from, to) <- gr.connections) {
@@ -259,7 +291,7 @@ class FloydWarshall{
       if newDist < dist(i, j)
     } update(i, j, newDist)
 
-    dists.toMap.mapValues(_.get)
+    dists.toMap.mapValues(_.toInt)
   }
 
   /**
@@ -267,7 +299,7 @@ class FloydWarshall{
    * @return one route per destination even if there are more
    */
   def findShortestRoutes(gr: Graph, from: Coord, to: Set[Coord])
-                        (minDistMap: Predef.Map[(Coord, Coord), Int] = findMinimalDistances(gr)): Predef.Map[Coord, Route[Coord]] = {
+                        (minDistMap: MinDistMap = findMinimalDistances(gr)): Predef.Map[Coord, Route[Coord]] = {
     val routes = mutable.HashMap.empty[Coord, (Route[Coord], Int)]
     def appendStep(destination: Coord, step: Coord, distance: Int) = {
       routes.get(destination)
