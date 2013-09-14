@@ -27,8 +27,7 @@ object LwjglTileRenderer {
       obj match{
         case AgentAvatar(_) =>      drawIt("A", Color.green)
         case Plug() =>              drawIt("P", Color.blue)
-        case Hole(Some(Plug())) =>  drawIt("x", Color.yellow)
-        case Hole(None) =>          drawIt("O", Color.red)
+        case Hole() =>              drawIt("O", Color.red)
       }
     }
 

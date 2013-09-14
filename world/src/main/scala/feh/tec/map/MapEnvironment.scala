@@ -54,7 +54,7 @@ trait MutableMapEnvironment[Map <: AbstractMap[Tile, Coordinate],
 
   def get: PartialFunction[Coordinate, Tile] = _tilesMap
 
-  private def zipTilesWithCoords(tiles: Seq[Tile]) = initTiles.map(t => t.coordinate -> t)
+  private def zipTilesWithCoords(tiles: Seq[Tile]) = tiles.map(t => t.coordinate -> t)
   private def setTiles(tiles: Seq[Tile]) = _tilesMap ++= zipTilesWithCoords(tiles)
   private def setTile(tile: Tile) = _tilesMap += tile.coordinate -> tile
 

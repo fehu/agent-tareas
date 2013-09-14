@@ -103,6 +103,8 @@ class Overseer(actorSystem: ActorSystem,
       new Environment(null, env.xRange, env.yRange, env.effects, _globalState, mapStateBuilder)
         with EnvironmentSnapshot[Coordinate, State, Global, Action, Environment]
       {
+
+        override def initTiles: Seq[Tile] = _tilesMap.values.toSeq
         override val states = _states
         override def states_=(pf: PartialFunction[Coordinate, State]) {}
         override val globalState = _globalState
@@ -162,9 +164,7 @@ class EnvironmentOverseerActor(responses: PartialFunction[Any, () => Unit]) exte
     f andThen (exec => context.system.scheduler.scheduleOnce(Duration.Zero)(exec())(context.dispatcher))
 
 
-  def receive: Actor.Receive = {
-    case _ => println("!!!")
-  } //externalExec(responses)
+  def receive: Actor.Receive = externalExec(responses)
 //    PartialFunction(externalExec(responses andThen sender.!)) // todo: doesn't seem good
 }
 
@@ -203,10 +203,12 @@ case class OverseerTimeouts(defaultBlockingTimeout: Int,
                             getMapMaxDelay: FiniteDuration,
                             positionMaxDelay: FiniteDuration)
 
+/**
+ *  seems to be not used ...
+ */
 case class MState(self: Boolean = false,
                   otherAgent: Boolean = false,
                   hole: Boolean = false,
-                  pluggedHole: Boolean = false,
                   plug: Boolean = false) extends MapState[Coordinate, Tile, Map]{
   def empty = !(self || otherAgent || hole || plug)
 }
@@ -216,8 +218,7 @@ class MStateBuilder(selfId: AgentId) extends MapStateBuilder[Coordinate, Tile, M
     case Some(AgentAvatar(id@AgentId(_))) if selfId == id => MState(self = true)
     case Some(AgentAvatar(_)) => MState(otherAgent = true)
     case Some(Plug()) => MState(plug = true)
-    case Some(Hole(Some(_))) => MState(pluggedHole = true)
-    case Some(Hole(None)) => MState(hole = true)
+    case Some(Hole()) => MState(hole = true)
     case None => MState()
   }
   def build(snapshot: TileSnapshot[Tile, Coordinate]): MState = build(snapshot: Tile)

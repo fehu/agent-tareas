@@ -66,10 +66,14 @@ object Tarea1 {
                         firstPass: Boolean = true): Environment =
       if(moved.isEmpty && !firstPass) env
       else {
-        val old = env.get(currPosition).contents
-        if(!firstPass && old.exists(_.isAgent)) return env // if there is only one agent on map, it would mean that we've just moved a whole row/column
-        env.transformTile(currPosition)(_.copy(contents = moved))
-        moveRecursively(env, env.positionTo(currPosition, direction), direction, old, firstPass = false)
+        val contents = env.get(currPosition).contents
+        contents -> moved match{
+          case (Some(Hole()), Some(Plug())) => env.transformTile(currPosition)(_.copy(contents = None)) // hole plugged
+          case (Some(AgentAvatar(_)), _) if !firstPass => env // if there is only one agent on map, it would mean that we've just moved a whole row/column of plugs
+          case  _ =>
+            env.transformTile(currPosition)(_.copy(contents = moved))
+            moveRecursively(env, env.positionTo(currPosition, direction), direction, contents, firstPass = false)
+        }
       }
 
     // todo: needs agent reference to know it's position
@@ -78,11 +82,10 @@ object Tarea1 {
         val pos = env.agentsPositions.head._2.coordinate // todo: this will work if there is only one agent on map
         val tile = env.tileTo(pos, dir)
         tile.contents match{
-          case Some(Hole(None)) => // cannot move to a hole
+          case Some(Hole()) => // cannot move to a hole
             env
-          case None | Some(Plug()) | Some(Hole(Some(_))) => // move and move plugs recursively if any
+          case None | Some(Plug()) => // move and move plugs recursively if any
             assert(env.get(pos).contents.exists(_.isAgent), "agent isn't here ...")
-
             moveRecursively(env, pos, dir, None)
           case other => sys.error(s"unexpected object on map $other")
         }
@@ -147,7 +150,7 @@ object Tarea1App extends App{
 
     def findPossibleActions: MyDummyAgent => MyDummyAgent#Perception => Set[Action] = ag => perc =>  {
       val x = perc.mapSnapshot.getSnapshot(perc.position).neighboursSnapshots
-      val y = x.withFilter(_.asTile.contents.filterNot(_.isHole).isDefined)
+      val y = x.filterNot(_.asTile.contents.exists(_.isHole))
       val z = y.map(tile => relativePosition(perc.mapSnapshot.coordinates)(perc.position, tile.coordinate))
       val w = z.map(Move(_)).toSet
       w

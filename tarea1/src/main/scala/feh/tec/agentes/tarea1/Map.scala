@@ -33,14 +33,19 @@ class Map(buildTilesMap: Map => collection.Map[(Int, Int), SqTile], xRange: Rang
 
   import SimpleDirection._
 
-  def onCoordinateGridEdge(c: (Int, Int)): Option[SimpleDirection] = PartialFunction.condOpt(c){
-    case (x, _) if x == xRange.min => Left
-    case (x, _) if x == xRange.max => Right
-    case (_, y) if y == yRange.min => Bottom
-    case (_, y) if y == yRange.max => Top
+  def onCoordinateGridEdge(c: (Int, Int)): Seq[SimpleDirection] =  {
+    val leftRight = PartialFunction.condOpt(c){
+      case (x, _) if x == xRange.min => Left
+      case (x, _) if x == xRange.max => Right
+    }
+    val bottomTop = PartialFunction.condOpt(c){
+      case (_, y) if y == yRange.min => Bottom
+      case (_, y) if y == yRange.max => Top
+    }
+    (leftRight :: bottomTop :: Nil).flatten
   }
 
-  def onCoordinateGridEdge(tile: Tile): Option[SimpleDirection] = onCoordinateGridEdge(tile.coordinate)
+  def onCoordinateGridEdge(tile: Tile): Seq[SimpleDirection] = onCoordinateGridEdge(tile.coordinate)
 
   protected val neighborsMap = collection.mutable.Map.empty[Tile, Seq[Tile]]
 
@@ -54,10 +59,10 @@ class Map(buildTilesMap: Map => collection.Map[(Int, Int), SqTile], xRange: Rang
     val edge = onCoordinateGridEdge(tile)
 
     Seq(
-      edge.withFilter(_ == Top)     map (_ => get(tile.x, yRange.min))  getOrElse get(tile.x, tile.y + yRange.step),
-      edge.withFilter(_ == Right)   map (_ => get(xRange.min, tile.y))  getOrElse get(tile.x + xRange.step, tile.y),
-      edge.withFilter(_ == Bottom)  map (_ => get(tile.x, yRange.max))  getOrElse get(tile.x, tile.y - yRange.step),
-      edge.withFilter(_ == Left)    map (_ => get(xRange.max, tile.y))  getOrElse get(tile.x - xRange.step, tile.y)
+      edge.find(_ == Top)     map (_ => get(tile.x, yRange.min))  getOrElse get(tile.x, tile.y + yRange.step),
+      edge.find(_ == Right)   map (_ => get(xRange.min, tile.y))  getOrElse get(tile.x + xRange.step, tile.y),
+      edge.find(_ == Bottom)  map (_ => get(tile.x, yRange.max))  getOrElse get(tile.x, tile.y - yRange.step),
+      edge.find(_ == Left)    map (_ => get(xRange.max, tile.y))  getOrElse get(tile.x - xRange.step, tile.y)
     )
   }
 
@@ -102,15 +107,19 @@ object Map{
 
     import SimpleDirection._
 
-    def positionTo(from: (Int, Int), direction: SimpleDirection): (Int, Int) = direction match{
-      case Up if map.onCoordinateGridEdge(from).exists(_ == Top)      => from._1 -> map.coordinates.yRange.min
-      case Up                                                         => from._1 -> (from._2 + 1)
-      case Down if map.onCoordinateGridEdge(from).exists(_ == Bottom) => from._1 -> map.coordinates.yRange.max
-      case Down                                                       => from._1 -> (from._2 - 1)
-      case Left if map.onCoordinateGridEdge(from).exists(_ == Left)   => map.coordinates.xRange.max -> from._2
-      case Left                                                       => (from._1 - 1) -> from._2
-      case Right if map.onCoordinateGridEdge(from).exists(_ == Right) => map.coordinates.xRange.min -> from._2
-      case Right                                                      => (from._1 + 1) -> from._2
+    def positionTo(from: (Int, Int), direction: SimpleDirection): (Int, Int) = {
+      val onEdge = map.onCoordinateGridEdge(from)
+      val res = direction match{
+        case Up if onEdge.exists(_ == Top)      => from._1 -> map.coordinates.yRange.min
+        case Up                                 => from._1 -> (from._2 + 1)
+        case Down if onEdge.exists(_ == Bottom) => from._1 -> map.coordinates.yRange.max
+        case Down                               => from._1 -> (from._2 - 1)
+        case Left if onEdge.exists(_ == Left)   => map.coordinates.xRange.max -> from._2
+        case Left                               => (from._1 - 1) -> from._2
+        case Right if onEdge.exists(_ == Right) => map.coordinates.xRange.min -> from._2
+        case Right                              => (from._1 + 1) -> from._2
+      }
+      res
     }
   }
 
@@ -137,11 +146,7 @@ trait MapObj extends MapObject{
 }
 case class AgentAvatar(ag: AgentId) extends MapObj {override def isAgent = true}
 case class Plug() extends MapObj { override def isPlug = true }
-case class Hole(plugged: Option[Plug] = None) extends MapObj{
-  override def isHole: Boolean = true
-
-  def isPlugged = plugged.isDefined
-}
+case class Hole() extends MapObj{ override def isHole: Boolean = true }
 
 object DummyMapGenerator{ outer =>
   trait DummyMapGeneratorHelpers

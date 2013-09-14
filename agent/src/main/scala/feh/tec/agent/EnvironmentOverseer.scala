@@ -112,7 +112,7 @@ trait EnvironmentOverseerWithActor[Coordinate, State, Global, Action <: Abstract
         overseer.snapshot.asInstanceOf[Env with EnvironmentSnapshot[Coordinate, State, Global, Action, Env]] // todo: casting
       def stateOf(c: Coordinate): Option[State] = overseer.env.stateOf(c)
       def globalState: Global = overseer.env.globalState
-      def affect(act: Action): SideEffect[Env#Ref] = overseer.affect(act).more(overseer.ref)
+      def affect(act: Action): SideEffect[Env#Ref] = overseer.affect(act).more(overseer.ref).flatExec
     }
 
     lazy val async: AsyncApi = new AsyncApi{
