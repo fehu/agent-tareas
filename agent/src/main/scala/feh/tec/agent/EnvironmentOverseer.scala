@@ -1,6 +1,6 @@
 package feh.tec.agent
 
-import akka.actor.{Scheduler, ActorSystem, Actor}
+import akka.actor.{ActorRef, Scheduler, ActorSystem, Actor}
 import scala.reflect.runtime.universe._
 import scala.concurrent.{ExecutionContext, Future}
 import java.util.{UUID, Calendar}
@@ -11,6 +11,7 @@ import scala.reflect._
 import scala.concurrent.duration.FiniteDuration
 import feh.tec.util.PipeWrapper
 import scala.concurrent.duration._
+import feh.tec.util._
 
 /**
  *  manages the environment, hides actual environment change implementation
@@ -28,7 +29,7 @@ trait EnvironmentOverseer[Coordinate, State, Global, Action <: AbstractAction, E
   protected def affect(a: Action): SideEffect[Env]
 }
 
-protected[agent] object EnvironmentOverseerActor{
+protected[agent] object EnvironmentOverseerWithActor{
   sealed trait Message
   sealed class MessageResponse[R](val response: R, val ttag: List[TypeTag[_]]) extends Message
 
@@ -56,38 +57,41 @@ protected[agent] object EnvironmentOverseerActor{
   }
 }
 
-trait EnvironmentOverseerActor[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]]
-  extends Actor with EnvironmentOverseer[Coordinate, State, Global, Action, Env]
+trait EnvironmentOverseerWithActor[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]]
+  extends EnvironmentOverseer[Coordinate, State, Global, Action, Env]
 {
-  overseer: Actor =>
+  overseer =>
 
-  import EnvironmentOverseerActor._
-  val tags = env.tags
+  def actorRef: ActorRef
+
+  import EnvironmentOverseerWithActor._
+  lazy val tags = env.tags
   import tags._
 
 
   protected def affect(act: Action): SideEffect[Env] = updateEnvironment(_.affected(act).execute)
 
-  def receive: Actor.Receive = {
-    case Get.GlobalState => sender ! Response.GlobalState(env.globalState)
-    case g@Get.StateOf(c) if g.ttag.tpe =:= typeOf[Coordinate] => sender ! Response.StateOf(c, env.stateOf(c.asInstanceOf[Coordinate]))
-    case Get.VisibleStates => sender ! Response.VisibleStates(env.visibleStates)
-    case Get.Snapshot => sender ! Response.Snapshot(snapshot, Calendar.getInstance().getTimeInMillis)
+
+  protected def baseActorResponses: PartialFunction[Any, () => Unit] = {
+    case Get.GlobalState => Response.GlobalState(env.globalState).liftUnit
+    case g@Get.StateOf(c) if g.ttag.tpe =:= typeOf[Coordinate] => Response.StateOf(c, env.stateOf(c.asInstanceOf[Coordinate])).liftUnit
+    case Get.VisibleStates => Response.VisibleStates(env.visibleStates).liftUnit
+    case Get.Snapshot => Response.Snapshot(snapshot, Calendar.getInstance().getTimeInMillis).liftUnit
     case a@Act(act) if a.ttag.tpe <:< typeOf[Action] =>
-      affect(act.asInstanceOf[Action])
-      sender ! Response.ActionApplied(act)
+      affect(act.asInstanceOf[Action]).execute
+      Response.ActionApplied(act).liftUnit
   }
 
-  protected def externalExecutionContext: ExecutionContext // of system, not env overseer actor
+  protected implicit def executionContext: ExecutionContext
   protected def scheduler: Scheduler
 
   def defaultBlockingTimeout: Int
   def defaultFutureTimeout: Int
 
   /*
-   * todo: used typed actors
+   * todo: refactor this reflection using type filtering madness
    */
-  trait BaseEnvironmentRef extends EnvironmentRef[Coordinate, State, Global, Action, Env] with EnvironmentRefBlockingApiImpl[Coordinate, State, Global, Action, Env]
+  trait BaseEnvironmentRef extends EnvironmentRef[Coordinate, State, Global, Action, Env]
     {
       self =>
 
@@ -97,30 +101,40 @@ trait EnvironmentOverseerActor[Coordinate, State, Global, Action <: AbstractActi
       protected val futureTimeoutScope = new ScopedState(defaultFutureTimeout)
 
       lazy val sys: SystemApi = new SystemApi {
-        implicit def executionContext: ExecutionContext = externalExecutionContext
+        implicit def executionContext: ExecutionContext = overseer.executionContext
         def scheduler: Scheduler = overseer.scheduler
       }
 
-      lazy val async: AsyncApi = new AsyncApi{
+
+    lazy val blocking: BlockingApi = new BlockingApi {
+      def visibleStates: Map[Coordinate, State] = overseer.env.visibleStates
+      def snapshot: Env with EnvironmentSnapshot[Coordinate, State, Global, Action, Env] =
+        overseer.snapshot.asInstanceOf[Env with EnvironmentSnapshot[Coordinate, State, Global, Action, Env]] // todo: casting
+      def stateOf(c: Coordinate): Option[State] = overseer.env.stateOf(c)
+      def globalState: Global = overseer.env.globalState
+      def affect(act: Action): SideEffect[Env#Ref] = overseer.affect(act).more(overseer.ref)
+    }
+
+    lazy val async: AsyncApi = new AsyncApi{
         def withTimeout[R](t: Int)(r: => R): R = futureTimeoutScope.doWith(t)(r)
 
         implicit def timeout = Timeout(futureTimeoutScope.get)
 
-        def globalState: Future[Global] = (overseer.self ? Get.GlobalState)
+        def globalState: Future[Global] = (overseer.actorRef ? Get.GlobalState)
           .mapTo[Response.GlobalState[_]].withFilter(_.ttag.head.tpe <:< typeOf[Global]).map(_.global.asInstanceOf[Global])
 
-        def stateOf(c: Coordinate) = (overseer.self ? Get.StateOf(c))
+        def stateOf(c: Coordinate) = (overseer.actorRef ? Get.StateOf(c))
           .mapTo[Response.StateOf[_, _]]
           .withFilter(_.c == c)
           .withFilter(_.ttag match { case _ :: tt2 :: Nil => tt2.tpe <:< typeOf[State] })
           .map(_.stateOpt.asInstanceOf[Option[State]])
 
-        def affect(act: Action) = (overseer.self ? Act(act))
+        def affect(act: Action) = (overseer.actorRef ? Act(act))
           .mapTo[Response.ActionApplied[_]]
           .withFilter(_.a == Act)
           .map(_ => SideEffect(envRef))
 
-        def visibleStates = (overseer.self ? Get.VisibleStates)
+        def visibleStates = (overseer.actorRef ? Get.VisibleStates)
           .mapTo[Response.VisibleStates[_, _]]
           .withFilter(_.ttag match { case tt0 :: tt1 :: tt2 :: Nil =>
             tt1.tpe =:= typeOf[Coordinate] &&
@@ -128,7 +142,7 @@ trait EnvironmentOverseerActor[Coordinate, State, Global, Action <: AbstractActi
           })
           .map(_.states.asInstanceOf[Map[Coordinate, State]])
 
-        def snapshot = (overseer.self ? Get.Snapshot)
+        def snapshot = (overseer.actorRef ? Get.Snapshot)
           .mapTo[Response.Snapshot[_, _, _, _, _]]
           .withFilter(_.ttag match { case _ :: _ :: _ :: _ :: envTag :: Nil => envTag.tpe =:= typeOf[Env] })
           .map(_.snapshot.asInstanceOf[Env with EnvironmentSnapshot[Coordinate, State, Global, Action, Env]])
@@ -178,31 +192,27 @@ trait PredictingEnvironmentOverseer[Coordinate, State, Global, Action <: Abstrac
 
 }
 
-trait PredictingEnvironmentOverseerActor[Coordinate, State, Global, Action <: AbstractAction,
+trait PredictingEnvironmentOverseerWithActor[Coordinate, State, Global, Action <: AbstractAction,
                                          Env <: Environment[Coordinate, State, Global, Action, Env]
                                            with PredictableEnvironment[Coordinate, State, Global, Action, Env]]
-  extends PredictingEnvironmentOverseer[Coordinate, State, Global, Action, Env] with EnvironmentOverseerActor[Coordinate, State, Global, Action, Env]
+  extends PredictingEnvironmentOverseer[Coordinate, State, Global, Action, Env] with EnvironmentOverseerWithActor[Coordinate, State, Global, Action, Env]
 {
-  agent =>
+  overseer =>
 
   case class Predict(a: Action) extends UUIDed
   case class Prediction(uuid: UUID, p: Env#Prediction) extends HasUUID
 
   def predictMaxDelay: FiniteDuration
 
-  private implicit def executionContext: ExecutionContext = externalExecutionContext
-
-  override def receive: Actor.Receive = super.receive orElse {
-    case msg@Predict(a) => scheduler.scheduleOnce(Duration.Zero){
-      sender ! Prediction(msg.uuid, predict(a))
-    }
+  protected def predictingActorResponses: PartialFunction[Any, () => Unit] = {
+    case msg@Predict(a) => Prediction(msg.uuid, predict(a)).liftUnit
   }
 
   trait PredictableEnvironmentRefImpl extends PredictableEnvironmentRef[Coordinate, State, Global, Action, Env]{
-    def predict(a: Action): Env#Prediction = agent predict a
+    def predict(a: Action): Env#Prediction = overseer predict a
 
     def asyncPredict(a: Action): Future[Env#Prediction] = Predict(a) |> { msg =>
-      (agent.self ? msg)(predictMaxDelay)
+      (overseer.actorRef ? msg)(predictMaxDelay)
         .mapTo[Prediction].havingSameUUID(msg).map(_.p)
     }
   }

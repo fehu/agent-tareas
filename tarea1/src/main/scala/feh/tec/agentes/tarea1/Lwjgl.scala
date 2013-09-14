@@ -1,4 +1,4 @@
-package feh.tec.agentos.tarea1
+package feh.tec.agentes.tarea1
 
 import LwjglTileRenderer._
 import feh.tec.visual._
@@ -7,7 +7,7 @@ import scala.util.Random
 import feh.tec.visual.api._
 import nicol._
 import feh.tec.agent.AgentId
-import feh.tec.agentos.tarea1.DummyMapGenerator.DummyMapGeneratorRandomPositionSelectHelper
+import feh.tec.agentes.tarea1.DummyMapGenerator.DummyMapGeneratorRandomPositionSelectHelper
 
 object LwjglTest{
   def createEasel = new NicolLike2DEasel

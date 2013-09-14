@@ -10,7 +10,7 @@ object AgentosTarea1 extends Build {
   val ScalaVersion = "2.10.2"
 
   val buildSettings = Defaults.defaultSettings ++ Seq (
-    organization := "feh.tec.agentos",
+    organization := "feh.tec.agentes",
     version      := "0.1-SNAPSHOT",
     scalaVersion := ScalaVersion,
     scalacOptions ++= Seq("-explaintypes"),

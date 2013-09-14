@@ -1,26 +1,20 @@
-package feh.tec.agentos.tarea1
+package feh.tec.agentes.tarea1
 
-import feh.tec.agentos.tarea1.DummyMapGenerator.DummyMapGeneratorRandomPositionSelectHelper
-import feh.tec.agent.{IdealDummyAgent, AgentInfiniteExecution, AgentId, DummyAgent}
+import feh.tec.agentes.tarea1.DummyMapGenerator.DummyMapGeneratorRandomPositionSelectHelper
+import feh.tec.agent.{IdealDummyAgent, AgentInfiniteExecution}
 import java.util.UUID
-import feh.tec.map.{SimpleDirection, ShortestRouteFinder, MapStateBuilder, MapSnapshotBuilder}
-import akka.actor.{Props, ActorSystem}
+import feh.tec.map.{AbstractSquareMap, SimpleDirection, ShortestRouteFinder, MapStateBuilder}
+import akka.actor.ActorSystem
 import scala.concurrent.duration._
-import feh.tec.agent.StatelessAgentPerformanceMeasure.Criterion
-import feh.tec.agentos.tarea1.Tarea1.Agents.MyDummyAgent
-import scala.concurrent.Future
-import feh.tec.visual.api.{SquareMapDrawOptions, MapRenderer}
-import feh.tec.visual.{NicolLike2DEasel, LwjglTile2DIntRenderer, LwjglSquare2DMapRenderer}
+import feh.tec.agentes.tarea1.Tarea1.Agents.MyDummyAgent
+import feh.tec.visual.api.{Easel, SquareMapDrawOptions, MapRenderer}
+import feh.tec.visual.NicolLike2DEasel
 import nicol._
 import nicol.input.Key._
 import feh.tec.agent.AgentId
-import feh.tec.agentos.tarea1.OverseerTimeouts
 import feh.tec.agent.StatelessAgentPerformanceMeasure.Criterion
-import feh.tec.agent.AgentId
-import feh.tec.agentos.tarea1.OverseerTimeouts
-import feh.tec.agent.StatelessAgentPerformanceMeasure.Criterion
-import feh.tec.agentos.tarea1.Agent.Measure
 import Map._
+import feh.tec.util.LiftWrapper
 
 object Tarea1 {
   object Agents{
@@ -30,35 +24,28 @@ object Tarea1 {
 
     import Agent._
 
-    val shortestRouteFinder: ShortestRouteFinder[Map, Tile, Position] = ???
+    val shortestRouteFinder: ShortestRouteFinder[Map, Tile, Position] = new MapShortestRouteFinder
 
     case class DummyExec(agent: MyDummyAgent,
                          pauseBetweenExecs: FiniteDuration,
                          stopTimeout: FiniteDuration)
       extends AgentInfiniteExecution[Position, EnvState, EnvGlobal, Action, Env, MyDummyAgent]
 
-    implicit def execBuilder: ExecLoopBuilder[/*MyDummyAgent*/ AbstractAgent[DummyExec], DummyExec] = ???
-    //
+    case class DummyExecBuilder(pauseBetweenExecs: FiniteDuration,
+                                stopTimeout: FiniteDuration)
+      extends ExecLoopBuilder[AbstractAgent[DummyExec], DummyExec]
+    {
+      def buildExec(ag: AbstractAgent[DummyExec]): DummyExec =
+        DummyExec(ag.asInstanceOf[MyDummyAgent], pauseBetweenExecs, stopTimeout)
+    }
 
-    def myDummyAgentProps(e: Env#Ref,
-                          criteria: Seq[Criterion[Position, EnvState, EnvGlobal, Action, Env, Measure]],
-                          findPossibleActions: MyDummyAgent => MyDummyAgent#Perception => Set[Action],
-                          _id: AgentId) =
-      Props(classOf[MyDummyAgent], e, criteria, Environment.mapStateBuilder, shortestRouteFinder)
-
-    def myDummyAgent(e: Env#Ref,
-                     criteria: Seq[Criterion[Position, EnvState, EnvGlobal, Action, Env, Measure]],
-                     findPossibleActions: MyDummyAgent => MyDummyAgent#Perception => Set[Action],
-                     _id: AgentId)
-                    (implicit actorSystem: ActorSystem) =
-      actorSystem.actorOf(myDummyAgentProps(e, criteria, findPossibleActions, _id)).asInstanceOf[MyDummyAgent]
-
+    implicit def execBuilder: ExecLoopBuilder[AbstractAgent[DummyExec], DummyExec] = DummyExecBuilder(0.5 second, 100 millis)
 
     class MyDummyAgent(e: Env#Ref,
                        criteria: Seq[Criterion[Position, EnvState, EnvGlobal, Action, Env, Measure]],
                        findPossibleActions: MyDummyAgent => MyDummyAgent#Perception => Set[Action],
-                       _id: AgentId
-                        )
+                       _id: AgentId)
+                      (implicit val actorSystem: ActorSystem)
       extends AbstractAgent[DummyExec](e, criteria, Environment.mapStateBuilder, shortestRouteFinder)
         with IdealDummyAgent[Position, EnvState, EnvGlobal, Action, Env, DummyExec, Measure]
     {
@@ -108,21 +95,13 @@ object Tarea1 {
 
   val timeouts = OverseerTimeouts(10, 10, 100 millis, 10 millis, 30 millis)
 
-  def overseerActorProps(env: Environment,
-                         timeouts: OverseerTimeouts,
-                         mapRenderer: MapRenderer[Map, Agent.Tile, Agent.Position, Agent.Easel],
-                         easel: Agent.Easel,
-                         mapDrawConfig: Agent.Easel#MDrawOptions)
-                        (implicit actorSystem: ActorSystem) =
-    Props(classOf[Overseer], actorSystem, env, mapRenderer, easel, mapDrawConfig, Environment.mapStateBuilder, timeouts)
-
   def overseer(env: Environment,
                timeouts: OverseerTimeouts,
                mapRenderer: MapRenderer[Map, Agent.Tile, Agent.Position, Agent.Easel],
                easel: Agent.Easel,
                mapDrawConfig: Agent.Easel#MDrawOptions)
               (implicit actorSystem: ActorSystem) =
-    actorSystem.actorOf(overseerActorProps(env, timeouts, mapRenderer, easel, mapDrawConfig))
+    new Overseer(actorSystem, env, mapRenderer, easel, mapDrawConfig, Environment.mapStateBuilder, timeouts)
 
   def environment(ag: Option[AgentId]) =
     new Environment(
@@ -152,13 +131,27 @@ object Tarea1App extends App{
   val setup: Tarea1AppSetup = new Tarea1AppSetup {
     import Agent._
 
-    def relativePosition(of: Position, what: Position): SimpleDirection = ???
+    def relativePosition(ranges: AbstractSquareMap[SqTile]#CoordinatesMeta)//(xRange: Range, yRange: Range)
+                        (of: Position, what: Position): SimpleDirection = {
+      import ranges._
+      import SimpleDirection._
 
-    def findPossibleActions: MyDummyAgent => MyDummyAgent#Perception => Set[Action] = ag => perc =>
-      perc.mapSnapshot.getSnapshot(perc.position).neighboursSnapshots
-        .withFilter(_.asTile.contents.filterNot(_.isHole).isDefined)
-        .map(tile => relativePosition(perc.position, tile.coordinate))
-        .map(Move(_)).toSet
+      of -> what match{
+        case ((x1, y1), (x2, y2)) if x1 == x2 && (y2 == y1 + 1 || y1 == yRange.max && y2 == yRange.min) => Up
+        case ((x1, y1), (x2, y2)) if x1 == x2 && (y2 == y1 - 1 || y1 == yRange.min && y2 == yRange.max) => Down
+        case ((x1, y1), (x2, y2)) if y1 == y2 && (x2 == x1 - 1 || x1 == xRange.min && x2 == xRange.max) => Left
+        case ((x1, y1), (x2, y2)) if y1 == y2 && (x2 == x1 + 1 || x1 == xRange.max && x2 == xRange.min) => Right
+        case (c1, c2) => sys.error(s"$c1 and $c2 are not are neighbouring tiles")
+      }
+    }
+
+    def findPossibleActions: MyDummyAgent => MyDummyAgent#Perception => Set[Action] = ag => perc =>  {
+      val x = perc.mapSnapshot.getSnapshot(perc.position).neighboursSnapshots
+      val y = x.withFilter(_.asTile.contents.filterNot(_.isHole).isDefined)
+      val z = y.map(tile => relativePosition(perc.mapSnapshot.coordinates)(perc.position, tile.coordinate))
+      val w = z.map(Move(_)).toSet
+      w
+    }
 
     def criteria(assess: Measure#Snapshot => Measure#Measure) =
       Criterion[Position, EnvState, EnvGlobal, Action, Env, Measure](assess)
@@ -180,20 +173,38 @@ object Tarea1App extends App{
   val env = environment(Option(Agents.Id.dummy))
   val overseer = Tarea1.overseer(env, timeouts, visual.mapRenderer, visual.easel, visual.howToDrawTheMap)
 
-  val ag = Tarea1.Agents.myDummyAgent(overseer.ref, setup.criteria, setup.findPossibleActions, Agents.Id.dummy)
+  val ag = new MyDummyAgent(overseer.ref, setup.criteria, setup.findPossibleActions, Agents.Id.dummy)
 
-  def startNicol() = Init("Tarea1 v. 0.01", 800, 600) >> StubScene
+  def startNicol() = {
+    val game = new Tarea1Game(renderMap(visual.easel).lifted)
+    game.start
+    game
+  }
 
-  startNicol()
+  val game = startNicol()
+
+  def renderMap(implicit easel: NicolLike2DEasel) = visual.mapRenderer.render(env, visual.howToDrawTheMap)
 
   val agStop = ag.execution()
+
+  def terminate() = {
+    agStop()
+    actorSystem.stop(ag.actorRef)
+    actorSystem.stop(overseer.actorRef)
+    game.stop
+    actorSystem.awaitTermination()
+    sys.exit(0)
+  }
 }
 
+class Tarea1Game(renderMap: () => Unit) extends Game(Init("Tarea1 v. 0.01", 800, 600) >> new StubScene(renderMap))
 
-object StubScene extends LoopScene with SyncableScene with ShowFPS{
+class StubScene(renderMap: () => Unit) extends LoopScene with SyncableScene with ShowFPS{
   def update: Option[Scene] = {
     sync
     showFPS
+
+    renderMap()
 
     keyEvent {
       e =>
@@ -202,7 +213,7 @@ object StubScene extends LoopScene with SyncableScene with ShowFPS{
         }
         e pressed {
           case "escape" =>
-//            NicolTestApp.stop
+            Tarea1App.terminate()
             End
         }
     }

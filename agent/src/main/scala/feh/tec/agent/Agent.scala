@@ -1,6 +1,6 @@
 package feh.tec.agent
 
-import akka.actor.Actor
+import akka.actor.{ActorRef, Actor}
 import feh.tec.util.{UUIDed, HasUUID, SideEffect}
 import scala.concurrent.Future
 import java.util.UUID
@@ -99,7 +99,7 @@ trait StatefulAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env
                     Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env], AgState]
   extends DecisiveAgent[Position, EnvState, EnvGlobal, Action, Env, Exec]
 {
-  agent: AgentExecution[Position, EnvState, EnvGlobal, Action, Env, Exec] with ActorAgent[Position, EnvState, EnvGlobal, Action, Env, Exec] =>
+  agent: AgentExecution[Position, EnvState, EnvGlobal, Action, Env, Exec] with AgentWithActor[Position, EnvState, EnvGlobal, Action, Env, Exec] =>
 
   def state: AgState
 
@@ -125,11 +125,13 @@ trait Agent[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Envi
 /**
  *  An agent implemented using [[akka.actor.Actor]]
  */
-trait ActorAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
+trait AgentWithActor[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
                  Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env]]
-  extends Actor with AgentExecution[Position, EnvState, EnvGlobal, Action, Env, Exec]
+  extends AgentExecution[Position, EnvState, EnvGlobal, Action, Env, Exec]
 {
   agent: DecisiveAgent[Position, EnvState, EnvGlobal, Action, Env, Exec] =>
+
+  def actorRef: ActorRef
 }
 
 trait MeasuredAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
@@ -181,5 +183,5 @@ trait IdealDummyAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction,
 
   def possibleBehaviors(currentPerception: Perception): Set[Action]
 
-  def decide(currentPerception: Perception): Action = chooseTheBestBehavior(possibleBehaviors(currentPerception))
+  def decide(currentPerception: Perception): Action = chooseTheBestBehavior(possibleBehaviors(currentPerception).ensuring(_.nonEmpty, "no possible action"))
 }

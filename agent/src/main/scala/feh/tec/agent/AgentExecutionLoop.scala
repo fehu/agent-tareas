@@ -1,7 +1,7 @@
 package feh.tec.agent
 
 import scala.concurrent.Future
-import akka.actor.{ActorRef, Actor}
+import akka.actor.{ActorSystem, ActorRef, Actor}
 import scala.concurrent.duration._
 import akka.pattern._
 
@@ -19,20 +19,20 @@ trait AgentExecutionLoop[Position, EnvState, EnvGlobal, Action <: AbstractAction
 }
 
 trait ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
-                              +Ag <: ActorAgent[Position, EnvState, EnvGlobal, Action, Env, _ <: ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, Ag]]]
+                              +Ag <: AgentWithActor[Position, EnvState, EnvGlobal, Action, Env, _ <: ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, Ag]]]
   extends AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env]
 {
   def receive: Actor.Receive
   def agent: Ag
 
-  protected implicit def executionContext = agent.context.dispatcher
+  protected implicit def executionContext = agent.env.sys.executionContext
   protected def scheduler = agent.env.sys.scheduler
 }
 
 trait ByTimerAgentExecution // todo: very important
 
 trait AgentInfiniteExecution[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
-                             Ag <: ActorAgent[Position, EnvState, EnvGlobal, Action, Env, _ <: ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, Ag]]]
+                             Ag <: AgentWithActor[Position, EnvState, EnvGlobal, Action, Env, _ <: ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, Ag]]]
   extends ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, Ag]
 {
   type Execution = () => StopFunc
@@ -49,21 +49,22 @@ trait AgentInfiniteExecution[Position, EnvState, EnvGlobal, Action <: AbstractAc
   def exec(): StopFunc =
     if(isCurrentlyExecuting) sys.error("the actor is already executing some task")
     else {
-      agent.self ! Exec
+      stoppedFlag = false
+      agent.actorRef ! Exec
       stopInfiniteExecution
     }
 
-  def stopInfiniteExecution: StopFunc = () => agent.self.ask(Stop)(stopTimeout).mapTo[Stopped.type]
+  def stopInfiniteExecution: StopFunc = () => agent.actorRef.ask(Stop)(stopTimeout).mapTo[Stopped.type]
 
   def receive: Actor.Receive = {
     case Exec if stoppedFlag => // to nothing
     case Exec =>
       agent.lifetimeCycle(agent.env)
-      if (pauseBetweenExecs.toMillis > 0) scheduler.scheduleOnce(pauseBetweenExecs, agent.self, Exec)
-      else agent.self ! Exec
+      if (pauseBetweenExecs.toMillis > 0) scheduler.scheduleOnce(pauseBetweenExecs, agent.actorRef, Exec)
+      else agent.actorRef ! Exec
     case Stop =>
       stoppedFlag = true
-      agent.sender ! Stopped
+      agent.actorRef ! Stopped
   }
 
   def execution: Execution = () => exec()

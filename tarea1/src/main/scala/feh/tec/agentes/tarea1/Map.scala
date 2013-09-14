@@ -1,11 +1,11 @@
-package feh.tec.agentos.tarea1
+package feh.tec.agentes.tarea1
 
 import feh.tec.map._
 import feh.tec.map.tile.{SquareTile, OptionalMabObjectContainerTile, MapObject}
 import java.util.UUID
 import feh.tec.util.RangeWrapper._
 import scala.{Predef, collection, Some}
-import feh.tec.agent.AgentId
+import feh.tec.agent.{Route, AgentId}
 
 /*
   todo: move
@@ -33,11 +33,11 @@ class Map(buildTilesMap: Map => collection.Map[(Int, Int), SqTile], xRange: Rang
 
   import SimpleDirection._
 
-  def onCoordinateGridEdge(c: (Int, Int)): Option[SimpleDirection] = c match{
-    case (x, _) if x == xRange.min => Some(Left)
-    case (x, _) if x == xRange.max => Some(Right)
-    case (_, y) if y == yRange.min => Some(Bottom)
-    case (_, y) if y == yRange.max => Some(Top)
+  def onCoordinateGridEdge(c: (Int, Int)): Option[SimpleDirection] = PartialFunction.condOpt(c){
+    case (x, _) if x == xRange.min => Left
+    case (x, _) if x == xRange.max => Right
+    case (_, y) if y == yRange.min => Bottom
+    case (_, y) if y == yRange.max => Top
   }
 
   def onCoordinateGridEdge(tile: Tile): Option[SimpleDirection] = onCoordinateGridEdge(tile.coordinate)
@@ -91,6 +91,9 @@ object Map{
 
       override protected def findNeighbors(tile: Tile): Seq[Tile] = ???
       def findNeighborsSnapshots(tile: Tile): Seq[TileSnapshot[SqTile, Coordinate]] = super.findNeighbors(tile).map(tilesSnapshotBuilder.snapshot)
+
+      override def tiles: Seq[SqTile] = super[MapSnapshot].tiles
+      override def get: PartialFunction[(Int, Int), SqTile] = super[MapSnapshot].get
     }
   }
 
@@ -179,4 +182,10 @@ object DummyMapGenerator{ outer =>
       c = x -> y
     } yield c -> SqTile(map, c, build.tupled(c))
     ).toMap
+}
+
+class MapShortestRouteFinder extends ShortestRouteFinder[Map, SqTile, (Int, Int)]{
+  def shortestRoute(map: Map)(from: (Int, Int), to: (Int, Int)): Route[(Int, Int)] = ???
+
+  def shortestRoute(snapshot: MapSnapshot[Map, SqTile, (Int, Int)])(from: (Int, Int), to: (Int, Int)): Route[(Int, Int)] = ???
 }

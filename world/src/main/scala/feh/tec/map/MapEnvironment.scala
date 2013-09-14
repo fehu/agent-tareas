@@ -2,16 +2,13 @@ package feh.tec.map
 
 import feh.tec.agent._
 import feh.tec.map.tile.AbstractTile
-import feh.tec.util.{HasUUID, UUIDed, SideEffect}
-import scala.concurrent.{ExecutionContext, Future}
-import akka.actor.Actor
+import feh.tec.util.HasUUID
+import scala.concurrent.Future
 import java.util.UUID
-import feh.tec.util.PipeWrapper
-import akka.pattern._
-import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.concurrent.duration.FiniteDuration
 import HasUUID._
-import scala.Predef
 import scala.collection.mutable
+import feh.tec.util._
 
 trait MapEnvironment[Map <: AbstractMap[Tile, Coordinate],
                      Tile <: AbstractTile[Tile, Coordinate],
@@ -125,7 +122,7 @@ trait InAbstractMapEnvironment[Position,
   trait MapPerception extends AbstractGlobalPerception{
     def connectedStates: TilesConnections
 
-    def mapSnapshot: MapSnapshot[Map, Tile, Position]
+    def mapSnapshot: MapSnapshot[Map, Tile, Position] with Map
   }
 
   trait MapDetailedPerception extends AbstractDetailedPerception{
@@ -134,7 +131,7 @@ trait InAbstractMapEnvironment[Position,
 
   def sense(env: EnvRef): Perception =
     new MapPerception{
-      val mapSnapshot = env.getMap(env)
+      val mapSnapshot = env.getMap(env).asInstanceOf[MapSnapshot[Map, Tile, Position] with Map] // todo: casting
 
       lazy val connectedStates: TilesConnections = TilesConnections(mapSnapshot, perceived, position)
 
@@ -147,7 +144,7 @@ trait InAbstractMapEnvironment[Position,
     val sensed = sense(env)
     if(sensed.perceived contains c) Some(
       new MapDetailedPerception {
-        def shortcut: Route[Position] = shortestRouteFinder.shortestRoute(sensed.mapSnapshot)(sensed.position, c)
+        def shortcut: Route[Position] = shortestRouteFinder.shortestRoute(sensed.mapSnapshot: MapSnapshot[Map, Tile, Position])(sensed.position, c)
 
         type ActualDetailedPerception = MapState[Position, Tile, Map]
         def where: Position = c
@@ -191,14 +188,14 @@ trait MapEnvironmentOverseer[Map <: AbstractMap[Tile, Coordinate],
 
 }
 
-trait MapEnvironmentOverseerActor[Map <: AbstractMap[Tile, Coordinate],
+trait MapEnvironmentOverseerWithActor[Map <: AbstractMap[Tile, Coordinate],
                                   Tile <: AbstractTile[Tile, Coordinate],
                                   Coordinate,
                                   State <: MapState[Coordinate, Tile, Map],
                                   Global <: MapGlobalState[Coordinate, Tile, Map],
                                   Action <: MapAction[Coordinate, Tile, Map],
                                   Env <: MapEnvironment[Map, Tile, Coordinate, State, Global, Action, Env]]
-  extends MapEnvironmentOverseer[Map, Tile, Coordinate, State, Global, Action, Env] with EnvironmentOverseerActor[Coordinate, State, Global, Action, Env]
+  extends MapEnvironmentOverseer[Map, Tile, Coordinate, State, Global, Action, Env] with EnvironmentOverseerWithActor[Coordinate, State, Global, Action, Env]
 {
   agent =>
 
@@ -216,18 +213,11 @@ trait MapEnvironmentOverseerActor[Map <: AbstractMap[Tile, Coordinate],
   def getMapMaxDelay: FiniteDuration
   def positionMaxDelay: FiniteDuration
 
-  private implicit def executionContext: ExecutionContext = externalExecutionContext
-
-  override def receive: Actor.Receive = super.receive orElse {
-    case msg@GetMapByEnvRef(e) => scheduler.scheduleOnce(Duration.Zero){
-      sender ! MapByEnvRef(msg.uuid, getMap())
-    }
-    case msg@GetMapBySnapshot(s) => scheduler.scheduleOnce(Duration.Zero){
-      sender ! MapBySnapshot(msg.uuid, getMap(s))
-    }
-    case msg@GetPosition(a) => scheduler.scheduleOnce(Duration.Zero){
-      sender ! Position(msg.uuid, position(a))
-    }
+  protected def mapActorResponses: PartialFunction[Any, () => Unit] = {
+    case msg@GetMapByEnvRef(e) =>
+      MapByEnvRef(msg.uuid, getMap()).liftUnit
+    case msg@GetMapBySnapshot(s) => MapBySnapshot(msg.uuid, getMap(s)).liftUnit
+    case msg@GetPosition(a) => Position(msg.uuid, position(a)).liftUnit
   }
 
   trait MapEnvironmentRefImpl extends MapEnvironmentRef[Coordinate, State, Global, Action, Env, Tile, Map]{
@@ -236,11 +226,11 @@ trait MapEnvironmentOverseerActor[Map <: AbstractMap[Tile, Coordinate],
     def position(a: Ag): Coordinate = agent.position(a)
 
     def asyncGetMap(e: Env#Ref): Future[MapSnapshot[Map, Tile, Coordinate]] =
-      agent.send(GetMapByEnvRef(e)).awaitingResponse[MapBySnapshot](positionMaxDelay).map(_.snapshot)
+      agent.actorRef.send(GetMapByEnvRef(e)).awaitingResponse[MapBySnapshot](positionMaxDelay).map(_.snapshot)
     def asyncGetMap(s: EnvironmentSnapshot[Coordinate, State, Global, Action, Env]): Future[MapSnapshot[Map, Tile, Coordinate]] =
-      agent.send(GetMapBySnapshot(s)).awaitingResponse[MapBySnapshot](positionMaxDelay).map(_.snapshot)
+      agent.actorRef.send(GetMapBySnapshot(s)).awaitingResponse[MapBySnapshot](positionMaxDelay).map(_.snapshot)
     def asyncPosition(a: Ag): Future[Coordinate] =
-      agent.send(GetPosition(a)).awaitingResponse[Position](positionMaxDelay).map(_.position)
+      agent.actorRef.send(GetPosition(a)).awaitingResponse[Position](positionMaxDelay).map(_.position)
   }
 
 }

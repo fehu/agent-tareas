@@ -1,11 +1,12 @@
-package feh.tec.agentos.tarea1
+package feh.tec.agentes.tarea1
 
 import feh.tec.agent._
 import feh.tec.agent.StatelessAgentPerformanceMeasure.Criterion
 import feh.tec.map.{ShortestRouteFinder, MapStateBuilder, MapEnvironmentRef, InAbstractMapEnvironment}
 import feh.tec.util.SideEffect
 import scala.concurrent.duration.FiniteDuration
-import akka.actor.Actor
+import akka.actor.{ActorRef, Props, ActorSystem, Actor}
+import akka.event.Logging
 
 
 object Agent{
@@ -30,11 +31,13 @@ abstract class AbstractAgent[Exec <: ActorAgentExecutionLoop[Position, EnvState,
                  val mapStateBuilder: MapStateBuilder[Position, Tile, Map, EnvState],
                  val shortestRouteFinder: ShortestRouteFinder[Map, Tile, Position])
                 (implicit execLoopBuilder: ExecLoopBuilder[AbstractAgent[Exec], Exec])
-  extends Agent[Position, EnvState, EnvGlobal, Action, Env, Exec] with ActorAgent[Position, EnvState, EnvGlobal, Action, Env, Exec]
+  extends Agent[Position, EnvState, EnvGlobal, Action, Env, Exec] with AgentWithActor[Position, EnvState, EnvGlobal, Action, Env, Exec]
     with IdealRationalAgent[Position, EnvState, EnvGlobal, Action, Env, Exec, Measure]
     with InAbstractMapEnvironment[Position, EnvState, EnvGlobal, Action, Env, Tile, Map]
 {
   agent: DecisiveAgent[Position, EnvState, EnvGlobal, Action, Env, Exec] =>
+
+  protected def actorSystem: ActorSystem
 
 /*
   AgentApp.Agents.DummyExec <: feh.tec.agent.AgentExecutionLoop[(Int, Int),Agent.EnvState,Agent.EnvGlobal,Agent.Action,Agent.Env]
@@ -45,8 +48,16 @@ abstract class AbstractAgent[Exec <: ActorAgentExecutionLoop[Position, EnvState,
 
   lazy val executionLoop: Exec = execLoopBuilder.buildExec(agent)
 
-  def receive: Actor.Receive = executionLoop.receive
+  protected def abstractAgentActorProps = Props(classOf[AbstractAgentActor], executionLoop.receive)
+
+  val actorRef: ActorRef = actorSystem.actorOf(abstractAgentActorProps)
 }
+
+class AbstractAgentActor(agentReceive: Actor.Receive) extends Actor{
+  val log = Logging(context.system, this)
+  def receive: Actor.Receive = agentReceive
+}
+
 
 trait ExecLoopBuilder[Ag <: AbstractAgent[Exec], Exec <: ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, Ag]]{
   def buildExec(ag: Ag): Exec
@@ -57,16 +68,7 @@ class AgentInfiniteExecLoopBuilder[Ag <: AbstractAgent[AgentInfiniteExecution[Po
   extends ExecLoopBuilder[Ag, AgentInfiniteExecution[Position, EnvState, EnvGlobal, Action, Env, Ag]]
 {
   outer =>
-  /*
-  type arguments [(Int, Int),Agent.EnvState,Agent.EnvGlobal,Agent.Action,Agent.Env,Ag] do not conform to trait AgentInfiniteExecution's type parameter bounds
-  [Position,
-    EnvState,
-    EnvGlobal,
-    Action <: AbstractAction,
-    Env <: Environment[Position,EnvState,EnvGlobal,Action,Env],
-    Ag <: ActorAgent[Position, EnvState, EnvGlobal, Action, Env, _ <: ActorAgentExecutionLoop[Position,EnvState,EnvGlobal,Action,Env,Ag]]
-    ]
-   */
+
   def buildExec(ag: Ag) =
     new AgentInfiniteExecution[Position, EnvState, EnvGlobal, Action, Env, Ag]{
       def agent: Ag = ag

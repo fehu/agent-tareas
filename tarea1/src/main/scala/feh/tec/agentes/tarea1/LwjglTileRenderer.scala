@@ -1,4 +1,4 @@
-package feh.tec.agentos.tarea1
+package feh.tec.agentes.tarea1
 
 import feh.tec.visual._
 import feh.tec.visual.api._

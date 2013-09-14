@@ -17,15 +17,13 @@ trait AsyncMapDrawingEnvironmentOverseer[Map <: AbstractMap[Tile, Coordinate],
                                          Ea <: Easel]
 extends EnvironmentOverseer[Coordinate, State, Global, Action, Env]
 {
-  self: MapEnvironmentOverseerActor[Map, Tile, Coordinate, State, Global, Action, Env] =>
+  self: MapEnvironmentOverseerWithActor[Map, Tile, Coordinate, State, Global, Action, Env] =>
 
   def mapRenderer: MapRenderer[Map, Tile, Coordinate, Ea]
 
   def mapDrawConfig: Ea#MDrawOptions
 
   implicit def easel: Ea
-
-  private implicit def executionContext = externalExecutionContext
 
   protected abstract override def affect(a: Action): SideEffect[Env] = super.affect(a)
     .foreach(env => scheduler.scheduleOnce(Duration.Zero)(mapRenderer.render(env: Map, mapDrawConfig)))

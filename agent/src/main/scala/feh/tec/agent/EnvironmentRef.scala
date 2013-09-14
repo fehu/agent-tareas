@@ -17,8 +17,6 @@ trait EnvironmentRef[Coordinate, State, Global, Action <: AbstractAction, Env <:
   def sys: SystemApi
 
   trait BlockingApi{
-    def withTimeout[R](t: Int)(r: => R): R
-
     def globalState: Global
     def stateOf(c: Coordinate): Option[State]
     def affect(act: Action): SideEffect[Env#Ref]
@@ -59,6 +57,7 @@ trait PredictableEnvironmentRef[Coordinate, State, Global, Action <: AbstractAct
   def asyncPredict(a: Action): Future[Env#Prediction]
 }
 
+/*
 trait EnvironmentRefBlockingApiImpl[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]]
   extends EnvironmentRef[Coordinate, State, Global, Action , Env]
 {
@@ -78,6 +77,7 @@ trait EnvironmentRefBlockingApiImpl[Coordinate, State, Global, Action <: Abstrac
     def snapshot: Env with EnvironmentSnapshot[Coordinate, State, Global, Action, Env] = awaitResult(_.snapshot)
   }
 }
+*/
 
 /**
  * should be mixed-in last

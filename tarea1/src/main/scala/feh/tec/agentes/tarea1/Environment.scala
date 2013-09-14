@@ -1,17 +1,18 @@
-package feh.tec.agentos.tarea1
+package feh.tec.agentes.tarea1
 
 import feh.tec.map._
 import feh.tec.agent._
 import scala.reflect.runtime.universe._
-import akka.actor.{ActorSystem, Scheduler}
+import akka.actor._
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.collection
-import scala.collection.immutable
 import feh.tec.visiual.AsyncMapDrawingEnvironmentOverseer
 import feh.tec.visual.NicolLike2DEasel
 import feh.tec.visual.api.MapRenderer
-import feh.tec.util._
+import scala.Some
+import feh.tec.agent.AgentId
+import akka.event.Logging
 
 object Environment{
   type Tile = SqTile
@@ -39,7 +40,7 @@ class Environment(buildTilesMap: Map => Seq[Tile],
 {
 
   type Ref = PredictableEnvironmentRef[Coordinate, State, Global, Action, Environment] with MapEnvironmentRef[Coordinate, State, Global, Action, Environment, Tile, Map]
-  lazy val definedAt: Seq[Coordinate] = xRange zip yRange
+  lazy val definedAt: Seq[Coordinate] = xRange.flatMap(x => yRange.map(x ->))
 
   lazy val tags = new TypeTags{
     implicit def coordinate: TypeTag[Coordinate] = typeTag[Coordinate]
@@ -51,7 +52,7 @@ class Environment(buildTilesMap: Map => Seq[Tile],
 
   assertDefinedAtAllCoordinates()
 
-  val initStates: PartialFunction[Coordinate, State] = tilesMap.mapValues(mapStateBuilder.build)
+  def initStates: PartialFunction[Coordinate, State] = tilesMap.mapValues(mapStateBuilder.build)
 
   def initTiles: Seq[Tile] = buildTilesMap(this)
 
@@ -59,7 +60,7 @@ class Environment(buildTilesMap: Map => Seq[Tile],
     case AgentAvatar(agentId) => agentId
   }
 
-  override lazy val tilesMap = collection.Map.empty[(Int, Int), Tile]
+  override lazy val tilesMap = initTiles.map(t => t.coordinate -> t).toMap
   override def get: PartialFunction[Coordinate, Tile] = super[MutableMapEnvironment].get
 
   override def tilesToMap: collection.Map[(Int, Int), SqTile] = tilesAsMap
@@ -75,17 +76,17 @@ class Overseer(actorSystem: ActorSystem,
                val mapDrawConfig: Easel#MDrawOptions,
                val mapStateBuilder: MapStateBuilder[Coordinate, Tile, Map, State],
                timeouts: OverseerTimeouts)
-  extends EnvironmentOverseerActor[Coordinate, State, Global, Action, Environment]
+  extends EnvironmentOverseerWithActor[Coordinate, State, Global, Action, Environment]
   with MutableEnvironmentOverseer[Coordinate, State, Global, Action, Environment]
   with PredictingMutableDeterministicEnvironmentOverseer[Coordinate, State, Global, Action, Environment]
-  with PredictingEnvironmentOverseerActor[Coordinate, State, Global, Action, Environment]
-  with MapEnvironmentOverseerActor[Map, Tile, Coordinate, State, Global, Action, Environment]
+  with PredictingEnvironmentOverseerWithActor[Coordinate, State, Global, Action, Environment]
+  with MapEnvironmentOverseerWithActor[Map, Tile, Coordinate, State, Global, Action, Environment]
   with AsyncMapDrawingEnvironmentOverseer[Map, Tile, Coordinate, State, Global, Action, Environment, Easel]
 {
   
   overseer =>
   
-  protected def externalExecutionContext: ExecutionContext = actorSystem.dispatcher
+  protected def executionContext: ExecutionContext = actorSystem.dispatcher
   protected def scheduler: Scheduler = actorSystem.scheduler
 
   override val currentEnvironment: Environment = initEnvironment
@@ -120,6 +121,9 @@ class Overseer(actorSystem: ActorSystem,
     {
       lazy val SnapshotBuilder = new SnapshotBuilder(this)
 
+
+      override def initTiles: Seq[Tile] = env.tiles
+
       def snapshot(): EnvironmentSnapshot[Coordinate, State, Global, Action, Environment] = SnapshotBuilder.snapshot()
     }
 
@@ -135,6 +139,8 @@ class Overseer(actorSystem: ActorSystem,
     env.agentsPositions(a.id).coordinate
 
 
+  def actorResponseFuncs = baseActorResponses :: predictingActorResponses :: mapActorResponses :: Nil
+  def actorResponseFunc: PartialFunction[Any, () => Unit] = actorResponseFuncs.reduceLeft(_ orElse _)
   def ref: Environment#Ref = new BaseEnvironmentRef with PredictableEnvironmentRefImpl with MapEnvironmentRefImpl{}
 
   def defaultBlockingTimeout: Int = timeouts.defaultBlockingTimeout
@@ -142,7 +148,26 @@ class Overseer(actorSystem: ActorSystem,
   def getMapMaxDelay: FiniteDuration = timeouts.getMapMaxDelay
   def positionMaxDelay: FiniteDuration = timeouts.positionMaxDelay
   def predictMaxDelay: FiniteDuration = timeouts.predictMaxDelay
+
+
+  protected def environmentOverseerActorProps = Props(classOf[EnvironmentOverseerActor], actorResponseFuncs)
+
+  val actorRef: ActorRef = actorSystem.actorOf(environmentOverseerActorProps)
 }
+
+class EnvironmentOverseerActor(responses: PartialFunction[Any, () => Unit]) extends Actor{
+  val log = Logging(context.system, this)
+
+  def externalExec(f: PartialFunction[Any, () => Unit]): PartialFunction[Any, Unit] =
+    f andThen (exec => context.system.scheduler.scheduleOnce(Duration.Zero)(exec())(context.dispatcher))
+
+
+  def receive: Actor.Receive = {
+    case _ => println("!!!")
+  } //externalExec(responses)
+//    PartialFunction(externalExec(responses andThen sender.!)) // todo: doesn't seem good
+}
+
 
 trait Move extends MapAction[Coordinate, Tile, Map]
 case object MoveNorth extends Move

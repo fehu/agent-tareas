@@ -25,9 +25,9 @@ trait MapSnapshot[+Map <: AbstractMap[Tile, Coordinate], Tile <: AbstractTile[Ti
 
   val tilesSnapshots: Seq[TileSnapshot[Tile, Coordinate]]
 
-  override val tiles: Seq[Tile] = ???
+  def tiles: Seq[Tile] = ???
 
-  override val get: PartialFunction[Coordinate, Tile] = ???
+  def get: PartialFunction[Coordinate, Tile] = ???
 
   def getSnapshot: PartialFunction[Coordinate, TileSnapshot[Tile, Coordinate]]
 }

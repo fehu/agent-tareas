@@ -2,7 +2,7 @@ package feh.tec.util
 
 import java.util.UUID
 import scala.concurrent.{ExecutionContext, Future}
-import akka.actor.Actor
+import akka.actor.{ActorRef, Actor}
 import akka.pattern._
 import scala.concurrent.duration.FiniteDuration
 import scala.reflect.ClassTag
@@ -16,10 +16,10 @@ object HasUUID{
     def havingSameUUID(other: HasUUID)(implicit context: ExecutionContext) = f.withFilter(_.uuid == other.uuid)
   }
 
-  implicit class AsyncSendMsgHasUUIDWrapper(a: Actor)(implicit context: ExecutionContext) {
+  implicit class AsyncSendMsgHasUUIDWrapper(a: ActorRef)(implicit context: ExecutionContext) {
     def send[Msg <: HasUUID](msg: Msg) = new {
       def awaitingResponse[Resp <: HasUUID : ClassTag](timeout: FiniteDuration): Future[Resp] =
-        (a.self ? msg)(timeout).mapTo[Resp].havingSameUUID(msg)
+        (a ? msg)(timeout).mapTo[Resp].havingSameUUID(msg)
     }
   }
 
