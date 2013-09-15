@@ -136,7 +136,7 @@ trait AgentWithActor[Position, EnvState, EnvGlobal, Action <: AbstractAction, En
 
 trait MeasuredAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
                     Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env],
-                    M <: AgentMeasure[Position, EnvState, EnvGlobal, Action, Env]]{
+                    M <: AgentMeasure[Position, EnvState, EnvGlobal, Action, Env, M]]{
   agent: DecisiveAgent[Position, EnvState, EnvGlobal, Action, Env, Exec] =>
 
   def measure: M
@@ -149,7 +149,7 @@ trait MeasuredAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env
 trait IdealRationalAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction,
                          Env <: Environment[Position, EnvState, EnvGlobal, Action, Env] with PredictableEnvironment[Position, EnvState, EnvGlobal, Action, Env],
                          Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env],
-                         M <: AgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action, Env]]
+                         M <: AgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action, Env, M]]
   extends IndecisiveAgent[Position, EnvState, EnvGlobal, Action, Env] with MeasuredAgent[Position, EnvState, EnvGlobal, Action, Env, Exec, M]
 {
   agent: DecisiveAgent[Position, EnvState, EnvGlobal, Action, Env, Exec] =>
@@ -176,7 +176,7 @@ trait IdealRationalAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction
 trait IdealDummyAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction,
                       Env <: Environment[Position, EnvState, EnvGlobal, Action, Env] with PredictableEnvironment[Position, EnvState, EnvGlobal, Action, Env],
                       Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env],
-                      M <: AgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action, Env]]
+                      M <: AgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action, Env, M]]
   extends IdealRationalAgent[Position, EnvState, EnvGlobal, Action, Env, Exec, M] with DummyAgent[Position, EnvState, EnvGlobal, Action, Env, Exec]
 {
   self: AgentExecution[Position, EnvState, EnvGlobal, Action, Env, Exec] =>

@@ -104,7 +104,10 @@ class Overseer(actorSystem: ActorSystem,
                  _tilesMap: Predef.Map[(Int, Int), SqTile] = env.tilesAsMap ): EnvironmentSnapshot[Coordinate, State, Global, Action, Environment] =
       new Environment(null, env.xRange, env.yRange, env.effects, _globalState, mapStateBuilder)
         with EnvironmentSnapshot[Coordinate, State, Global, Action, Environment]
+        with MapEnvironmentSnapshot[Map, Tile, Coordinate, State, Global, Action, Environment]
       {
+
+        val mapSnapshot: MapSnapshot[Map, Tile, Coordinate] = Map.snapshotBuilder.snapshot(env)
 
         override def initTiles: Seq[Tile] = _tilesMap.values.toSeq
         override val states = _states
@@ -133,9 +136,9 @@ class Overseer(actorSystem: ActorSystem,
 
   lazy val mapSnapshotBuilder = Map.snapshotBuilder
 
-  def getMap(): MapSnapshot[Map, Tile, Coordinate] = mapSnapshotBuilder.snapshot(env)
+  def mapSnapshot(): MapSnapshot[Map, Tile, Coordinate] = mapSnapshotBuilder.snapshot(env)
 
-  def getMap(s: EnvironmentSnapshot[Coordinate, State, Global, Action, Environment]): MapSnapshot[Map, Tile, Coordinate] =
+  def mapSnapshot(s: EnvironmentSnapshot[Coordinate, State, Global, Action, Environment]): MapSnapshot[Map, Tile, Coordinate] =
     mapSnapshotBuilder.snapshot(s.asInstanceOf[Environment with EnvironmentSnapshot[Coordinate, State, Global, Action, Environment]])
 
 

@@ -7,7 +7,7 @@ import feh.tec.util.RangeWrapper._
 import scala.{Predef, collection, Some}
 import feh.tec.agent.{Route, AgentId}
 import scala.collection.mutable
-import feh.tec.util.ScopedState
+import feh.tec.util._
 
 /*
   todo: move
@@ -205,6 +205,8 @@ class MapShortestRouteFinder extends ShortestRouteFinder[Map, SqTile, (Int, Int)
 
   lazy val floydWarshall = new FloydWarshall
 
+  def findMinimalDistances = floydWarshall.findMinimalDistances _
+
   private val scopedDistMap = new ScopedState[Option[FloydWarshall#MinDistMap]](None)
   private val scopedGraph = new ScopedState[Option[Graph]](None)
 
@@ -214,8 +216,7 @@ class MapShortestRouteFinder extends ShortestRouteFinder[Map, SqTile, (Int, Int)
   def onGraph[R](gr: Graph, f: MapShortestRouteFinder => R): R = onGraph(gr)(f(this))
   def onGraph[R](gr: Graph)(r: => R): R = scopedGraph.doWith(Option(gr))(r)
 
-  private def buildMinDistMap = floydWarshall.findMinimalDistances _
-  private def getMinDistMap(gr: Graph) = scopedDistMap.get getOrElse buildMinDistMap(gr)
+  private def getMinDistMap(gr: Graph) = scopedDistMap.get getOrElse findMinimalDistances(gr)
 
   private def getGraph(snapshot: MapSnapshot[Map, SqTile, (Int, Int)]) =
     scopedGraph.get getOrElse  mapAsGraph(snapshot)
@@ -244,15 +245,15 @@ class MapShortestRouteFinder extends ShortestRouteFinder[Map, SqTile, (Int, Int)
     Graph(nodesMap, nodesConnections)
   }
 
-  def findClosest(map: Map)(relativelyTo: (Int, Int), what: (Int, Int) => Boolean): Option[((Int, Int), Int)] =
-    findClosest(Map.snapshotBuilder.snapshot(map))(relativelyTo, what)
-  def findClosest(snapshot: MapSnapshot[Map, SqTile, (Int, Int)])(relativelyTo: (Int, Int), what: (Int, Int) => Boolean): Option[((Int, Int), Int)] = {
+  def findClosests(map: Map)(relativelyTo: (Int, Int), what: (Int, Int) => Boolean): Predef.Map[(Int, Int), Int] =
+    findClosests(Map.snapshotBuilder.snapshot(map))(relativelyTo, what)
+  def findClosests(snapshot: MapSnapshot[Map, SqTile, (Int, Int)])(relativelyTo: (Int, Int), what: (Int, Int) => Boolean): Predef.Map[(Int, Int), Int] = {
     val gr = getGraph(snapshot)
     val minDist = getMinDistMap(gr)
     val acceptablePairs =  minDist.withFilter(_._1._1 == relativelyTo).withFilter(what.tupled apply _._1._2).map{case ((_, c), d) => c -> d}
 
-    if(acceptablePairs.nonEmpty) Option(acceptablePairs.minBy(_._2))
-    else None
+    if(acceptablePairs.nonEmpty) acceptablePairs.filterMin(_._2).toMap
+    else Predef.Map.empty
   }
 
 }

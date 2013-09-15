@@ -2,11 +2,12 @@ package feh.tec.agentes.tarea1
 
 import feh.tec.agent._
 import feh.tec.agent.StatelessAgentPerformanceMeasure.Criterion
-import feh.tec.map.{ShortestRouteFinder, MapStateBuilder, MapEnvironmentRef, InAbstractMapEnvironment}
+import feh.tec.map._
 import feh.tec.util.SideEffect
 import scala.concurrent.duration.FiniteDuration
 import akka.actor.{ActorRef, Props, ActorSystem, Actor}
 import akka.event.Logging
+import feh.tec.agent.StatelessAgentPerformanceMeasure.Criterion
 
 
 object Agent{
@@ -20,7 +21,10 @@ object Agent{
 
   type Easel = Environment.Easel // todo: shouldn't be here
 
-  class Measure extends StatelessAgentPerformanceDoubleMeasure[Position, EnvState, EnvGlobal, Action, Env, Measure]
+  class Measure extends StatelessAgentPerformanceDoubleMeasure[Position, EnvState, EnvGlobal, Action, Env, Measure]{
+//    override type Snapshot = EnvironmentSnapshot[Position, EnvState, EnvGlobal, Action, Env]
+//      with MapEnvironmentSnapshot[Map, Tile, Position, EnvState, EnvGlobal, Action, Env]
+  }
 }
 
 import Agent._

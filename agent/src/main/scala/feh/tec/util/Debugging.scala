@@ -8,11 +8,11 @@ trait Debugging {
   protected implicit class DebugLogWrapper[R](r: => R){
     def debugLog(f: R => String): R = {
       val a = r
-      outer.debugLog(f(a) + ": " + a)
+      outer.debugLog(f(a))
       a
     }
 
-    def debugLog(msg: String): R = debugLog(_ => msg)
+    def debugLog(msg: String): R = debugLog(_ => msg + ": " + r)
   }
 
   def debugMessagePrefix: String

@@ -14,12 +14,15 @@ import nicol.input.Key._
 import feh.tec.agent.AgentId
 import feh.tec.agent.StatelessAgentPerformanceMeasure.Criterion
 import Map._
-import feh.tec.util.{GlobalDebuggingSetup, LiftWrapper}
-import feh.tec.agentes.tarea1.Criteria.{ClosestPairIntraDistanceCriterion, NumberOfHolesCriterion, PlugsMovingAgentCriteria}
+import feh.tec.util.{DebuggingSetup, GlobalDebugging, GlobalDebuggingSetup, LiftWrapper}
+import feh.tec.agentes.tarea1.Criteria.{DistanceToClosestPlugCriterion, ClosestPairIntraDistanceCriterion, NumberOfHolesCriterion, PlugsMovingAgentCriteria}
 import scala.util.Random
+import scala.Predef
 
 object Tarea1 {
   object Debug extends GlobalDebuggingSetup
+
+  val pauseBetween = 0.5 seconds span
 
   object Agents{
     object Id{
@@ -43,7 +46,7 @@ object Tarea1 {
         DummyExec(ag.asInstanceOf[MyDummyAgent], pauseBetweenExecs, stopTimeout)
     }
 
-    implicit def execBuilder: ExecLoopBuilder[AbstractAgent[DummyExec], DummyExec] = DummyExecBuilder(0.5 second, 100 millis)
+    implicit def execBuilder: ExecLoopBuilder[AbstractAgent[DummyExec], DummyExec] = DummyExecBuilder(pauseBetween, 100 millis)
 
     class MyDummyAgent(e: Env#Ref,
                        criteria: Seq[Criterion[Position, EnvState, EnvGlobal, Action, Env, Measure]],
@@ -51,11 +54,18 @@ object Tarea1 {
                        _id: AgentId)
                       (implicit val actorSystem: ActorSystem)
       extends AbstractAgent[DummyExec](e, criteria, Environment.mapStateBuilder, shortestRouteFinder)
-        with IdealDummyAgent[Position, EnvState, EnvGlobal, Action, Env, DummyExec, Measure]
+        with IdealDummyAgent[Position, EnvState, EnvGlobal, Action, Env, DummyExec, Measure] with GlobalDebugging
     {
       override val id: AgentId = _id
 
-      def possibleBehaviors(currentPerception: Perception): Set[Action] = findPossibleActions(this)(currentPerception)
+      def possibleBehaviors(currentPerception: Perception): Set[Action] = {
+        currentPerception.debugLog("searching for possible behaviors. position = " + _)
+        findPossibleActions(this)(currentPerception)
+      }
+
+      protected def setup: DebuggingSetup = Tarea1.Debug
+
+      def debugMessagePrefix: String = "[MyDummyAgent]"
     }
   }
 
@@ -160,16 +170,18 @@ object Tarea1App extends App{
       w
     }
 
-    def criteria(assess: Measure#Snapshot => Measure#Measure) =
-      Criterion[Position, EnvState, EnvGlobal, Action, Env, Measure](assess)
-
     def criteria: Seq[Criterion[Position, EnvState, EnvGlobal, Action, Env, Measure]] =
       new PlugsMovingAgentCriteria
         with NumberOfHolesCriterion
         with ClosestPairIntraDistanceCriterion
+//        with DistanceToClosestPlugCriterion
       {
         def numberOfHolesWeight: Double = -10
-        def closestPairIntraDistanceWeight: Int = 2
+        def closestHolePlugPairMeanIntraDistanceWeight: Float = -3
+//        def distanceToClosestPlugWeight: Float = -1
+//        def agentId: AgentId = Tarea1.Agents.Id.dummy // todo: inject or smth
+
+        protected def guardCalculatedClosestHolePlugPairsWithIntraDistances(distMap: Predef.Map[Agent.Position, (Set[Agent.Position], Int)]) {}
 
         protected lazy val shortestRouteFinder: MapShortestRouteFinder = new MapShortestRouteFinder
 //        override def toList = criterion(_ => Random.nextDouble()) :: Nil

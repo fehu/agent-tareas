@@ -1,15 +1,19 @@
 package feh.tec.agentes.tarea1
 
 import feh.tec.agent.StatelessAgentPerformanceMeasure.Criterion
-import feh.tec.map.{TileSnapshot, MapSnapshot}
+import feh.tec.map.{MapEnvironmentSnapshot, TileSnapshot, MapSnapshot}
 import feh.tec.util._
-import feh.tec.agent.AgentId
+import feh.tec.agent.{EnvironmentSnapshot, AgentId}
 
 object Criteria {
   trait PlugsMovingAgentCriteria extends Debugging{
     import Agent._
 
     def debugMessagePrefix: String = "[Criteria] "
+
+//    private implicit class TypeHack(a: Any) { // todo shouldn't exist
+//      def typeHack[R]: R = a.asInstanceOf[R]
+//    }
 
     protected def criterion(assess: Measure#Snapshot => Measure#Measure) =
       Criterion[Position, EnvState, EnvGlobal, Action, Env, Measure](assess)
@@ -41,45 +45,52 @@ object Criteria {
   trait ClosestPairIntraDistanceCriterion extends PlugsMovingAgentCriteria{
     import Agent._
 
-    def closestPairIntraDistanceWeight: Int
+    def closestHolePlugPairMeanIntraDistanceWeight: Float
+
+    protected def guardCalculatedClosestHolePlugPairsWithIntraDistances(distMap: Predef.Map[Position, (Set[Position], Int)])
 
     def closestPairIntraDistance = criterion{
       snapshot =>
-        val mapSnapshot = Map.snapshotBuilder.snapshot(snapshot.asEnv)
-        val pairs = findClosestHolePlugPairsWithIntraDistances(mapSnapshot)
-        val minDist = pairs.minBy(_._3)._3
+        val pairsWithDists = findClosestHolePlugPairsWithIntraDistances(
+          snapshot.asInstanceOf[MapEnvironmentSnapshot[Map, Tile, Position, EnvState, EnvGlobal, Action, Env]].mapSnapshot
+        )
+        guardCalculatedClosestHolePlugPairsWithIntraDistances(pairsWithDists)
+        val holesDists = pairsWithDists.map{
+          case (h, (plugs, dist)) => h -> dist
+        }
+        val minDistsMean = holesDists.map(_._2).sum / holesDists.size
 
-        minDist * closestPairIntraDistanceWeight debugLog "weighted closest hole-plug"
+        minDistsMean * closestHolePlugPairMeanIntraDistanceWeight debugLog "weighted closest hole-plug distances sum"
 
     }
 
     /**
      *  search is done first by hole and then it's closest plug, with possible repetitions
      */
-    protected def findClosestHolePlugPairsWithIntraDistances(snapshot: MapSnapshot[Map, Tile, Position]): Seq[(Position, Position, Int)] =
+    protected def findClosestHolePlugPairsWithIntraDistances(snapshot: MapSnapshot[Map, Tile, Position]): Predef.Map[Position, (Set[Position], Int)] =
       snapshot.tilesSnapshots
         .withFilter(_.asTile.contents.exists(_.isHole))
-        .flatMap(hole =>
-          findClosetDisregardingHoles(snapshot)(hole.coordinate, _.exists(_.isPlug))
-            .map(x => (hole.coordinate, x._1, x._2))
-          )
+        .map(hole =>
+          hole.coordinate -> findClosetDisregardingHoles(snapshot)(hole.coordinate, _.exists(_.isPlug)))
+        .toMap
 
     protected def findClosetDisregardingHoles(snapshot: MapSnapshot[Map, SqTile, Position])
-                                             (relativelyTo: Position, what: Option[MapObj] => Boolean): Option[(Position, Int)] = {
-      var stopFlag = false
+                                             (relativelyTo: Position, what: Option[MapObj] => Boolean): (Set[Position], Int) = {
+      var stopDist: Option[Int] = None
 
-      def rec(t: TileSnapshot[Tile, Position], dist: Int): Option[(Position, Int)] = {
-        if(stopFlag) return None
+      def rec(t: TileSnapshot[Tile, Position], dist: Int): (Set[Position], Int) = {
+        if(stopDist.exists(_ < dist)) return Set.empty[Position] -> dist
 
-        val closestOpt = t.neighboursSnapshots.find(_.asTile.contents |> what)
-        if(closestOpt.isEmpty) t.neighboursSnapshots. flatMap(rec(_, dist + 1)).headOption
+        val closestOpt = t.neighboursSnapshots.filter(_.asTile.contents |> what)
+        if(closestOpt.isEmpty) t.neighboursSnapshots.flatMap(rec(_, dist + 1)._1).toSet -> dist
         else {
-          stopFlag = true
-          closestOpt.map(_.coordinate -> dist)
+          stopDist = Some(dist)
+          closestOpt.map(_.coordinate).toSet -> dist
         }
       }
 
-      rec(snapshot.getSnapshot(relativelyTo), 0)
+      val res = rec(snapshot.getSnapshot(relativelyTo), 1)
+      res
     }
 
     override def toList = closestPairIntraDistance :: super.toList
@@ -88,18 +99,42 @@ object Criteria {
 
   /**
    *  A criterion based on distance between the agent and closest plug that is a closest plug for some hole
+   *  todo: very slow and breaks performance
    */
+  @deprecated("broken")
   trait DistanceToClosestPlugCriterion extends PlugsMovingAgentCriteria{
     self: ClosestPairIntraDistanceCriterion =>
 
+    import Agent._
+
     def agentId: AgentId
+
+    def distanceToClosestPlugWeight: Float
+
+    private var calculatedClosestHolePlugPairsWithIntraDistances: Option[Predef.Map[Position, (Set[Position], Int)]] = None
+    protected def guardCalculatedClosestHolePlugPairsWithIntraDistances(distMap: Predef.Map[Position, (Set[Position], Int)]) =
+      calculatedClosestHolePlugPairsWithIntraDistances = Option(distMap)
+    protected def getCalculatedClosestHolePlugPairsWithIntraDistances = calculatedClosestHolePlugPairsWithIntraDistances
+    protected def closestHolePlugPairsWithIntraDistances(mapSnapshot: MapSnapshot[Map, Tile, Position]) =
+      getCalculatedClosestHolePlugPairsWithIntraDistances.getOrElse(findClosestHolePlugPairsWithIntraDistances(mapSnapshot))
 
     def distanceToClosestPlug = criterion{
       snapshot =>
-//        val closetHoles = findClosest(_.isHole, snapshot, snapshot.asEnv.agentsPositions(agentId))
-//        val closestPlugs = closetHoles.map(hpos => findClosest(_.isPlug, snapshot, snapshot))
+        val mapSnapshot = snapshot.asInstanceOf[MapEnvironmentSnapshot[Map, Tile, Position, EnvState, EnvGlobal, Action, Env]].mapSnapshot // todo: casting!!!
+        val agPos = snapshot.asEnv.agentsPositions(agentId).coordinate
+        val holesClosestToAg = findClosetDisregardingHoles(mapSnapshot)(agPos, _.exists(_.isHole))
+        val closestHolePlugPairs = closestHolePlugPairsWithIntraDistances(mapSnapshot)
+        val plugsClosestToHoles = holesClosestToAg._1.flatMap(closestHolePlugPairs andThen (_._1))
 
-        0
+        val gr = shortestRouteFinder.mapAsGraph(mapSnapshot)
+        val minDistMap = shortestRouteFinder.findMinimalDistances(gr)
+        shortestRouteFinder.withMinDistMap(minDistMap, _.onGraph(gr){
+          val plugsClosestToAg = shortestRouteFinder.findClosests(mapSnapshot)(agPos, Function untupled plugsClosestToHoles.contains _)
+//          val plugsClosestToAgWithDistsFromTheirHoles todo implement
+          val plugsClosestToAgDist =  plugsClosestToAg.headOption.map(_._2) getOrElse 0
+
+          plugsClosestToAgDist * distanceToClosestPlugWeight
+        })
     }
 
     protected def shortestRouteFinder: MapShortestRouteFinder

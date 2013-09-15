@@ -1,6 +1,7 @@
 package feh.tec.agent
 
-trait AgentMeasure[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env]]
+trait AgentMeasure[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
+                   M <: AgentMeasure[Position, EnvState, EnvGlobal, Action, Env, M]]
 {
   type Arguments
   type Measure
@@ -14,14 +15,15 @@ trait AgentMeasure[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env 
 }
 
 trait AgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action <: AbstractAction,
-                                       Env <: Environment[Position, EnvState, EnvGlobal, Action, Env]]
-  extends AgentMeasure[Position, EnvState, EnvGlobal, Action, Env]
+                              Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
+                              M <: AgentMeasure[Position, EnvState, EnvGlobal, Action, Env, M]]
+  extends AgentMeasure[Position, EnvState, EnvGlobal, Action, Env, M]
 
 
 trait StatelessAgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action <: AbstractAction,
                                        Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
                                        M <: StatelessAgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action, Env, M]]
-  extends AgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action, Env]
+  extends AgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action, Env, M]
 {
   self: M =>
 
