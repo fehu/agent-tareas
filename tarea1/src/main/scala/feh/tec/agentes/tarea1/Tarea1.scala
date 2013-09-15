@@ -59,7 +59,7 @@ object Tarea1 {
       override val id: AgentId = _id
 
       def possibleBehaviors(currentPerception: Perception): Set[Action] = {
-        currentPerception.debugLog("searching for possible behaviors. position = " + _)
+        currentPerception.debugLog("searching for possible behaviors. position = " + _.position)
         findPossibleActions(this)(currentPerception)
       }
 
@@ -172,16 +172,14 @@ object Tarea1App extends App{
 
     def criteria: Seq[Criterion[Position, EnvState, EnvGlobal, Action, Env, Measure]] =
       new PlugsMovingAgentCriteria
-        with NumberOfHolesCriterion
+        with DistanceToClosestPlugCriterion
         with ClosestPairIntraDistanceCriterion
-//        with DistanceToClosestPlugCriterion
+        with NumberOfHolesCriterion
       {
         def numberOfHolesWeight: Double = -10
         def closestHolePlugPairMeanIntraDistanceWeight: Float = -3
-//        def distanceToClosestPlugWeight: Float = -1
-//        def agentId: AgentId = Tarea1.Agents.Id.dummy // todo: inject or smth
-
-        protected def guardCalculatedClosestHolePlugPairsWithIntraDistances(distMap: Predef.Map[Agent.Position, (Set[Agent.Position], Int)]) {}
+        def distanceToClosestPlugWeight: Float = -1
+        def agentId: AgentId = Tarea1.Agents.Id.dummy // todo: inject or smth
 
         protected lazy val shortestRouteFinder: MapShortestRouteFinder = new MapShortestRouteFinder
 //        override def toList = criterion(_ => Random.nextDouble()) :: Nil

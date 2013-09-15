@@ -11,10 +11,6 @@ object Criteria {
 
     def debugMessagePrefix: String = "[Criteria] "
 
-//    private implicit class TypeHack(a: Any) { // todo shouldn't exist
-//      def typeHack[R]: R = a.asInstanceOf[R]
-//    }
-
     protected def criterion(assess: Measure#Snapshot => Measure#Measure) =
       Criterion[Position, EnvState, EnvGlobal, Action, Env, Measure](assess)
 
@@ -117,6 +113,7 @@ object Criteria {
     protected def getCalculatedClosestHolePlugPairsWithIntraDistances = calculatedClosestHolePlugPairsWithIntraDistances
     protected def closestHolePlugPairsWithIntraDistances(mapSnapshot: MapSnapshot[Map, Tile, Position]) =
       getCalculatedClosestHolePlugPairsWithIntraDistances.getOrElse(findClosestHolePlugPairsWithIntraDistances(mapSnapshot))
+    protected def discardCalculatedClosestHolePlugPairsWithIntraDistances() = calculatedClosestHolePlugPairsWithIntraDistances = None
 
     def distanceToClosestPlug = criterion{
       snapshot =>
@@ -132,8 +129,9 @@ object Criteria {
           val plugsClosestToAg = shortestRouteFinder.findClosests(mapSnapshot)(agPos, Function untupled plugsClosestToHoles.contains _)
 //          val plugsClosestToAgWithDistsFromTheirHoles todo implement
           val plugsClosestToAgDist =  plugsClosestToAg.headOption.map(_._2) getOrElse 0
+//          discardCalculatedClosestHolePlugPairsWithIntraDistances()
 
-          plugsClosestToAgDist * distanceToClosestPlugWeight
+          plugsClosestToAgDist * distanceToClosestPlugWeight debugLog "weighted distance to closest plug"
         })
     }
 
