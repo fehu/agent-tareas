@@ -1,5 +1,7 @@
 package feh.tec.agent
 
+import scala.collection.TraversableLike
+
 trait AgentMeasure[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
                    M <: AgentMeasure[Position, EnvState, EnvGlobal, Action, Env, M]]
 {

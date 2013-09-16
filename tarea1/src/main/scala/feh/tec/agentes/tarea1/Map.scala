@@ -245,9 +245,9 @@ class MapShortestRouteFinder extends ShortestRouteFinder[Map, SqTile, (Int, Int)
     Graph(nodesMap, nodesConnections)
   }
 
-  def findClosests(map: Map)(relativelyTo: (Int, Int), what: (Int, Int) => Boolean): Predef.Map[(Int, Int), Int] =
-    findClosests(Map.snapshotBuilder.snapshot(map))(relativelyTo, what)
-  def findClosests(snapshot: MapSnapshot[Map, SqTile, (Int, Int)])(relativelyTo: (Int, Int), what: (Int, Int) => Boolean): Predef.Map[(Int, Int), Int] = {
+  def findClosest(map: Map)(relativelyTo: (Int, Int), what: (Int, Int) => Boolean): Predef.Map[(Int, Int), Int] =
+    findClosest(Map.snapshotBuilder.snapshot(map))(relativelyTo, what)
+  def findClosest(snapshot: MapSnapshot[Map, SqTile, (Int, Int)])(relativelyTo: (Int, Int), what: (Int, Int) => Boolean): Predef.Map[(Int, Int), Int] = {
     val gr = getGraph(snapshot)
     val minDist = getMinDistMap(gr)
     val acceptablePairs =  minDist.withFilter(_._1._1 == relativelyTo).withFilter(what.tupled apply _._1._2).map{case ((_, c), d) => c -> d}

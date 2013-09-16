@@ -37,10 +37,11 @@ class Environment(buildTilesMap: Map => Seq[Tile],
   with FullyAccessible[Coordinate, State, Global, Action, Environment]
   with Deterministic[Coordinate, State, Global, Action, Environment]
   with PredictableDeterministicEnvironment[Coordinate, State, Global, Action, Environment]
+  with ForeseeableEnvironment[Coordinate, State, Global, Action, Environment]
   with Static[Coordinate, State, Global, Action, Environment]
 {
 
-  type Ref = PredictableEnvironmentRef[Coordinate, State, Global, Action, Environment] with MapEnvironmentRef[Coordinate, State, Global, Action, Environment, Tile, Map]
+  type Ref = ForeseeableEnvironmentRef[Coordinate, State, Global, Action, Environment] with MapEnvironmentRef[Coordinate, State, Global, Action, Environment, Tile, Map]
   lazy val definedAt: Seq[Coordinate] = xRange.flatMap(x => yRange.map(x ->))
 
   lazy val tags = new TypeTags{
@@ -80,7 +81,9 @@ class Overseer(actorSystem: ActorSystem,
   extends EnvironmentOverseerWithActor[Coordinate, State, Global, Action, Environment]
   with MutableEnvironmentOverseer[Coordinate, State, Global, Action, Environment]
   with PredictingMutableDeterministicEnvironmentOverseer[Coordinate, State, Global, Action, Environment]
+  with ForeseeingMutableDeterministicEnvironmentOverseer[Coordinate, State, Global, Action, Environment]
   with PredictingEnvironmentOverseerWithActor[Coordinate, State, Global, Action, Environment]
+  with ForeseeingEnvironmentOverseerWithActor[Coordinate, State, Global, Action, Environment]
   with MapEnvironmentOverseerWithActor[Map, Tile, Coordinate, State, Global, Action, Environment]
   with AsyncMapDrawingEnvironmentOverseer[Map, Tile, Coordinate, State, Global, Action, Environment, Easel]
   with GlobalDebugging
@@ -123,15 +126,25 @@ class Overseer(actorSystem: ActorSystem,
    * a snapshot of mutable environment that have setter functions active and has
    */
   def mutableSnapshot(): CustomisableEnvironmentSnapshot[Coordinate, State, Global, Action, Environment] with Environment =
-    new Environment(null, env.xRange, env.yRange, env.effects, env.globalState, mapStateBuilder)
+    buildMutableSnapshot(env.xRange, env.yRange, env.effects, env.globalState, env.tiles)
+
+
+  protected def buildMutableSnapshot(xRange: Range,
+                                     yRange: Range,
+                                     effects: PartialFunction[Action, Environment => Environment],
+                                     globalState: Global,
+                                     _initTiles: Seq[Tile]): CustomisableEnvironmentSnapshot[Coordinate, State, Global, Action, Environment] with Environment =
+    new Environment(null, xRange, yRange, effects, globalState, mapStateBuilder)
       with CustomisableEnvironmentSnapshot[Coordinate, State, Global, Action, Environment]
     {
       lazy val SnapshotBuilder = new SnapshotBuilder(this)
 
-
-      override def initTiles: Seq[Tile] = env.tiles
+      override def initTiles: Seq[Tile] = _initTiles
 
       def snapshot(): EnvironmentSnapshot[Coordinate, State, Global, Action, Environment] = SnapshotBuilder.snapshot()
+
+      def copy(): CustomisableEnvironmentSnapshot[Coordinate, State, Global, Action, Environment] with Environment =
+        buildMutableSnapshot(this.xRange, this.yRange, this.effects, this.globalState, this.tiles)
     }
 
   lazy val mapSnapshotBuilder = Map.snapshotBuilder
@@ -146,16 +159,17 @@ class Overseer(actorSystem: ActorSystem,
     env.agentsPositions(a.id).coordinate
 
 
-  def actorResponseFuncs = baseActorResponses :: predictingActorResponses :: mapActorResponses :: Nil
+  def actorResponseFuncs = baseActorResponses :: predictingActorResponses :: foreseeingActorResponses :: mapActorResponses :: Nil
   def actorResponseFunc: PartialFunction[Any, () => Unit] = actorResponseFuncs.reduceLeft(_ orElse _)
-  def ref: Environment#Ref = new BaseEnvironmentRef with PredictableEnvironmentRefImpl with MapEnvironmentRefImpl{}
+  def ref: Environment#Ref = new BaseEnvironmentRef with PredictableEnvironmentRefImpl
+    with ForeseeableEnvironmentRefImpl with MapEnvironmentRefImpl{}
 
   def defaultBlockingTimeout: Int = timeouts.defaultBlockingTimeout
   def defaultFutureTimeout: Int = timeouts.defaultFutureTimeout
   def getMapMaxDelay: FiniteDuration = timeouts.getMapMaxDelay
   def positionMaxDelay: FiniteDuration = timeouts.positionMaxDelay
   def predictMaxDelay: FiniteDuration = timeouts.predictMaxDelay
-
+  def foreseeMaxDelay: FiniteDuration = ???
 
   protected def environmentOverseerActorProps = Props(classOf[EnvironmentOverseerActor], actorResponseFuncs)
 
@@ -214,6 +228,7 @@ case object NoGlobal extends NoGlobal
 case class OverseerTimeouts(defaultBlockingTimeout: Int,
                             defaultFutureTimeout: Int,
                             predictMaxDelay: FiniteDuration,
+                            foreseeMaxDelay: FiniteDuration,
                             getMapMaxDelay: FiniteDuration,
                             positionMaxDelay: FiniteDuration)
 

@@ -21,4 +21,6 @@ package object util {
 
     def filterMin[B](f: A => B)(implicit cmp: Ordering[B]): Repr = filter(f, tr.minBy(f) |> f)
   }
+
+
 }

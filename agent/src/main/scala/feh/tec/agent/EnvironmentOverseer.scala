@@ -195,9 +195,9 @@ trait PredictingEnvironmentOverseer[Coordinate, State, Global, Action <: Abstrac
 trait PredictingEnvironmentOverseerWithActor[Coordinate, State, Global, Action <: AbstractAction,
                                          Env <: Environment[Coordinate, State, Global, Action, Env]
                                            with PredictableEnvironment[Coordinate, State, Global, Action, Env]]
-  extends PredictingEnvironmentOverseer[Coordinate, State, Global, Action, Env] with EnvironmentOverseerWithActor[Coordinate, State, Global, Action, Env]
+  extends PredictingEnvironmentOverseer[Coordinate, State, Global, Action, Env]
 {
-  overseer =>
+  overseer: EnvironmentOverseerWithActor[Coordinate, State, Global, Action, Env] =>
 
   case class Predict(a: Action) extends UUIDed
   case class Prediction(uuid: UUID, p: Env#Prediction) extends HasUUID
@@ -240,7 +240,75 @@ trait PredictingMutableDeterministicEnvironmentOverseer[Coordinate, State, Globa
 {
   self: EnvironmentOverseer[Coordinate, State, Global, Action, Env] =>
 
-  def predict(a: Action): Env#Prediction = env.effects(a)(mutableSnapshot())
-    .asInstanceOf[CustomisableEnvironmentSnapshot[Coordinate, State, Global, Action, Env] with Env]
-    .snapshot()
+  protected def predictOnSnapshot(a: Action, snapshot: CustomisableEnvironmentSnapshot[Coordinate, State, Global, Action, Env] with Env) =
+    env.effects(a)(snapshot).asInstanceOf[CustomisableEnvironmentSnapshot[Coordinate, State, Global, Action, Env] with Env]
+
+  def predict(a: Action): Env#Prediction = predictOnSnapshot(a, mutableSnapshot()).snapshot()
+}
+
+trait ForeseeingEnvironmentOverseer[Coordinate, State, Global, Action <: AbstractAction,
+                                   Env <: Environment[Coordinate, State, Global, Action, Env]
+                                     with ForeseeableEnvironment[Coordinate, State, Global, Action, Env]]{
+  self: PredictingEnvironmentOverseer[Coordinate, State, Global, Action, Env] =>
+
+  def foresee(depth: Int, possibleActions: EnvironmentSnapshot[Coordinate, State, Global, Action, Env] => Set[Action]): Map[Seq[Action], Env#Prediction]
+}
+
+trait ForeseeingEnvironmentOverseerWithActor[Coordinate, State, Global, Action <: AbstractAction,
+                                             Env <: Environment[Coordinate, State, Global, Action, Env]
+                                               with ForeseeableEnvironment[Coordinate, State, Global, Action, Env]]
+  extends ForeseeingEnvironmentOverseer[Coordinate, State, Global, Action, Env] with EnvironmentOverseerWithActor[Coordinate, State, Global, Action, Env]
+{
+  overseer: PredictingEnvironmentOverseer[Coordinate, State, Global, Action, Env] =>
+
+  case class Foresee(possibleActions: EnvironmentSnapshot[Coordinate, State, Global, Action, Env] => Set[Action], depth: Int) extends UUIDed
+  case class Foresight(uuid: UUID, predictions: Map[Seq[Action], Env#Prediction]) extends HasUUID
+
+  def foreseeMaxDelay: FiniteDuration
+
+  protected def foreseeingActorResponses: PartialFunction[Any, () => Unit] = {
+    case msg@Foresee(possibleActions, depth) => Foresight(msg.uuid, overseer.foresee(depth, possibleActions)).liftUnit
+  }
+
+  trait ForeseeableEnvironmentRefImpl extends ForeseeableEnvironmentRef[Coordinate, State, Global, Action, Env]{
+    def foresee(depth: Int, possibleActions: EnvironmentSnapshot[Coordinate, State, Global, Action, Env] => Set[Action]): Map[Seq[Action], Env#Prediction] =
+      overseer.foresee(depth, possibleActions)
+    def asyncForesee(depth: Int, possibleActions: EnvironmentSnapshot[Coordinate, State, Global, Action, Env] => Set[Action]): Future[Map[Seq[Action], Env#Prediction]] =
+      Foresee(possibleActions, depth) |> { msg =>
+        (overseer.actorRef ? msg)(foreseeMaxDelay)
+          .mapTo[Foresight].havingSameUUID(msg).map(_.predictions)
+      }
+  }
+}
+
+trait ForeseeingMutableDeterministicEnvironmentOverseer[Coordinate, State, Global, Action <: AbstractAction,
+                                                        Env <: Environment[Coordinate, State, Global, Action, Env]
+                                                          with PredictableDeterministicEnvironment[Coordinate, State, Global, Action, Env]
+                                                          with ForeseeableEnvironment[Coordinate, State, Global, Action, Env]
+                                                          with MutableEnvironment[Coordinate, State, Global, Action, Env]]
+  extends ForeseeingEnvironmentOverseer[Coordinate, State, Global, Action, Env]
+{
+  self: PredictingMutableDeterministicEnvironmentOverseer[Coordinate, State, Global, Action, Env] =>
+
+  def foresee(maxDepth: Int, possibleActions: EnvironmentSnapshot[Coordinate, State, Global, Action, Env] => Set[Action]): Map[Seq[Action], Env#Prediction] = {
+
+    def getPrediction(act: Action, snapshot: CustomisableEnvironmentSnapshot[Coordinate, State, Global, Action, Env] with Env) =
+      predictOnSnapshot(act, snapshot).copy()
+
+    def getPossActions(snapshot: CustomisableEnvironmentSnapshot[Coordinate, State, Global, Action, Env] with Env)
+      = possibleActions(snapshot.snapshot())
+
+    def rec(depth: Int,
+            snapshot: CustomisableEnvironmentSnapshot[Coordinate, State, Global, Action, Env] with Env,
+            previousActs: Seq[Action],
+            currentAction: Action): Set[(Seq[Action], Env#Prediction)] =
+      if(depth == maxDepth) Set((previousActs :+ currentAction) -> getPrediction(currentAction, snapshot).snapshot())
+      else getPossActions(snapshot).flatMap(rec(depth + 1, getPrediction(currentAction, snapshot), previousActs :+ currentAction, _))
+
+    val initSnapshot = mutableSnapshot()
+    val poss = getPossActions(initSnapshot)
+    val res = poss.flatMap(rec(1, initSnapshot, Nil, _)).toMap
+    res
+  }
+
 }

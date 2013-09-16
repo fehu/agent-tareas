@@ -44,7 +44,7 @@ trait MutableMapEnvironment[Map <: AbstractMap[Tile, Coordinate],
                             Env <: MutableMapEnvironment[Map, Tile, Coordinate, State, Global, Action, Env] with Map]
 //                              with MutableEnvironment[Coordinate, State, Global, Action, Env]]
   extends MapEnvironment[Map, Tile, Coordinate, State, Global, Action, Env] with MutableEnvironment[Coordinate, State, Global, Action, Env]
-  with AgentsPositionsProvidingMap[Tile, Coordinate]
+    with AgentsPositionsProvidingMap[Tile, Coordinate]
 {
   self: Env =>
 
@@ -129,6 +129,19 @@ trait InAbstractMapEnvironment[Position,
     def shortcut: Route[Position]
   }
 
+  //todo: doubling
+  protected def sense(snapshot: MapEnvironmentSnapshot[Map, Tile, Position, EnvState, EnvGlobal, Action, Env]) =
+    new MapPerception {
+      val mapSnapshot = env.getMap(snapshot).asInstanceOf[MapSnapshot[Map, Tile, Position] with Map]
+
+      lazy val connectedStates: TilesConnections = TilesConnections(mapSnapshot, perceived, position)
+
+      val perceived: Seq[Position] = snapshot.visibleStates.keys.toSeq
+
+      // todo: need access to AgentsPositionsProvidingMap's agentsPositions method
+      val position: Position = snapshot.asEnv.asInstanceOf[AgentsPositionsProvidingMap[Tile, Position]].agentsPositions(agent.id).coordinate
+    }
+
   def sense(env: EnvRef): Perception =
     new MapPerception{
       val mapSnapshot = env.getMap(env).asInstanceOf[MapSnapshot[Map, Tile, Position] with Map] // todo: casting
@@ -142,10 +155,10 @@ trait InAbstractMapEnvironment[Position,
 
   def detailed(env: EnvRef, c: Position): Option[DetailedPerception] =     {
     val sensed = sense(env)
+    val shortestRoutes = shortestRouteFinder.shortestRoutes(sensed.mapSnapshot: MapSnapshot[Map, Tile, Position])(sensed.position, sensed.perceived.toSet)
     if(sensed.perceived contains c) Some(
       new MapDetailedPerception {
-        def shortcut: Route[Position] = shortestRouteFinder.shortestRoute(sensed.mapSnapshot: MapSnapshot[Map, Tile, Position])(sensed.position, c)
-
+        def shortcut: Route[Position] = shortestRoutes(c)
         type ActualDetailedPerception = MapState[Position, Tile, Map]
         def where: Position = c
         def what: ActualDetailedPerception = mapStateBuilder.build(sensed.mapSnapshot.getSnapshot(c))

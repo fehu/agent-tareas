@@ -161,6 +161,15 @@ trait PredictableEnvironment[Coordinate, State, Global, Action <: AbstractAction
   type Prediction
 }
 
+trait ForeseeableEnvironment[Coordinate, State, Global, Action <: AbstractAction,
+                             Env <: Environment[Coordinate, State, Global, Action, Env] with ForeseeableEnvironment[Coordinate, State, Global, Action, Env]]
+  extends PredictableEnvironment[Coordinate, State, Global, Action, Env]
+{
+  self: Environment[Coordinate, State, Global, Action, Env] with Env =>
+
+  type Ref <: EnvironmentRef[Coordinate, State, Global, Action, Env] with ForeseeableEnvironmentRef[Coordinate, State, Global, Action, Env]
+}
+
 trait PredictableDeterministicEnvironment[Coordinate, State, Global, Action <: AbstractAction,
                                           Env <: Environment[Coordinate, State, Global, Action, Env] with PredictableEnvironment[Coordinate, State, Global, Action, Env]]
   extends PredictableEnvironment[Coordinate, State, Global, Action, Env]

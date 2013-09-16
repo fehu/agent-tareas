@@ -121,12 +121,15 @@ object Criteria {
         val agPos = snapshot.asEnv.agentsPositions(agentId).coordinate
         val holesClosestToAg = findClosetDisregardingHoles(mapSnapshot)(agPos, _.exists(_.isHole))
         val closestHolePlugPairs = closestHolePlugPairsWithIntraDistances(mapSnapshot)
+        println(s"holesClosestToAg=$holesClosestToAg")
+        println(s"closestHolePlugPairs=$closestHolePlugPairs")
         val plugsClosestToHoles = holesClosestToAg._1.flatMap(closestHolePlugPairs andThen (_._1))
+        println(s"plugsClosestToHoles = $plugsClosestToHoles")
 
         val gr = shortestRouteFinder.mapAsGraph(mapSnapshot)
         val minDistMap = shortestRouteFinder.findMinimalDistances(gr)
         shortestRouteFinder.withMinDistMap(minDistMap, _.onGraph(gr){
-          val plugsClosestToAg = shortestRouteFinder.findClosests(mapSnapshot)(agPos, Function untupled plugsClosestToHoles.contains _)
+          val plugsClosestToAg = shortestRouteFinder.findClosest(mapSnapshot)(agPos, Function untupled plugsClosestToHoles.contains _)
 //          val plugsClosestToAgWithDistsFromTheirHoles todo implement
           val plugsClosestToAgDist =  plugsClosestToAg.headOption.map(_._2) getOrElse 0
 //          discardCalculatedClosestHolePlugPairsWithIntraDistances()

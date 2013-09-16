@@ -1,8 +1,7 @@
 package feh.tec.agent
 
 import akka.actor.{ActorRef, Actor}
-import feh.tec.util.{UUIDed, HasUUID, SideEffect}
-import scala.concurrent.Future
+import feh.tec.util.{FilteringHelpingWrapper, UUIDed, HasUUID, SideEffect}
 import java.util.UUID
 
 /**
@@ -184,4 +183,28 @@ trait IdealDummyAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction,
   def possibleBehaviors(currentPerception: Perception): Set[Action]
 
   def decide(currentPerception: Perception): Action = chooseTheBestBehavior(possibleBehaviors(currentPerception).ensuring(_.nonEmpty, "no possible action"))
+}
+
+
+trait IdealForeseeingDummyAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction,
+                                Env <: Environment[Position, EnvState, EnvGlobal, Action, Env] with ForeseeableEnvironment[Position, EnvState, EnvGlobal, Action, Env],
+                                Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env],
+                                M <: AgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action, Env, M]]
+  extends IdealDummyAgent[Position, EnvState, EnvGlobal, Action, Env, Exec, M]
+{
+  self: AgentExecution[Position, EnvState, EnvGlobal, Action, Env, Exec] =>
+
+  def foreseeingDepth: Int
+
+  protected def snapshotToPerception(sn: EnvironmentSnapshot[Position, EnvState, EnvGlobal, Action, Env]): Perception
+
+  override def decide(currentPerception: Perception): Action = {
+    def behavioursFunc = snapshotToPerception _ andThen possibleBehaviors
+    val tacticalOptions = env.foresee(foreseeingDepth, behavioursFunc)
+    val estimatedPerformance =  tacticalOptions.map{
+      case (actions, result) => actions -> calcPerformance(result)
+    }
+    val bestOptions =  estimatedPerformance.filterMax(_._2)(measure.measureNumeric.asInstanceOf[Numeric[M#Measure]]) // todo casting
+    bestOptions.head._1.head // todo
+  }
 }

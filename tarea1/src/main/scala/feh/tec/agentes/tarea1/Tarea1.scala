@@ -1,9 +1,10 @@
 package feh.tec.agentes.tarea1
 
+import scala.language.postfixOps
 import feh.tec.agentes.tarea1.DummyMapGenerator.DummyMapGeneratorRandomPositionSelectHelper
-import feh.tec.agent.{IdealDummyAgent, AgentInfiniteExecution}
+import feh.tec.agent._
 import java.util.UUID
-import feh.tec.map.{AbstractSquareMap, SimpleDirection, ShortestRouteFinder, MapStateBuilder}
+import feh.tec.map._
 import akka.actor.ActorSystem
 import scala.concurrent.duration._
 import feh.tec.agentes.tarea1.Tarea1.Agents.MyDummyAgent
@@ -11,12 +12,12 @@ import feh.tec.visual.api.{Easel, SquareMapDrawOptions, MapRenderer}
 import feh.tec.visual.NicolLike2DEasel
 import nicol._
 import nicol.input.Key._
-import feh.tec.agent.AgentId
-import feh.tec.agent.StatelessAgentPerformanceMeasure.Criterion
 import Map._
 import feh.tec.util.{DebuggingSetup, GlobalDebugging, GlobalDebuggingSetup, LiftWrapper}
 import feh.tec.agentes.tarea1.Criteria.{DistanceToClosestPlugCriterion, ClosestPairIntraDistanceCriterion, NumberOfHolesCriterion, PlugsMovingAgentCriteria}
-import scala.util.Random
+import feh.tec.agent.StatelessAgentPerformanceMeasure.Criterion
+import feh.tec.agent.AgentId
+import nicol.Init
 import scala.Predef
 
 object Tarea1 {
@@ -51,10 +52,13 @@ object Tarea1 {
     class MyDummyAgent(e: Env#Ref,
                        criteria: Seq[Criterion[Position, EnvState, EnvGlobal, Action, Env, Measure]],
                        findPossibleActions: MyDummyAgent => MyDummyAgent#Perception => Set[Action],
-                       _id: AgentId)
+                       _id: AgentId,
+                       val foreseeingDepth: Int)
                       (implicit val actorSystem: ActorSystem)
       extends AbstractAgent[DummyExec](e, criteria, Environment.mapStateBuilder, shortestRouteFinder)
-        with IdealDummyAgent[Position, EnvState, EnvGlobal, Action, Env, DummyExec, Measure] with GlobalDebugging
+//        with IdealDummyAgent[Position, EnvState, EnvGlobal, Action, Env, DummyExec, Measure]
+        with IdealForeseeingDummyAgent[Position, EnvState, EnvGlobal, Action, Env, DummyExec, Measure]
+        with GlobalDebugging
     {
       override val id: AgentId = _id
 
@@ -62,6 +66,9 @@ object Tarea1 {
         currentPerception.debugLog("searching for possible behaviors. position = " + _.position)
         findPossibleActions(this)(currentPerception)
       }
+
+      protected def snapshotToPerception(sn: EnvironmentSnapshot[Position, EnvState, EnvGlobal, Action, Env]): Perception =
+        sense(sn.asInstanceOf[MapEnvironmentSnapshot[Map, Tile, Position, EnvState, EnvGlobal, Action, Env]]) // todo: casting
 
       protected def setup: DebuggingSetup = Tarea1.Debug
 
@@ -110,7 +117,13 @@ object Tarea1 {
     val mapStateBuilder: MapStateBuilder[Agent.Position, Agent.Tile, Map, Agent.EnvState] = new MStateBuilder(Agents.Id.dummy) // todo: id
   }
 
-  val timeouts = OverseerTimeouts(10, 10, 100 millis, 10 millis, 30 millis)
+  val timeouts = OverseerTimeouts(
+    defaultBlockingTimeout = 10,
+    defaultFutureTimeout = 10,
+    predictMaxDelay =  100 millis,
+    foreseeMaxDelay = 100 millis,
+    getMapMaxDelay =  10 millis,
+    positionMaxDelay =  30 millis)
 
   def overseer(env: Environment,
                timeouts: OverseerTimeouts,
@@ -158,7 +171,7 @@ object Tarea1App extends App{
         case ((x1, y1), (x2, y2)) if x1 == x2 && (y2 == y1 - 1 || y1 == yRange.min && y2 == yRange.max) => Down
         case ((x1, y1), (x2, y2)) if y1 == y2 && (x2 == x1 - 1 || x1 == xRange.min && x2 == xRange.max) => Left
         case ((x1, y1), (x2, y2)) if y1 == y2 && (x2 == x1 + 1 || x1 == xRange.max && x2 == xRange.min) => Right
-        case (c1, c2) => sys.error(s"$c1 and $c2 are not are neighbouring tiles")
+        case (c1, c2) => sys.error(s"$c1 and $c2 are not neighbouring tiles")
       }
     }
 
@@ -172,16 +185,18 @@ object Tarea1App extends App{
 
     def criteria: Seq[Criterion[Position, EnvState, EnvGlobal, Action, Env, Measure]] =
       new PlugsMovingAgentCriteria
-        with DistanceToClosestPlugCriterion
+//        with DistanceToClosestPlugCriterion
         with ClosestPairIntraDistanceCriterion
         with NumberOfHolesCriterion
       {
         def numberOfHolesWeight: Double = -10
         def closestHolePlugPairMeanIntraDistanceWeight: Float = -3
-        def distanceToClosestPlugWeight: Float = -1
-        def agentId: AgentId = Tarea1.Agents.Id.dummy // todo: inject or smth
+//        def distanceToClosestPlugWeight: Float = -1
+//        def agentId: AgentId = Tarea1.Agents.Id.dummy // todo: inject or smth
 
-        protected lazy val shortestRouteFinder: MapShortestRouteFinder = new MapShortestRouteFinder
+        protected def guardCalculatedClosestHolePlugPairsWithIntraDistances(distMap: Predef.Map[Agent.Position, (Set[Agent.Position], Int)]) {}
+
+        //        protected lazy val shortestRouteFinder: MapShortestRouteFinder = new MapShortestRouteFinder
 //        override def toList = criterion(_ => Random.nextDouble()) :: Nil
         def debug: Boolean = true
       }.toList
@@ -202,7 +217,9 @@ object Tarea1App extends App{
   val env = environment(Option(Agents.Id.dummy))
   val overseer = Tarea1.overseer(env, timeouts, visual.mapRenderer, visual.easel, visual.howToDrawTheMap)
 
-  val ag = new MyDummyAgent(overseer.ref, setup.criteria, setup.findPossibleActions, Agents.Id.dummy)
+  val foreseeingDepth = 5
+
+  val ag = new MyDummyAgent(overseer.ref, setup.criteria, setup.findPossibleActions, Agents.Id.dummy, foreseeingDepth)
 
   def startNicol() = {
     val game = new Tarea1Game(renderMap(visual.easel).lifted)

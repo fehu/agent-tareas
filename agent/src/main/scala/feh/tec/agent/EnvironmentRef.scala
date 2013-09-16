@@ -57,6 +57,14 @@ trait PredictableEnvironmentRef[Coordinate, State, Global, Action <: AbstractAct
   def asyncPredict(a: Action): Future[Env#Prediction]
 }
 
+trait ForeseeableEnvironmentRef[Coordinate, State, Global, Action <: AbstractAction,
+                                Env <: Environment[Coordinate, State, Global, Action, Env] with ForeseeableEnvironment[Coordinate, State, Global, Action, Env]]
+  extends PredictableEnvironmentRef[Coordinate, State, Global, Action, Env]
+{
+  def foresee(depth: Int, possibleActions: EnvironmentSnapshot[Coordinate, State, Global, Action, Env] => Set[Action]): Map[Seq[Action], Env#Prediction]
+  def asyncForesee(depth: Int, possibleActions: EnvironmentSnapshot[Coordinate, State, Global, Action, Env] => Set[Action]): Future[Map[Seq[Action], Env#Prediction]]
+}
+
 /*
 trait EnvironmentRefBlockingApiImpl[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]]
   extends EnvironmentRef[Coordinate, State, Global, Action , Env]
@@ -101,12 +109,18 @@ trait EnvironmentSnapshot[Coordinate, State, Global, Action <: AbstractAction, E
   def asEnv: Env with EnvironmentSnapshot[Coordinate, State, Global, Action, Env] = self
 }
 
+/**
+ *  Use with copies of current mutable environment for making predictions
+ */
+
 trait CustomisableEnvironmentSnapshot[Coordinate, State, Global, Action <: AbstractAction,
                                       Env <: Environment[Coordinate, State, Global, Action, Env]
                                         with MutableEnvironment[Coordinate, State, Global, Action, Env]]
   extends MutableEnvironment[Coordinate, State, Global, Action, Env]
 {
   self: Env =>
+
+  def copy(): CustomisableEnvironmentSnapshot[Coordinate, State, Global, Action, Env] with Env
 
   def snapshot(): EnvironmentSnapshot[Coordinate, State, Global, Action, Env]
 }
