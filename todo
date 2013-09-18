@@ -1,4 +1,4 @@
 * pause mechanism
 * absolutely incorrect behavior, needs a serious debugging: agent ignores evident movements (that not need foreseeing);
-    need to create some simples examples to test criteria.
+    need to create some simple examples to test criteria.
     problem noticed: in situation A(3, 7), P(3, 8), H(3, 9) agent selects MoveLeft or MoveRight
