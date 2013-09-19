@@ -286,11 +286,12 @@ trait ForeseeingMutableDeterministicEnvironmentOverseer[Coordinate, State, Globa
                                                           with PredictableDeterministicEnvironment[Coordinate, State, Global, Action, Env]
                                                           with ForeseeableEnvironment[Coordinate, State, Global, Action, Env]
                                                           with MutableEnvironment[Coordinate, State, Global, Action, Env]]
-  extends ForeseeingEnvironmentOverseer[Coordinate, State, Global, Action, Env]
+  extends ForeseeingEnvironmentOverseer[Coordinate, State, Global, Action, Env] with Debugging
 {
   self: PredictingMutableDeterministicEnvironmentOverseer[Coordinate, State, Global, Action, Env] =>
 
   def foresee(maxDepth: Int, possibleActions: EnvironmentSnapshot[Coordinate, State, Global, Action, Env] => Set[Action]): Map[Seq[Action], Env#Prediction] = {
+    debugLog(s"foreseeing for $maxDepth possible actions ahead")
 
     def getPrediction(act: Action, snapshot: CustomisableEnvironmentSnapshot[Coordinate, State, Global, Action, Env] with Env) =
       predictOnSnapshot(act, snapshot).copy()
@@ -301,9 +302,13 @@ trait ForeseeingMutableDeterministicEnvironmentOverseer[Coordinate, State, Globa
     def rec(depth: Int,
             snapshot: CustomisableEnvironmentSnapshot[Coordinate, State, Global, Action, Env] with Env,
             previousActs: Seq[Action],
-            currentAction: Action): Set[(Seq[Action], Env#Prediction)] =
+            currentAction: Action): Set[(Seq[Action], Env#Prediction)] ={
+
+      debugLog(s"foreseeing recursively: depth=$depth, previous actions=$previousActs, current action=$currentAction")
       if(depth == maxDepth) Set((previousActs :+ currentAction) -> getPrediction(currentAction, snapshot).snapshot())
       else getPossActions(snapshot).flatMap(rec(depth + 1, getPrediction(currentAction, snapshot), previousActs :+ currentAction, _))
+    }
+
 
     val initSnapshot = mutableSnapshot()
     val poss = getPossActions(initSnapshot)

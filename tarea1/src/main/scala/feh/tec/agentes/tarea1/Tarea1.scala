@@ -133,10 +133,13 @@ object Tarea1 {
               (implicit actorSystem: ActorSystem) =
     new Overseer(actorSystem, env, mapRenderer, easel, mapDrawConfig, Environment.mapStateBuilder, timeouts)
 
-  def environment(ag: Option[AgentId]) =
+  def environment(ag: Option[AgentId]): Environment = environment(ag,
+    DummyMapGenerator.withHelpers[DummyMapGeneratorRandomPositionSelectHelper]
+      .buildTilesMap(Environment.xRange, Environment.yRange)(LwjglTest.mapBuildingFunc(ag))
+  )
+  def environment(ag: Option[AgentId], buildTiles: (Map) => Predef.Map[(Int, Int), SqTile]): Environment =
     new Environment(
-      buildTilesMap = DummyMapGenerator.withHelpers[DummyMapGeneratorRandomPositionSelectHelper]
-        .buildTilesMap(Environment.xRange, Environment.yRange)(LwjglTest.mapBuildingFunc(ag)) andThen (_.values.toSeq),
+      buildTiles andThen (_.values.toSeq),
       Environment.xRange,
       Environment.yRange,
       Environment.effects,
@@ -214,7 +217,8 @@ object Tarea1App extends App{
 
   Tarea1.Debug() = true
 
-  val env = environment(Option(Agents.Id.dummy))
+//  val env = environment(Option(Agents.Id.dummy))
+  val env = TestEnvironment.test1(Option(Agents.Id.dummy))
   val overseer = Tarea1.overseer(env, timeouts, visual.mapRenderer, visual.easel, visual.howToDrawTheMap)
 
   val foreseeingDepth = 5

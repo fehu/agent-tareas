@@ -113,8 +113,8 @@ object MapHelper{
       case (x, _) if x == xRange.max => Right
     }
     val bottomTop = PartialFunction.condOpt(c){
-      case (_, y) if y == yRange.min => Bottom
-      case (_, y) if y == yRange.max => Top
+      case (_, y) if y == yRange.min => Top
+      case (_, y) if y == yRange.max => Bottom
     }
     (leftRight :: bottomTop :: Nil).flatten
   }
@@ -123,10 +123,10 @@ object MapHelper{
   def positionTo(xRange: Range, yRange: Range)(from: (Int, Int), direction: SimpleDirection): (Int, Int) = {
     val onEdge = onCoordinateGridEdge(xRange, yRange, from)
     direction match{
-      case Up if onEdge.exists(_ == Top)      => from._1 -> yRange.min
-      case Up                                 => from._1 -> (from._2 + 1)
-      case Down if onEdge.exists(_ == Bottom) => from._1 -> yRange.max
-      case Down                               => from._1 -> (from._2 - 1)
+      case Up if onEdge.exists(_ == Top)      => from._1 -> yRange.max
+      case Up                                 => from._1 -> (from._2 - 1)
+      case Down if onEdge.exists(_ == Bottom) => from._1 -> yRange.min
+      case Down                               => from._1 -> (from._2 + 1)
       case Left if onEdge.exists(_ == Left)   => xRange.max -> from._2
       case Left                               => (from._1 - 1) -> from._2
       case Right if onEdge.exists(_ == Right) => xRange.min -> from._2
