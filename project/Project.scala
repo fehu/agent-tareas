@@ -17,14 +17,35 @@ object AgentosTarea1 extends Build {
     scalacOptions in (Compile, doc) ++= Seq("-diagrams", "-diagrams-debug")
   )
 
-  lazy val lwjglSettings = LWJGLPlugin.lwjglSettings /*Nicol.nicolSettings*/ ++ Seq(
+  lazy val lwjglSettings = buildSettings ++ LWJGLPlugin.lwjglSettings /*Nicol.nicolSettings*/ ++ Seq(
     LWJGLPlugin.lwjgl.version := "2.9.0"
   )
+
+  lazy val testsSettings = buildSettings ++ Seq(
+    resolvers ++= Seq(Resolvers.Release.sonatype, Resolvers.Snapshot.sonatype),
+    libraryDependencies ++= Seq(Dependencies.Tests.scalaCheck, Dependencies.Tests.specs2)
+  )
+
+  object Resolvers{
+    object Release{
+      val sonatype = "Sonatype Releases" at "http://oss.sonatype.org/content/repositories/releases"
+    }
+
+    object Snapshot{
+      val sonatype = "Sonatype Snapshots" at "http://oss.sonatype.org/content/repositories/snapshots"
+    }
+
+  }
 
   object Dependencies{
     lazy val akka = "com.typesafe.akka" %% "akka-actor" % "2.2.1"
     lazy val reflectApi = "org.scala-lang" % "scala-reflect" % ScalaVersion
     lazy val shapeless = "com.chuusai" % "shapeless_2.10.2" % "2.0.0-M1"
+
+    object Tests{
+      lazy val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.10.1" % "test"
+      lazy val specs2 = "org.specs2" %% "specs2" % "2.2.2" % "test"
+    }
   }
 
   import Dependencies._
@@ -40,7 +61,7 @@ object AgentosTarea1 extends Build {
   lazy val agTarea1 =  Project(
     id = "agTarea1",
     base = file("tarea1"),
-    settings = buildSettings
+    settings = testsSettings
   ) dependsOn (agent, world, drawApi, lwjglVisualization)
 
 
@@ -73,6 +94,6 @@ object AgentosTarea1 extends Build {
   lazy val lwjglVisualization = Project(
     id = "lwjgl",
     base = file("lwjgl"),
-    settings = buildSettings ++ lwjglSettings
+    settings = lwjglSettings
   ) dependsOn drawApi
 }
