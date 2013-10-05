@@ -6,6 +6,8 @@ import GLUtils._
 import feh.tec.visual.api._
 import scala.collection.mutable
 import feh.tec.visual.helpers.ColorHelpers._
+import org.lwjgl.opengl.{Display, GL11}
+import org.lwjgl.BufferUtils
 
 /*
 trait NicolLikeTileRenderer[Tile <: AbstractTile[Tile, Coordinate], Coordinate] extends TileRenderer[Tile, Coordinate]{
@@ -76,14 +78,6 @@ class NicolLike2DEasel extends Easel with Easel2DFloat{
       }
   }.toDrawOp
 
-
-  //  protected def stdDraw(pos: (Float, Float), rot: Float, off: (Float, Float))(body: => Unit) =
-//    preserve(withoutTextures {
-//      translate(pos._1, pos._2)
-//      rotate(rot)
-//      translate(off._1, off._2)
-//      body
-//    })
   protected val Fonts = mutable.Map.empty[(String, Int), nicol.font.Font]
 
   def getFont(fontName: String, size: Int) = Fonts get fontName -> size getOrElse {
@@ -131,4 +125,8 @@ class NicolLike2DEasel extends Easel with Easel2DFloat{
     (x._1 + d, x._2 + d)
   }
 
+//  /**
+//   * http://www.lwjgl.org/wiki/index.php?title=Taking_Screen_Shots
+//   */
+//  def screenshot: Array[Byte] =
 }

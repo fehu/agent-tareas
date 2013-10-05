@@ -42,6 +42,8 @@ class Environment(buildTilesMap: Map => Seq[Tile],
 {
 
   type Ref = ForeseeableEnvironmentRef[Coordinate, State, Global, Action, Environment] with MapEnvironmentRef[Coordinate, State, Global, Action, Environment, Tile, Map]
+  type Snapshot = EnvironmentSnapshot[Coordinate, State, Global, Action, Environment]
+
   lazy val definedAt: Seq[Coordinate] = xRange.flatMap(x => yRange.map(x ->))
 
   lazy val tags = new TypeTags{
@@ -156,8 +158,8 @@ class Overseer(actorSystem: ActorSystem,
 
 
   def position(a: feh.tec.agent.AbstractAgent[Coordinate, State, Global, Action, Environment] with InAbstractMapEnvironment[Coordinate, State, Global, Action, Environment, Tile, Map]): Coordinate =
-    env.agentsPositions(a.id).coordinate
-
+    position(a.id).get
+  def position(id: AgentId): Option[Coordinate] = env.agentsPositions.get(id).map(_.coordinate)
 
   def actorResponseFuncs = baseActorResponses :: predictingActorResponses :: foreseeingActorResponses :: mapActorResponses :: Nil
   def actorResponseFunc: PartialFunction[Any, () => Unit] = actorResponseFuncs.reduceLeft(_ orElse _)

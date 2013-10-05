@@ -172,7 +172,8 @@ object DummyMapGenerator{ outer =>
     extends DummyMapGeneratorHelpersBuilder[DummyMapGeneratorRandomPositionSelectHelper]
   {
     def build(xRange: Range, yRange: Range) = new DummyMapGeneratorRandomPositionSelectHelper{
-      val uniqueRandomPosition: (Int, Int) = xRange.randomSelect -> yRange.randomSelect
+      def genRandomPosition = xRange.randomSelect -> yRange.randomSelect
+      val uniqueRandomPosition = genRandomPosition
     }
   }
 

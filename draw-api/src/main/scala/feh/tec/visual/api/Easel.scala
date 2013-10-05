@@ -40,6 +40,8 @@ trait Easel{ easel =>
 //  def buildStrDrawOptions[Ops <: StringDrawOptions[_ <: Easel]](ops: Ops): StrDrawOptions
 
   protected def coordinate_+[N : Numeric](c: Easel#Coordinate, n: N): Coordinate
+
+//  def screenshot: Array[Byte]
 }
 
 trait Easel2D extends Easel{

@@ -98,6 +98,7 @@ trait MapEnvironmentRef[Coordinate, State <: MapState[Coordinate, Tile, Map], Gl
   def getMap(e: Env#Ref): MapSnapshot[Map, Tile, Coordinate]
   def getMap(s: EnvironmentSnapshot[Coordinate, State, Global, Action, Env]): MapSnapshot[Map, Tile, Coordinate]
   def position(a: AbstractAgent[Coordinate, State, Global, Action, Env] with InAbstractMapEnvironment[Coordinate, State, Global, Action, Env, Tile, Map]): Coordinate
+  def position(id: AgentId): Option[Coordinate]
 
   def asyncGetMap(e: Env#Ref): Future[MapSnapshot[Map, Tile, Coordinate]]
   def asyncGetMap(s: EnvironmentSnapshot[Coordinate, State, Global, Action, Env]): Future[MapSnapshot[Map, Tile, Coordinate]]
@@ -196,6 +197,7 @@ trait MapEnvironmentOverseer[Map <: AbstractMap[Tile, Coordinate],
   def mapSnapshot(): MapSnapshot[Map, Tile, Coordinate]
   def mapSnapshot(s: EnvironmentSnapshot[Coordinate, State, Global, Action, Env]): MapSnapshot[Map, Tile, Coordinate]
   def position(a: AbstractAgent[Coordinate, State, Global, Action, Env] with InAbstractMapEnvironment[Coordinate, State, Global, Action, Env, Tile, Map]): Coordinate
+  def position(id: AgentId): Option[Coordinate]
 
 }
 
@@ -235,6 +237,7 @@ trait MapEnvironmentOverseerWithActor[Map <: AbstractMap[Tile, Coordinate],
     def getMap(e: Env#Ref): MapSnapshot[Map, Tile, Coordinate] = overseer.mapSnapshot()
     def getMap(s: EnvironmentSnapshot[Coordinate, State, Global, Action, Env]): MapSnapshot[Map, Tile, Coordinate] = overseer.mapSnapshot(s)
     def position(a: Ag): Coordinate = overseer.position(a)
+    def position(id: AgentId): Option[Coordinate] = overseer.position(id)
 
     def asyncGetMap(e: Env#Ref): Future[MapSnapshot[Map, Tile, Coordinate]] =
       overseer.actorRef.send(GetMapByEnvRef(e)).awaitingResponse[MapBySnapshot](positionMaxDelay).map(_.snapshot)

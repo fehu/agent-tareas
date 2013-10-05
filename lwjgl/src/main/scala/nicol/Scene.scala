@@ -29,13 +29,13 @@ object Scene {
   implicit def asOption(s: Scene): Option[Scene] = Some(s)
 }
 
-case class Init(title: String, width: Int = 800, height: Int = 600, fullscreen: Boolean = false) extends Scene {
+case class Init(title: String, width: Int = 800, height: Int = 600, vSync: Boolean = true, fullscreen: Boolean = false) extends Scene {
   def apply = {
     import Display._
 
     setTitle(title)
 
-    setVSyncEnabled(true)
+    if(vSync) setVSyncEnabled(true)
 
     val target = getAvailableDisplayModes.find { d =>
       d.getWidth == width && d.getHeight == height
