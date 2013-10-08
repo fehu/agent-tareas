@@ -42,6 +42,8 @@ trait Easel{ easel =>
   protected def coordinate_+[N : Numeric](c: Easel#Coordinate, n: N): Coordinate
 
 //  def screenshot: Array[Byte]
+
+  def onMouseMove(f: PartialFunction[Coordinate, Unit]): Unit
 }
 
 trait Easel2D extends Easel{

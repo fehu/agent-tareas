@@ -8,6 +8,7 @@ import scala.collection.mutable
 import feh.tec.visual.helpers.ColorHelpers._
 import org.lwjgl.opengl.{Display, GL11}
 import org.lwjgl.BufferUtils
+import nicol.input.Mouse
 
 /*
 trait NicolLikeTileRenderer[Tile <: AbstractTile[Tile, Coordinate], Coordinate] extends TileRenderer[Tile, Coordinate]{
@@ -20,7 +21,7 @@ trait NicolLikeTileRenderer[Tile <: AbstractTile[Tile, Coordinate], Coordinate] 
  * due to a lack of scala 2.10 compatible version
  */
 class NicolLike2DEasel extends Easel with Easel2DFloat{
-  type TDrawOptions = SquareTileDrawOptions[NicolLike2DEasel] //todo
+  type TDrawOptions = SquareTileDrawOptions[NicolLike2DEasel]
   type StrDrawOptions = StringDrawOptions[NicolLike2DEasel]
   type MDrawOptions = SquareMapDrawOptions[NicolLike2DEasel]
 
@@ -129,4 +130,7 @@ class NicolLike2DEasel extends Easel with Easel2DFloat{
 //   * http://www.lwjgl.org/wiki/index.php?title=Taking_Screen_Shots
 //   */
 //  def screenshot: Array[Byte] =
+  
+  def onMouseMove(f: PartialFunction[Coordinate, Unit]) = f(Mouse.apply)
+
 }

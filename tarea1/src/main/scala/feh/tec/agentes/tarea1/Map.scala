@@ -20,13 +20,13 @@ import spray.json._
   type Tile = SqTile
   type Coordinate = (Int, Int)
 
-  lazy val tilesMap = buildTilesMap(this)
+  lazy val tilesInitMap = buildTilesMap(this)
 
-  def tilesToMap = tilesMap
+  def tilesToMap = tilesInitMap
 
   def nNeighbours = 4
-  def tiles: Seq[Tile] = tilesMap.values.toSeq
-  def get: PartialFunction[Map#Coordinate, Tile] = tilesMap
+  def tiles: Seq[Tile] = tilesInitMap.values.toSeq
+  def get: PartialFunction[Map#Coordinate, Tile] = tilesInitMap
 
   lazy val coordinates = new CoordinatesMeta {
     def xRange: Range = map.xRange
@@ -78,7 +78,7 @@ object Map{
     def snapshot(m: Map): MapSnapshot[Map, SqTile, (Int, Int)] = new Map(null, m.coordinates.xRange, m.coordinates.yRange) with MapSnapshot[Map, SqTile, (Int, Int)]{
       lazy val tilesSnapshots: Seq[TileSnapshot[SqTile, (Int, Int)]] = tilesSnapshotsMap.values.toSeq
 
-      override lazy val tilesMap: Predef.Map[(Int, Int), SqTile] = ???
+      override lazy val tilesInitMap: Predef.Map[(Int, Int), SqTile] = ???
       val tilesSnapshotsMap: Predef.Map[(Int, Int), TileSnapshot[SqTile, Coordinate]] =
         m.tilesToMap.mapValues(tilesSnapshotBuilder.snapshot)
 
@@ -337,7 +337,7 @@ class MapJsonSerializer extends AbstractMapSerializer[Map, SqTile, (Int, Int)]{
 
   type Serialized = JsValue
 
-  def toJson(map: Map): JsValue = MapSerialized(map.tilesMap.mapValues(_.serialize).toSet, map.coordinates.xRange, map.coordinates.yRange).toJson(mapSerializedFormat)
+  def toJson(map: Map): JsValue = MapSerialized(map.tilesToMap.mapValues(_.serialize).toSet, map.coordinates.xRange, map.coordinates.yRange).toJson(mapSerializedFormat)
 
   def toMap(jsVal: JsValue): Map = jsVal.convertTo[MapSerialized] match {
     case MapSerialized(set, x, y) => new Map(m => set.toMap.mapValues{case Tile(coord, cont) => SqTile(m, coord, cont)}, x, y)

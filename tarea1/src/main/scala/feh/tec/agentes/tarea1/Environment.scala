@@ -56,7 +56,7 @@ class Environment(buildTilesMap: Map => Seq[Tile],
 
   assertDefinedAtAllCoordinates()
 
-  def initStates: PartialFunction[Coordinate, State] = tilesMap.mapValues(mapStateBuilder.build)
+  def initStates: PartialFunction[Coordinate, State] = tilesInitMap.mapValues(mapStateBuilder.build)
 
   def initTiles: Seq[Tile] = buildTilesMap(this)
 
@@ -64,7 +64,7 @@ class Environment(buildTilesMap: Map => Seq[Tile],
     case AgentAvatar(agentId) => agentId
   }
 
-  override lazy val tilesMap = initTiles.map(t => t.coordinate -> t).toMap
+  override lazy val tilesInitMap = initTiles.map(t => t.coordinate -> t).toMap
   override def get: PartialFunction[Coordinate, Tile] = super[MutableMapEnvironment].get
 
   override def tilesToMap: Predef.Map[(Int, Int), SqTile] = tilesAsMap
@@ -119,7 +119,7 @@ class Overseer(actorSystem: ActorSystem,
         override def states_=(pf: PartialFunction[Coordinate, State]) {}
         override val globalState = _globalState
         override def globalState_=(g: Global) {}
-        override lazy val tilesMap = _tilesMap.toMap
+        override lazy val tilesInitMap = _tilesMap.toMap
         override def affected(act: Action) = super[EnvironmentSnapshot].affected(act)
       }
   }

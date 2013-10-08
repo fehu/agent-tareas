@@ -8,13 +8,20 @@ import feh.tec.visual.api._
 import nicol._
 import feh.tec.agent.AgentId
 import feh.tec.agentes.tarea1.DummyMapGenerator.DummyMapGeneratorRandomPositionSelectHelper
+import feh.tec.visual.LwjglSquare2DMapRenderer.BuildTDrawOpsParams
 
 object LwjglTest{
   def createEasel = new NicolLike2DEasel
 
-  def createMapRenderer = new LwjglSquare2DMapRenderer[Map, SqTile, NicolLike2DEasel](LwjglTileRenderer.create, (tile, ops) =>
-    BasicSquareTileDrawOptions[NicolLike2DEasel](50, Color.white, None)
+  def createMapRenderer = new LwjglSquare2DMapRenderer[Map, SqTile, NicolLike2DEasel](LwjglTileRenderer.create, ops =>
+    BasicSquareTileDrawOptions[NicolLike2DEasel](50, selectColor(ops), None)
   )
+  private def selectColor(ops: BuildTDrawOpsParams[Map, SqTile, NicolLike2DEasel]) = ops match {
+    case BuildTDrawOpsParams(_, _, true, true)    => Color.red
+    case BuildTDrawOpsParams(_, _, true, false)   => Color.green
+    case BuildTDrawOpsParams(_, _, false, true)   => Color.blue
+    case _ => Color.white
+  }
 
   def genMap(ag: Option[AgentId]) = {
     import DummyMapGenerator._
