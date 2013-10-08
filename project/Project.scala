@@ -9,12 +9,16 @@ object AgentosTarea1 extends Build {
 
   val ScalaVersion = "2.10.2"
 
+  import Resolvers._
+  import Dependencies._
+
   val buildSettings = Defaults.defaultSettings ++ Seq (
     organization := "feh.tec.agentes",
     version      := "0.1-SNAPSHOT",
     scalaVersion := ScalaVersion,
     scalacOptions ++= Seq("-explaintypes"),
-    scalacOptions in (Compile, doc) ++= Seq("-diagrams", "-diagrams-debug")
+    scalacOptions in (Compile, doc) ++= Seq("-diagrams", "-diagrams-debug"),
+    resolvers += Release.spray
   )
 
   lazy val lwjglSettings = buildSettings ++ LWJGLPlugin.lwjglSettings /*Nicol.nicolSettings*/ ++ Seq(
@@ -22,13 +26,14 @@ object AgentosTarea1 extends Build {
   )
 
   lazy val testsSettings = buildSettings ++ Seq(
-    resolvers ++= Seq(Resolvers.Release.sonatype, Resolvers.Snapshot.sonatype),
-    libraryDependencies ++= Seq(Dependencies.Tests.scalaCheck, Dependencies.Tests.specs2)
+    resolvers ++= Seq(Release.sonatype, Snapshot.sonatype),
+    libraryDependencies ++= Seq(Tests.scalaCheck, Tests.specs2)
   )
 
   object Resolvers{
     object Release{
       val sonatype = "Sonatype Releases" at "http://oss.sonatype.org/content/repositories/releases"
+      val spray = "spray" at "http://repo.spray.io/"
     }
 
     object Snapshot{
@@ -42,13 +47,15 @@ object AgentosTarea1 extends Build {
     lazy val reflectApi = "org.scala-lang" % "scala-reflect" % ScalaVersion
     lazy val shapeless = "com.chuusai" % "shapeless_2.10.2" % "2.0.0-M1"
 
+    object spray{
+      lazy val json = "io.spray" %%  "spray-json" % "1.2.5"
+    }
+
     object Tests{
       lazy val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.10.1" % "test"
       lazy val specs2 = "org.specs2" %% "specs2" % "2.2.2" % "test"
     }
   }
-
-  import Dependencies._
 
   lazy val root = Project(
     id = "root",
@@ -61,7 +68,9 @@ object AgentosTarea1 extends Build {
   lazy val agTarea1 =  Project(
     id = "agTarea1",
     base = file("tarea1"),
-    settings = testsSettings
+    settings = testsSettings ++ Seq(
+      libraryDependencies += spray.json
+    )
   ) dependsOn (agent, world, drawApi, lwjglVisualization)
 
 

@@ -33,7 +33,7 @@ object LwjglTest{
       }
   }
 
-  def mapDrawOps(implicit easel: NicolLike2DEasel) = BasicSquareMapDrawOptions[NicolLike2DEasel](50)
+  def mapDrawOps(implicit easel: NicolLike2DEasel) = BasicSquareMapDrawOptions[NicolLike2DEasel](50, showLabels = false)
 
   def game(ag: Option[AgentId]) = {
     implicit val easel = createEasel

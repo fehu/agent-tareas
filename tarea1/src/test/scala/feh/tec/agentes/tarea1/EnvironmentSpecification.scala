@@ -13,12 +13,16 @@ import feh.tec.agentes.tarea1.DummyMapGenerator.DummyMapGeneratorRandomPositionS
 import scala.util.Random
 import feh.tec.agent.AgentId
 import org.specs2.specification.Example
-import feh.tec.agentes.tarea1.test.NicolLikeMapVisualizer
 import feh.tec.util.FileUtils.ByteArrayToFileWrapper
+import java.nio.charset.Charset
+import java.io.File
+import org.scalacheck.Prop.False
 
 class EnvironmentSpecification extends Specification with ScalaCheck{
   import Arbitraries._
   import Conf._
+
+  createTestsFolder()
 
   "The Environment" should{
     "be accessible at all coordinates defined" in prop{ env: Environment => env.definedAt forall env.get.isDefinedAt }
@@ -28,8 +32,6 @@ class EnvironmentSpecification extends Specification with ScalaCheck{
         val ref = overseer.ref
         val env = overseer.env
 
-        val visual = new NicolLikeMapVisualizer(env)
-
         def pos = ref.position(agentId).get
         def passOpt(pos: (Int, Int)) = if(ref.blocking.stateOf(pos).exists(_.hole)) None else Some(pos)
         val iPos = pos
@@ -38,23 +40,21 @@ class EnvironmentSpecification extends Specification with ScalaCheck{
         val southPos = passOpt(eastPos._1 -> (if(eastPos._2 == env.coordinates.yRange.max) 0 else eastPos._2 + 1)) getOrElse eastPos
         val westPos = passOpt((if(southPos._1 == 0) env.coordinates.xRange.max else southPos._1 - 1) -> southPos._2) getOrElse southPos
 
-        println(s"positions: init=$iPos, north=$northPos, east=$eastPos, south=$southPos, west=$westPos")
+        lazy val serializer = new MapJsonSerializer
+        def serializeCharset = Charset.forName("US-ASCII")
 
-//        def screenshot(file: String) = visual.game.screenshot().toFile(file + ".bmp")
+        val pref = "tests" + File.separator
 
-        visual.show()
+        s"positions: init=$iPos, north=$northPos, east=$eastPos, south=$southPos, west=$westPos".getBytes.toFile(pref + "positions")
+
+        def screenshot(file: String) = serializer.serialize(env).prettyPrint.getBytes(serializeCharset).toFile(file)
+
         sequential
-//        screenshot("0-init")
-        "move north" >> { ref.blocking.affect(MoveNorth); pos mustEqual northPos }
-//        screenshot("1-north")
-        "move east"  >> { ref.blocking.affect(MoveEast); pos mustEqual eastPos }
-//        screenshot("2-east")
-        "move south" >> { ref.blocking.affect(MoveSouth); pos mustEqual southPos }
-//        screenshot("3-south")
-        "move west"  >> { ref.blocking.affect(MoveWest); pos mustEqual westPos }
-//        screenshot("4-west")
-
-        visual.close()
+        screenshot(pref + "0-init")
+        "move north" >> { ref.blocking.affect(MoveNorth); screenshot(pref + "1-north"); pos mustEqual northPos } &&
+        "move east"  >> { ref.blocking.affect(MoveEast);  screenshot(pref + "2-east");  pos mustEqual eastPos  } &&
+        "move south" >> { ref.blocking.affect(MoveSouth); screenshot(pref + "3-south"); pos mustEqual southPos } &&
+        "move west"  >> { ref.blocking.affect(MoveWest);  screenshot(pref + "4-west");  pos mustEqual westPos  }
     }
   }
 
@@ -67,7 +67,7 @@ class EnvironmentSpecification extends Specification with ScalaCheck{
     import Arbitrary._
 
     implicit def environment: Arbitrary[Environment] = Arbitrary{
-      for { x <- Gen.chooseNum(10, 100); y <- Gen.chooseNum(10, 100) }
+      for { x <- Gen.chooseNum(10, 30); y <- Gen.chooseNum(5, 15) }
       yield new Environment(
         DummyMapGenerator.withHelpers[DummyMapGeneratorRandomPositionSelectHelper]
           .buildTilesMap(1 to x, 1 to y)(h => (x, y) => PartialFunction.condOpt(Random.nextDouble()) {
@@ -98,6 +98,7 @@ class EnvironmentSpecification extends Specification with ScalaCheck{
     def easel = LwjglTest.createEasel
     def mapDrawConfig = new SquareMapDrawOptions[NicolLike2DEasel]{
       def tileSideSize: NicolLike2DEasel#CoordinateUnit = 50
+      def showLabels: Boolean = true
     }
     def timeouts = OverseerTimeouts(
       defaultBlockingTimeout = 10,
@@ -110,9 +111,22 @@ class EnvironmentSpecification extends Specification with ScalaCheck{
 
     lazy val agentId = AgentId()
 
-    implicit def exampleToProp(e: => Example): Prop = new Properties("*"){
-      property(e.desc.toString()) = e.execute
+    implicit def exampleToProp(e: => Example): Prop = new Properties(e.desc.toString()){
+      e.examples.map{
+        ex => property(ex.desc.toString()) = {
+          val res = ex.execute
+          if(!res.isSuccess) Console.err.println("error in '" + ex.desc.toString() + "': " + res.message)
+          res
+        }
+
+      }
+
     }
 
+  }
+
+  def createTestsFolder() {
+    val file = new File("tests")
+    if(!file.exists()) file.mkdir()
   }
 }

@@ -76,6 +76,15 @@ object End extends Scene {
   def apply = {
     Display.destroy
   }
+
+  def apply(onEnd: => Any): End = new End(onEnd)
+}
+
+class End(onEnd: => Any) extends Scene{
+  def apply = {
+    Display.destroy
+    onEnd
+  }
 }
 
 trait StaticScene extends Scene {

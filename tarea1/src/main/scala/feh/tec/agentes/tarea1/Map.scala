@@ -8,11 +8,12 @@ import scala.{Predef, collection, Some}
 import feh.tec.agent.{Route, AgentId}
 import scala.collection.mutable
 import feh.tec.util._
+import spray.json._
 
 /*
   todo: move
  */
-class Map(buildTilesMap: Map => Predef.Map[(Int, Int), SqTile], xRange: Range, yRange: Range)
+  class Map(buildTilesMap: Map => Predef.Map[(Int, Int), SqTile], xRange: Range, yRange: Range)
   extends AbstractSquareMap[SqTile] with EnclosedMap[SqTile, (Int, Int)] with AgentsPositionsProvidingMap[SqTile, (Int, Int)]
 { map =>
 
@@ -327,5 +328,47 @@ class FloydWarshall{
 
     rec(from)
     routes.mapValues(_._1).toMap
+  }
+}
+
+class MapJsonSerializer extends AbstractMapSerializer[Map, SqTile, (Int, Int)]{
+  import MapJsonSerializer._
+  import MapSerialized._
+
+  type Serialized = JsValue
+
+  def toJson(map: Map): JsValue = MapSerialized(map.tilesMap.mapValues(_.serialize).toSet, map.coordinates.xRange, map.coordinates.yRange).toJson(mapSerializedFormat)
+
+  def toMap(jsVal: JsValue): Map = jsVal.convertTo[MapSerialized] match {
+    case MapSerialized(set, x, y) => new Map(m => set.toMap.mapValues{case Tile(coord, cont) => SqTile(m, coord, cont)}, x, y)
+  }
+
+  def serialize(map: Map): Serialized = toJson(map)
+}
+
+object MapJsonSerializer{
+  case class Tile(coordinate: (Int, Int), contents: Option[MapObj])
+  case class MapSerialized(tilesMap: Set[((Int, Int), Tile)], xRange: Range, yRange: Range)
+
+  implicit class SquareTileWrapprt(tile: SqTile){
+    def serialize = Tile(tile.coordinate, tile.contents)
+  }
+
+  object MapSerialized extends DefaultJsonProtocol with JsonProtocols{
+    implicit object ObjSerializedFormat extends RootJsonFormat[MapObj]{
+      def write(obj: MapObj): JsValue = obj match{
+        case AgentAvatar(AgentId(id)) => JsArray(JsString("avatar"), JsString(id.toString))
+        case Hole() => JsString("hole")
+        case Plug() => JsString("plug")
+      }
+
+      def read(json: JsValue): MapObj = json match{
+        case JsArray(JsString("avatar") :: JsString(id) :: Nil) => AgentAvatar(AgentId(UUID.fromString(id)))
+        case JsString("hole") => Hole()
+        case JsString("plug") => Plug()
+      }
+    }
+    implicit val tileSerializedFormat = jsonFormat2(Tile)
+    implicit val mapSerializedFormat = jsonFormat3(MapSerialized.apply)
   }
 }
