@@ -27,6 +27,20 @@ class EnvironmentSpecification extends Specification with ScalaCheck{
   "The Environment" should{
     "be accessible at all coordinates defined" in prop{ env: Environment => env.definedAt forall env.get.isDefinedAt }
     "contain agent's avatar" in prop{ref: Environment#Ref => ref.position(agentId) must beSome}
+    "provide sense information correctly" in prop{
+      (overseer: Overseer) =>
+        val ref = overseer.ref
+        val env = overseer.env
+
+        "about visible coordinates" >> { ref.blocking.visibleStates.keySet mustEqual env.definedAt.toSet } &&
+        "about states at given coordinates" >> {
+          val bulked = ref.blocking.visibleStates
+          val resSeq = for(c <- bulked.keys; state = env.stateByTile(env.tilesAsMap(c))) yield
+            ref.blocking.stateOf(c) must beSome(state) and bulked(c).mustEqual(state)
+          resSeq.reduceLeft(_ and _)
+        }
+
+    }
     "respond to actions: " in prop {
       (overseer: Overseer) =>
         val ref = overseer.ref
@@ -35,19 +49,19 @@ class EnvironmentSpecification extends Specification with ScalaCheck{
         def pos = ref.position(agentId).get
         def passOpt(pos: (Int, Int)) = if(ref.blocking.stateOf(pos).exists(_.hole)) None else Some(pos)
         val iPos = pos
-        val northPos = passOpt(iPos._1 -> (if(iPos._2  == 0) env.coordinates.yRange.max else iPos._2 - 1)) getOrElse iPos
-        val eastPos = passOpt((if(northPos._1 == env.coordinates.xRange.max) 0 else northPos._1 + 1) -> northPos._2) getOrElse northPos
-        val southPos = passOpt(eastPos._1 -> (if(eastPos._2 == env.coordinates.yRange.max) 0 else eastPos._2 + 1)) getOrElse eastPos
-        val westPos = passOpt((if(southPos._1 == 0) env.coordinates.xRange.max else southPos._1 - 1) -> southPos._2) getOrElse southPos
+        val northPos = passOpt(iPos._1 -> (if(iPos._2  == env.coordinates.yRange.min) env.coordinates.yRange.max else iPos._2 - 1)) getOrElse iPos
+        val eastPos = passOpt((if(northPos._1 == env.coordinates.xRange.max) env.coordinates.xRange.min else northPos._1 + 1) -> northPos._2) getOrElse northPos
+        val southPos = passOpt(eastPos._1 -> (if(eastPos._2 == env.coordinates.yRange.max) env.coordinates.yRange.min else eastPos._2 + 1)) getOrElse eastPos
+        val westPos = passOpt((if(southPos._1 == env.coordinates.xRange.min) env.coordinates.xRange.max else southPos._1 - 1) -> southPos._2) getOrElse southPos
 
         lazy val serializer = new MapJsonSerializer
-        def serializeCharset = Charset.forName("US-ASCII")
 
         val pref = "tests" + File.separator
 
         s"positions: init=$iPos, north=$northPos, east=$eastPos, south=$southPos, west=$westPos".getBytes.toFile(pref + "positions")
+        env.tiles.toSeq.mkString("\n").getBytes.toFile(pref + "init-map")
 
-        def screenshot(file: String) = serializer.serialize(env).prettyPrint.getBytes(serializeCharset).toFile(file)
+        def screenshot(file: String) = serializer.serialize(env).prettyPrint.getBytes.toFile(file)
 
         sequential
         screenshot(pref + "0-init")

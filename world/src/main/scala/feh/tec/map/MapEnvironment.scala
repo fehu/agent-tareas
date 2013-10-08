@@ -62,6 +62,10 @@ trait MutableMapEnvironment[Map <: AbstractMap[Tile, Coordinate],
 
   def tiles: Seq[Tile] = tilesAsMap.values.toSeq
 
+  def stateByTile(tile: Tile): State
+  override def states: PartialFunction[Coordinate, State] = PartialFunction(tilesAsMap.apply _ andThen stateByTile)
+  override def states_=(pf: PartialFunction[Coordinate, State]): Unit = {}
+
   protected def updateAgentInTile(newTile: Tile): Tile = {
     agentInTile(newTile).foreach{
       _agentsPositions += _ -> newTile

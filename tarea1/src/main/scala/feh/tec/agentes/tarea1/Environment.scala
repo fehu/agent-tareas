@@ -60,6 +60,8 @@ class Environment(buildTilesMap: Map => Seq[Tile],
 
   def initTiles: Seq[Tile] = buildTilesMap(this)
 
+  def stateByTile(tile: Tile): State = mapStateBuilder.build(tile)
+
   protected def agentInTile(tile: Tile): Option[AgentId] = tile.contents.collect{
     case AgentAvatar(agentId) => agentId
   }
