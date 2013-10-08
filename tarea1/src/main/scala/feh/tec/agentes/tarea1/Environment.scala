@@ -224,6 +224,8 @@ object Move{
     case MoveWest => SimpleDirection.Left
     case MoveEast => SimpleDirection.Right
   }
+
+  def all = Set(MoveNorth, MoveSouth, MoveEast, MoveWest)
 }
 
 trait NoGlobal extends MapGlobalState[Coordinate, Tile, Map]

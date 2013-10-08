@@ -71,6 +71,7 @@ object AgentosTarea1 extends Build {
     settings = testsSettings ++ Seq(
       libraryDependencies += spray.json
     )
+    ++ lwjglSettings
   ) dependsOn (agent, world, drawApi, lwjglVisualization)
 
 

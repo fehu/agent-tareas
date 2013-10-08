@@ -39,23 +39,24 @@ import spray.json._
   def onCoordinateGridEdge(c: (Int, Int)): Seq[SimpleDirection] = MapHelper.onCoordinateGridEdge(xRange, yRange, c)
   def onCoordinateGridEdge(tile: Tile): Seq[SimpleDirection] = onCoordinateGridEdge(tile.coordinate)
 
-  protected val neighborsMap = collection.mutable.Map.empty[Tile, Seq[Tile]]
+  protected val neighborsMap = collection.mutable.Map.empty[Coordinate, Seq[Coordinate]]
 
-  def getNeighbors(c: Coordinate): Seq[Tile] = getNeighbors(get(c))
-  def getNeighbors(tile: Tile): Seq[Tile] = neighborsMap get tile getOrElse neighborsMap.synchronized{
-    val neighbors = findNeighbors(tile)
-    neighborsMap += tile -> neighbors
+  def getNeighbors(tile: Tile): Seq[Tile] = getNeighbors(tile.coordinate)
+  def getNeighbors(c: Coordinate): Seq[Tile] = neighborsMap get c map (_ map get) getOrElse neighborsMap.synchronized{
+    val neighbors = findNeighbors(c)
+    neighborsMap += c -> neighbors.map(_.coordinate)
     neighbors
   }
 
-  protected def findNeighbors(tile: Tile): Seq[Tile] = {
-    val edge = onCoordinateGridEdge(tile)
+  protected def findNeighbors(tile: Tile): Seq[Tile] = findNeighbors(tile.coordinate)
+  protected def findNeighbors(c: Coordinate): Seq[Tile] = {
+    val edge = onCoordinateGridEdge(c)
 
     Seq(
-      edge.find(_ == Top)     map (_ => get(tile.x, yRange.min))  getOrElse get(tile.x, tile.y + yRange.step),
-      edge.find(_ == Right)   map (_ => get(xRange.min, tile.y))  getOrElse get(tile.x + xRange.step, tile.y),
-      edge.find(_ == Bottom)  map (_ => get(tile.x, yRange.max))  getOrElse get(tile.x, tile.y - yRange.step),
-      edge.find(_ == Left)    map (_ => get(xRange.max, tile.y))  getOrElse get(tile.x - xRange.step, tile.y)
+      edge.find(_ == Top)     map (_ => get(c._1, yRange.min))  getOrElse get(c._1, c._2 - yRange.step),
+      edge.find(_ == Right)   map (_ => get(xRange.min, c._2))  getOrElse get(c._1 + xRange.step, c._2),
+      edge.find(_ == Bottom)  map (_ => get(c._1, yRange.max))  getOrElse get(c._1, c._2 + yRange.step),
+      edge.find(_ == Left)    map (_ => get(xRange.max, c._2))  getOrElse get(c._1 - xRange.step, c._2)
     )
   }
 

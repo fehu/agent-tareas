@@ -34,7 +34,7 @@ abstract class AbstractAgent[Exec <: ActorAgentExecutionLoop[Position, EnvState,
                  val performanceCriteria: Seq[Criterion[Position, EnvState, EnvGlobal, Action, Env, Measure]],
                  val mapStateBuilder: MapStateBuilder[Position, Tile, Map, EnvState],
                  val shortestRouteFinder: ShortestRouteFinder[Map, Tile, Position])
-                (implicit execLoopBuilder: ExecLoopBuilder[AbstractAgent[Exec], Exec])
+                (implicit val execLoopBuilder: ExecLoopBuilder[AbstractAgent[Exec], Exec])
   extends Agent[Position, EnvState, EnvGlobal, Action, Env, Exec] with AgentWithActor[Position, EnvState, EnvGlobal, Action, Env, Exec]
     with IdealRationalAgent[Position, EnvState, EnvGlobal, Action, Env, Exec, Measure]
     with InAbstractMapEnvironment[Position, EnvState, EnvGlobal, Action, Env, Tile, Map]
