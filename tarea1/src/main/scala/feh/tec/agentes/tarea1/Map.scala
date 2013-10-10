@@ -53,14 +53,14 @@ import spray.json._
     val edge = onCoordinateGridEdge(c)
 
     Seq(
-      edge.find(_ == Top)     map (_ => get(c._1, yRange.min))  getOrElse get(c._1, c._2 - yRange.step),
+      edge.find(_ == Top)     map (_ => get(c._1, yRange.max))  getOrElse get(c._1, c._2 - yRange.step),
       edge.find(_ == Right)   map (_ => get(xRange.min, c._2))  getOrElse get(c._1 + xRange.step, c._2),
-      edge.find(_ == Bottom)  map (_ => get(c._1, yRange.max))  getOrElse get(c._1, c._2 + yRange.step),
+      edge.find(_ == Bottom)  map (_ => get(c._1, yRange.min))  getOrElse get(c._1, c._2 + yRange.step),
       edge.find(_ == Left)    map (_ => get(xRange.max, c._2))  getOrElse get(c._1 - xRange.step, c._2)
     )
   }
 
-  // todo: ensure assert is always after creation executed
+  // todo: ensure assert is always executed after creation
   protected def assertDefinedAtAllCoordinates(){
     for{
       x <- xRange

@@ -64,6 +64,11 @@ trait Arbitraries{ self: Specification with ScalaCheck =>
     def all = results reduceLeft (_ and _)
     def atLeastOne = results reduceLeft (_ or _)
   }
+
+  implicit class PropItWrapper(results: Iterable[Prop]){
+    def all = results reduceLeft (_ && _)
+    def atLeastOne = results reduceLeft (_ || _)
+  }
 }
 
 object Conf{

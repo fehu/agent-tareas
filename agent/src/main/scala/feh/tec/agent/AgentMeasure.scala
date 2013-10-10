@@ -35,10 +35,14 @@ trait StatelessAgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action <: 
 
   import measureNumeric._
 
+  def performanceDebug = false
+
   def performance(snapshot: Snapshot)(implicit criteria: Seq[Criterion[Position, EnvState, EnvGlobal, Action, Env, M]]): Measure =
-    (zero /: criteria)( (acc, criterion) =>
-      acc + criterion.assess(snapshot).asInstanceOf[Measure]
-  )
+    (zero /: criteria){ (acc, criterion) =>
+      val m = criterion.assess(snapshot).asInstanceOf[Measure]
+      if(performanceDebug) println(s"[Measure Performance] ${criterion.name}: $m}")
+      acc + m
+    }
 
   def measure(arg: Arguments): Measure = performance(arg._1)(arg._2)
 }
@@ -59,5 +63,5 @@ object StatelessAgentPerformanceMeasure{
   case class Criterion[Position, EnvState, EnvGlobal, Action <: AbstractAction,
                        Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
                        M <: StatelessAgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action, Env, M]]
-    (assess: M#Snapshot => M#Measure)
+    (name: String, assess: M#Snapshot => M#Measure)
 }

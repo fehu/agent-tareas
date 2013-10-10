@@ -293,11 +293,9 @@ trait ForeseeingMutableDeterministicEnvironmentOverseer[Coordinate, State, Globa
   def foresee(maxDepth: Int, possibleActions: EnvironmentSnapshot[Coordinate, State, Global, Action, Env] => Set[Action]): Map[Seq[Action], Env#Prediction] = {
     debugLog(s"foreseeing for $maxDepth possible actions ahead")
 
-    def getPrediction(act: Action, snapshot: CustomisableEnvironmentSnapshot[Coordinate, State, Global, Action, Env] with Env) =
-      predictOnSnapshot(act, snapshot).copy()
+    def getPrediction(act: Action, snapshot: CustomisableEnvironmentSnapshot[Coordinate, State, Global, Action, Env] with Env) = predictOnSnapshot(act, snapshot.copy())
 
-    def getPossActions(snapshot: CustomisableEnvironmentSnapshot[Coordinate, State, Global, Action, Env] with Env)
-      = possibleActions(snapshot.snapshot())
+    def getPossActions(mSnapshot: CustomisableEnvironmentSnapshot[Coordinate, State, Global, Action, Env] with Env) = possibleActions(mSnapshot.snapshot())
 
     def rec(depth: Int,
             snapshot: CustomisableEnvironmentSnapshot[Coordinate, State, Global, Action, Env] with Env,

@@ -157,6 +157,8 @@ trait Tarea1AppSetup{
 
 
 object Tarea1App extends App{
+  val CriteriaDebug = false
+
   import Tarea1._
 
   implicit val actorSystem = ActorSystem()
@@ -197,11 +199,11 @@ object Tarea1App extends App{
 //        def distanceToClosestPlugWeight: Float = -1
 //        def agentId: AgentId = Tarea1.Agents.Id.dummy // todo: inject or smth
 
-        protected def guardCalculatedClosestHolePlugPairsWithIntraDistances(distMap: Predef.Map[Agent.Position, (Set[Agent.Position], Int)]) {}
+        protected def guardCalculatedClosestHolePlugPairsWithIntraDistances(distMap: Predef.Map[Agent.Position, (Agent.Position, Int)]) {}
 
         //        protected lazy val shortestRouteFinder: MapShortestRouteFinder = new MapShortestRouteFinder
 //        override def toList = criterion(_ => Random.nextDouble()) :: Nil
-        def debug: Boolean = true
+        def debug: Boolean = CriteriaDebug
       }.toList
   }
 
@@ -217,10 +219,10 @@ object Tarea1App extends App{
     }
   }
 
-  Tarea1.Debug() = true
+//  Tarea1.Debug() = true
 
-//  val env = environment(Option(Agents.Id.dummy))
-  val env = TestEnvironment.test1(Option(Agents.Id.dummy))
+  val env = environment(Option(Agents.Id.dummy))
+//  val env = TestEnvironment.test1(Option(Agents.Id.dummy))
   val overseer = Tarea1.overseer(env, timeouts, visual.mapRenderer, visual.easel, visual.howToDrawTheMap)
 
   val foreseeingDepth = 5

@@ -1,8 +1,11 @@
 package feh.tec.agent
 
 import akka.actor.{ActorRef, Actor}
-import feh.tec.util.{FilteringHelpingWrapper, UUIDed, HasUUID, SideEffect}
+import feh.tec.util._
 import java.util.UUID
+import feh.tec.agent.AgentId
+import scala.collection.mutable
+import RandomWrappers._
 
 /**
  *  An agent that lacks decision part
@@ -198,13 +201,18 @@ trait IdealForeseeingDummyAgent[Position, EnvState, EnvGlobal, Action <: Abstrac
 
   protected def snapshotToPerception(sn: EnvironmentSnapshot[Position, EnvState, EnvGlobal, Action, Env]): Perception
 
+  protected val stackedDecisions = mutable.Queue.empty[Action]
+
   override def decide(currentPerception: Perception): Action = {
+    if(stackedDecisions.isEmpty) createDecisionSeq()
+    stackedDecisions.dequeue()
+  }
+
+  protected def createDecisionSeq() {
     def behavioursFunc = snapshotToPerception _ andThen possibleBehaviors
     val tacticalOptions = env.foresee(foreseeingDepth, behavioursFunc)
-    val estimatedPerformance =  tacticalOptions.map{
-      case (actions, result) => actions -> calcPerformance(result)
-    }
+    val estimatedPerformance =  tacticalOptions.map{ case (actions, result) => actions -> calcPerformance(result) }
     val bestOptions =  estimatedPerformance.filterMax(_._2)(measure.measureNumeric.asInstanceOf[Numeric[M#Measure]]) // todo casting
-    bestOptions.head._1.head // todo
+    stackedDecisions.enqueue(bestOptions.randomChoose._1: _*)
   }
 }
