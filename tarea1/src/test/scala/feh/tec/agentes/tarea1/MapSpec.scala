@@ -41,6 +41,7 @@ class MapSpec extends Specification with ScalaCheck with Arbitraries{
         stopFunc()
         res.all
     }
+/*
     "provide distance calculating services" in prop{
       (overseer: Overseer) =>
         val ref = overseer.ref
@@ -49,6 +50,7 @@ class MapSpec extends Specification with ScalaCheck with Arbitraries{
         val stopFunc = ag.execution()
 //        env.
     }
+*/
   }
 
 

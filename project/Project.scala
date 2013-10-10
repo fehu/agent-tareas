@@ -16,7 +16,7 @@ object AgentosTarea1 extends Build {
     organization := "feh.tec.agentes",
     version      := "0.1-SNAPSHOT",
     scalaVersion := ScalaVersion,
-    scalacOptions ++= Seq("-explaintypes"),
+//    scalacOptions ++= Seq("-explaintypes"),
     scalacOptions in (Compile, doc) ++= Seq("-diagrams", "-diagrams-debug"),
     resolvers += Release.spray
   )
@@ -60,9 +60,12 @@ object AgentosTarea1 extends Build {
   lazy val root = Project(
     id = "root",
     base = file("."),
-    settings = buildSettings ++ unidocSettings
+    settings = buildSettings ++ unidocSettings ++ lwjglSettings ++ Seq(
+      mainClass in (Compile, run) := Some("feh.tec.agentes.tarea1.Tarea1App")
+    )
   ).settings(ideaExcludeFolders := ".idea" :: ".idea_modules" :: Nil)
-   .aggregate(agent, world, drawApi, lwjglVisualization, agTarea1)
+   .dependsOn(agTarea1)
+   .aggregate(agent, world, drawApi, lwjglVisualization)
 
 
   lazy val agTarea1 =  Project(
