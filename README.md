@@ -8,7 +8,7 @@ To build and run the project one would need the <a href="http://www.scala-sbt.or
 * Execute <code>sbt update</code> in project directory to fetch the library dependencies 
 * To run tests execute <code>sbt test</code>
 * To run the application execute <code>sbt run</code>
-  * <i>(Not done yet)</i> The application is stopped by 'Escape' and paused by 'Space' keys
+  * The application is stopped by 'Escape' <i>(Not done yet)</i> and paused by 'Space' keys
 
 IDE Integration
 * <a href="http://www.jetbrains.com/idea/">IntelliJ IDEA</a> (There is a free opensource community version) <br/> 

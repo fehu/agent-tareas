@@ -60,9 +60,12 @@ abstract class AbstractAgent[Exec <: ActorAgentExecutionLoop[Position, EnvState,
   val actorRef: ActorRef = actorSystem.actorOf(abstractAgentActorProps)
 }
 
-class AbstractAgentActor(agentReceive: Actor.Receive) extends Actor{
+class AbstractAgentActor(agentReceive: PartialFunction[Any, Option[Any]]) extends Actor{
   val log = Logging(context.system, this)
-  def receive: Actor.Receive = agentReceive
+  def receive: Actor.Receive = agentReceive andThen (_ match{
+    case Some(msg) => sender ! msg
+    case None =>
+  })
 }
 
 
@@ -80,7 +83,7 @@ class AgentInfiniteExecLoopBuilder[Ag <: AbstractAgent[AgentInfiniteExecution[Po
     new AgentInfiniteExecution[Position, EnvState, EnvGlobal, Action, Env, Ag]{
       def agent: Ag = ag
       def pauseBetweenExecs: FiniteDuration = outer.pauseBetweenExecs
-      def stopTimeout: FiniteDuration = outer.stopTimeout
+      def execControlTimeout: FiniteDuration = outer.stopTimeout
     }
 }
   

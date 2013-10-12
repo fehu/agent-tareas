@@ -19,6 +19,7 @@ import feh.tec.agent.StatelessAgentPerformanceMeasure.Criterion
 import feh.tec.agent.AgentId
 import nicol.Init
 import scala.Predef
+import scala.concurrent.Await
 
 object Tarea1 {
   object Debug extends GlobalDebuggingSetup
@@ -36,8 +37,11 @@ object Tarea1 {
 
     case class DummyExec(agent: MyDummyAgent,
                          pauseBetweenExecs: FiniteDuration,
-                         stopTimeout: FiniteDuration)
+                         execControlTimeout: FiniteDuration)
       extends AgentInfiniteExecution[Position, EnvState, EnvGlobal, Action, Env, MyDummyAgent]
+    {
+      protected def respondToMessage(msg: Any): Unit = ???
+    }
 
     case class DummyExecBuilder(pauseBetweenExecs: FiniteDuration,
                                 stopTimeout: FiniteDuration)
@@ -47,7 +51,7 @@ object Tarea1 {
         DummyExec(ag.asInstanceOf[MyDummyAgent], pauseBetweenExecs, stopTimeout)
     }
 
-    implicit def execBuilder: ExecLoopBuilder[AbstractAgent[DummyExec], DummyExec] = DummyExecBuilder(pauseBetween, 100 millis)
+    implicit def execBuilder: ExecLoopBuilder[AbstractAgent[DummyExec], DummyExec] = DummyExecBuilder(pauseBetween, 1 second)
 
     class MyDummyAgent(e: Env#Ref,
                        criteria: Seq[Criterion[Position, EnvState, EnvGlobal, Action, Env, Measure]],
@@ -242,12 +246,10 @@ object Tarea1App extends App{
   val agStop = ag.execution()
 
   def terminate() = {
-    agStop()
+    Await.ready(agStop(), 1 second)
     actorSystem.stop(ag.actorRef)
     actorSystem.stop(overseer.actorRef)
     game.stop
-    actorSystem.awaitTermination()
-    sys.exit(0)
   }
 }
 
@@ -267,8 +269,7 @@ class StubScene(renderMap: () => Unit) extends LoopScene with SyncableScene with
         }
         e pressed {
           case "escape" =>
-            Tarea1App.terminate()
-            End
+            End(Tarea1App.terminate())
         }
     }
   }
