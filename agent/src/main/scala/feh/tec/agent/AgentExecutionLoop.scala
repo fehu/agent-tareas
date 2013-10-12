@@ -51,6 +51,10 @@ trait AgentInfiniteExecution[Position, EnvState, EnvGlobal, Action <: AbstractAc
   case object Stopped
   case object Pause
   case object Paused
+  case object AlreadyPaused
+  case object Resume
+  case object Resumed
+  case object AlreadyResumed
 
   private var pausedFlag: Boolean = true
   def isCurrentlyExecuting: Boolean = !pausedFlag
@@ -67,15 +71,8 @@ trait AgentInfiniteExecution[Position, EnvState, EnvGlobal, Action <: AbstractAc
     .ask(Stop)(execControlTimeout)
     .mapTo[Stopped.type]
 
-  def pause() = () => Await.result(
-    agent.actorRef
-      .ask(Pause)(execControlTimeout)
-      .mapTo[Paused.type]
-      .ensuring(_.isCompleted, "failed to pause the agent"),
-    execControlTimeout
-  )
-
-  def resume(): Unit = ???
+  def pause() = Await.result(agent.actorRef.ask(Pause)(execControlTimeout), execControlTimeout)
+  def resume(): Unit = Await.result(agent.actorRef.ask(Resume)(execControlTimeout), execControlTimeout)
 
   def receive: PartialFunction[Any, Option[Any]] = {
     case Exec if pausedFlag => None // do nothing
@@ -87,6 +84,15 @@ trait AgentInfiniteExecution[Position, EnvState, EnvGlobal, Action <: AbstractAc
     case Stop =>
       gracefulStop(agent.actorRef, execControlTimeout)
       Some(Stopped) // todo!!
+    case Pause if ! pausedFlag =>
+      pausedFlag = true
+      Some(Paused)
+    case Resume if pausedFlag =>
+      pausedFlag = false
+      agent.actorRef ! Exec
+      Some(Resumed)
+    case Pause => Some(AlreadyPaused)
+    case Resume => Some(AlreadyResumed)
   }
 
   def execution: Execution = () => exec()

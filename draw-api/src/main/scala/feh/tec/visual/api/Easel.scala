@@ -44,6 +44,9 @@ trait Easel{ easel =>
 //  def screenshot: Array[Byte]
 
   def onMouseMove(f: PartialFunction[Coordinate, Unit]): Unit
+
+  def size: Coordinate
+  def center: Coordinate
 }
 
 trait Easel2D extends Easel{

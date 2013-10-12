@@ -33,7 +33,11 @@ class NicolLike2DEasel extends Easel with Easel2DFloat{
   }
   
   protected def setColor(c: Color) = colour(c.getRed, c.getGreen, c.getBlue, c.getAlpha)
-  
+
+
+  def size: NicolLike2DEasel#Coordinate = Display.getWidth.toFloat -> Display.getHeight.toFloat
+  def center: NicolLike2DEasel#Coordinate = size._1/2 -> size._2/2
+
   def withColor[R](color: Color)(f: => R): R = {
     val old = colorHolder.get()
     if(old != color) {

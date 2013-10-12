@@ -8,8 +8,8 @@ import feh.tec.map._
 import akka.actor.ActorSystem
 import scala.concurrent.duration._
 import feh.tec.agentes.tarea1.Tarea1.Agents.MyDummyAgent
-import feh.tec.visual.api.{Easel, SquareMapDrawOptions, MapRenderer}
-import feh.tec.visual.NicolLike2DEasel
+import feh.tec.visual.api.{BasicStringDrawOps, Easel, SquareMapDrawOptions, MapRenderer}
+import feh.tec.visual.{PauseScene, NicolLike2DEasel}
 import nicol._
 import nicol.input.Key._
 import Map._
@@ -20,6 +20,8 @@ import feh.tec.agent.AgentId
 import nicol.Init
 import scala.Predef
 import scala.concurrent.Await
+import feh.tec.visual.api.StringAlignment.Center
+import java.awt.Color
 
 object Tarea1 {
   object Debug extends GlobalDebuggingSetup
@@ -234,7 +236,7 @@ object Tarea1App extends App{
   val ag = new MyDummyAgent(overseer.ref, setup.criteria, setup.findPossibleActions, Agents.Id.dummy, foreseeingDepth)
 
   def startNicol() = {
-    val game = new Tarea1Game(renderMap(visual.easel).lifted)
+    val game = new Tarea1Game(renderMap(visual.easel).lifted)(visual.easel)
     game.start
     game
   }
@@ -253,9 +255,11 @@ object Tarea1App extends App{
   }
 }
 
-class Tarea1Game(renderMap: () => Unit) extends Game(Init("Tarea1 v. 0.01", 800, 600) >> new StubScene(renderMap))
+class Tarea1Game(renderMap: () => Unit)(implicit easel: NicolLike2DEasel) extends Game(Init("Tarea1 v. 0.01", 800, 600) >> new StubScene(renderMap))
 
-class StubScene(renderMap: () => Unit) extends LoopScene with SyncableScene with ShowFPS{
+object Tarea1EndScene extends End(Tarea1App.terminate())
+
+class StubScene(renderMap: () => Unit)(implicit easel: NicolLike2DEasel) extends LoopScene with SyncableScene with ShowFPS{
   def update: Option[Scene] = {
     sync
     showFPS
@@ -268,9 +272,34 @@ class StubScene(renderMap: () => Unit) extends LoopScene with SyncableScene with
           case _ =>
         }
         e pressed {
-          case "escape" =>
-            End(Tarea1App.terminate())
+          case "escape" => Tarea1EndScene
+          case "space" =>
+            Tarea1LastSceneKeeper.scene = this
+            Tarea1PauseSceneKeeper.sceneOpt.getOrElse{
+              val p = new Tarea1PauseScene(renderMap)
+              Tarea1PauseSceneKeeper.scene = p
+              p
+            }
         }
     }
   }
 }
+
+object Tarea1LastSceneKeeper{
+  var scene: Scene = _
+}
+object Tarea1PauseSceneKeeper{
+  var scene: Scene = _
+  def sceneOpt = Option(scene)
+}
+
+class Tarea1PauseScene(renderMap: () => Unit)(implicit easel: NicolLike2DEasel) extends PauseScene[NicolLike2DEasel](
+  onPause = {
+    Tarea1App.ag.executionLoop.pause()
+    renderMap()
+  }.lifted,
+  onResume = Tarea1App.ag.executionLoop.resume().lifted,
+  endScene = Tarea1EndScene.lifted,
+  resumeScene = Tarea1LastSceneKeeper.scene.lifted,
+  pausedMessage = "Agent Execution Paused" -> BasicStringDrawOps[NicolLike2DEasel](Center, Color.lightGray, "Arial", 0F, 20F)
+)
