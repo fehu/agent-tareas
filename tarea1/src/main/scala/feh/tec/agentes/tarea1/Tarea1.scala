@@ -7,21 +7,23 @@ import java.util.UUID
 import feh.tec.map._
 import akka.actor.ActorSystem
 import scala.concurrent.duration._
-import feh.tec.agentes.tarea1.Tarea1.Agents.MyDummyAgent
-import feh.tec.visual.api.{BasicStringDrawOps, Easel, SquareMapDrawOptions, MapRenderer}
+import feh.tec.agentes.tarea1.Tarea1.Agents.{ConditionalExec, MyDummyAgent}
+import feh.tec.visual.api.{SquareMapDrawOptions, MapRenderer}
 import feh.tec.visual.{PauseScene, NicolLike2DEasel}
 import nicol._
 import nicol.input.Key._
 import Map._
-import feh.tec.util.{DebuggingSetup, GlobalDebugging, GlobalDebuggingSetup, LiftWrapper}
-import feh.tec.agentes.tarea1.Criteria.{DistanceToClosestPlugCriterion, ClosestPairIntraDistanceCriterion, NumberOfHolesCriterion, PlugsMovingAgentCriteria}
-import feh.tec.agent.StatelessAgentPerformanceMeasure.Criterion
-import feh.tec.agent.AgentId
-import nicol.Init
+import feh.tec.util._
+import feh.tec.agentes.tarea1.Criteria.{ClosestPairIntraDistanceCriterion, NumberOfHolesCriterion, PlugsMovingAgentCriteria}
 import scala.Predef
 import scala.concurrent.Await
 import feh.tec.visual.api.StringAlignment.Center
 import java.awt.Color
+import feh.tec.agent.StatelessAgentPerformanceMeasure.Criterion
+import scala.Some
+import feh.tec.agent.AgentId
+import feh.tec.visual.api.BasicStringDrawOps
+import nicol.Init
 
 object Tarea1 {
   object Debug extends GlobalDebuggingSetup
@@ -37,33 +39,61 @@ object Tarea1 {
 
     val shortestRouteFinder: ShortestRouteFinder[Map, Tile, Position] = new MapShortestRouteFinder
 
-    case class DummyExec(agent: MyDummyAgent,
+    case class InfExec(agent: MyDummyAgent[InfExec],
                          pauseBetweenExecs: FiniteDuration,
                          execControlTimeout: FiniteDuration)
-      extends AgentInfiniteExecution[Position, EnvState, EnvGlobal, Action, Env, MyDummyAgent]
+      extends AgentInfiniteExecution[Position, EnvState, EnvGlobal, Action, Env, MyDummyAgent[InfExec]]
+
+    case class ConditionalExec(agent: MyDummyAgent[ConditionalExec],
+                               pauseBetweenExecs: FiniteDuration,
+                               execControlTimeout: FiniteDuration,
+                               stopConditions: Set[ConditionalExec#StopCondition],
+                               onFinished: () => Unit)
+      extends AgentExecutionEnvironmentStopCondition[Position, EnvState, EnvGlobal, Action, Env, MyDummyAgent[ConditionalExec]]
     {
-      protected def respondToMessage(msg: Any): Unit = ???
+      def notifyFinished(): Unit = onFinished()
     }
 
-    case class DummyExecBuilder(pauseBetweenExecs: FiniteDuration,
+    case class InfExecBuilder(pauseBetweenExecs: FiniteDuration,
                                 stopTimeout: FiniteDuration)
-      extends ExecLoopBuilder[AbstractAgent[DummyExec], DummyExec]
+      extends ExecLoopBuilder[AbstractAgent[InfExec], InfExec]
     {
-      def buildExec(ag: AbstractAgent[DummyExec]): DummyExec =
-        DummyExec(ag.asInstanceOf[MyDummyAgent], pauseBetweenExecs, stopTimeout)
+      def buildExec(ag: AbstractAgent[InfExec]): InfExec =
+        InfExec(ag.asInstanceOf[MyDummyAgent[InfExec]], pauseBetweenExecs, stopTimeout)
     }
 
-    implicit def execBuilder: ExecLoopBuilder[AbstractAgent[DummyExec], DummyExec] = DummyExecBuilder(pauseBetween, 1 second)
+    case class ConditionalExecBuilder(pauseBetweenExecs: FiniteDuration,
+                                      execControlTimeout: FiniteDuration,
+                                      stopConditions: Set[ConditionalExec#StopCondition],
+                                      onFinished: () => Unit) extends ExecLoopBuilder[AbstractAgent[ConditionalExec], ConditionalExec]{
+      def buildExec(ag: AbstractAgent[ConditionalExec]): ConditionalExec =
+        ConditionalExec(ag.asInstanceOf[MyDummyAgent[ConditionalExec]], pauseBetween, execControlTimeout, stopConditions, onFinished)
+    }
 
-    class MyDummyAgent(e: Env#Ref,
+    object ExecLoopBuilders{
+      val execControlTimeout = 1 second
+      val stopEnvCondition: ConditionalExec#StopCondition = _ match{
+        case (_, states) => !states.exists(_.hole) || !states.exists(_.plug)
+      }
+
+      implicit def infinite: ExecLoopBuilder[AbstractAgent[InfExec], InfExec] = InfExecBuilder(pauseBetween, execControlTimeout)
+      implicit def environmentCondition: ExecLoopBuilder[AbstractAgent[ConditionalExec], ConditionalExec] =
+        ConditionalExecBuilder(pauseBetween, execControlTimeout, Set(stopEnvCondition), Tarea1App.setFinishedScene.lifted)
+    }
+
+
+    object MyDummyAgent{
+      type Exec[Self <: Exec[Self]] = ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, MyDummyAgent[Self]]
+    }
+    class MyDummyAgent[Exec <: ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, MyDummyAgent[Exec]]](
+                       e: Env#Ref,
                        criteria: Seq[Criterion[Position, EnvState, EnvGlobal, Action, Env, Measure]],
-                       findPossibleActions: MyDummyAgent => MyDummyAgent#Perception => Set[Action],
+                       findPossibleActions: MyDummyAgent[Exec] => MyDummyAgent[Exec]#Perception => Set[Action],
                        _id: AgentId,
                        val foreseeingDepth: Int)
-                      (implicit val actorSystem: ActorSystem)
-      extends AbstractAgent[DummyExec](e, criteria, Environment.mapStateBuilder, shortestRouteFinder)
-//        with IdealDummyAgent[Position, EnvState, EnvGlobal, Action, Env, DummyExec, Measure]
-        with IdealForeseeingDummyAgent[Position, EnvState, EnvGlobal, Action, Env, DummyExec, Measure]
+                      (implicit val actorSystem: ActorSystem, exBuilder: ExecLoopBuilder[AbstractAgent[Exec], Exec])
+      extends AbstractAgent[Exec](e, criteria, Environment.mapStateBuilder, shortestRouteFinder)
+        with IdealForeseeingDummyAgent[Position, EnvState, EnvGlobal, Action, Env, Exec, Measure]
         with GlobalDebugging
     {
       override val id: AgentId = _id
@@ -158,7 +188,8 @@ trait Tarea1AppSetup{
   import Agent._
 
   def criteria: Seq[Criterion[Position, EnvState, EnvGlobal, Action, Env, Measure]]
-  def findPossibleActions: MyDummyAgent => MyDummyAgent#Perception => Set[Action]
+  def findPossibleActions[Exec <: ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, MyDummyAgent[Exec]]]
+    (ag: MyDummyAgent[Exec], perc: MyDummyAgent[Exec]#Perception): Set[Action]
 }
 
 
@@ -186,13 +217,14 @@ object Tarea1App extends App{
       }
     }
 
-    def findPossibleActions: MyDummyAgent => MyDummyAgent#Perception => Set[Action] = ag => perc =>  {
-      val x = perc.mapSnapshot.getSnapshot(perc.position).neighboursSnapshots
-      val y = x.filterNot(_.asTile.contents.exists(_.isHole))
-      val z = y.map(tile => relativePosition(perc.mapSnapshot.coordinates)(perc.position, tile.coordinate))
-      val w = z.map(Move(_)).toSet
-      w
-    }
+    def findPossibleActions[Exec <: ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, MyDummyAgent[Exec]]]
+      (ag: MyDummyAgent[Exec], perc: MyDummyAgent[Exec]#Perception): Set[Action] = {
+        val x = perc.mapSnapshot.getSnapshot(perc.position).neighboursSnapshots
+        val y = x.filterNot(_.asTile.contents.exists(_.isHole))
+        val z = y.map(tile => relativePosition(perc.mapSnapshot.coordinates)(perc.position, tile.coordinate))
+        val w = z.map(Move(_)).toSet
+        w
+      }
 
     def criteria: Seq[Criterion[Position, EnvState, EnvGlobal, Action, Env, Measure]] =
       new PlugsMovingAgentCriteria
@@ -202,13 +234,9 @@ object Tarea1App extends App{
       {
         def numberOfHolesWeight: Double = -10
         def closestHolePlugPairMeanIntraDistanceWeight: Float = -3
-//        def distanceToClosestPlugWeight: Float = -1
-//        def agentId: AgentId = Tarea1.Agents.Id.dummy // todo: inject or smth
 
         protected def guardCalculatedClosestHolePlugPairsWithIntraDistances(distMap: Predef.Map[Agent.Position, (Agent.Position, Int)]) {}
 
-        //        protected lazy val shortestRouteFinder: MapShortestRouteFinder = new MapShortestRouteFinder
-//        override def toList = criterion(_ => Random.nextDouble()) :: Nil
         def debug: Boolean = CriteriaDebug
       }.toList
   }
@@ -217,7 +245,7 @@ object Tarea1App extends App{
     val tileSideSize = 50
     val showLabels = false
 
-    val easel = LwjglTest.createEasel
+    implicit val easel = LwjglTest.createEasel
     val mapRenderer = LwjglTest.createMapRenderer
     val howToDrawTheMap = new SquareMapDrawOptions[NicolLike2DEasel]{
       def tileSideSize: NicolLike2DEasel#CoordinateUnit = visual.tileSideSize
@@ -233,10 +261,20 @@ object Tarea1App extends App{
 
   val foreseeingDepth = 5
 
-  val ag = new MyDummyAgent(overseer.ref, setup.criteria, setup.findPossibleActions, Agents.Id.dummy, foreseeingDepth)
+  import Tarea1.Agents.ExecLoopBuilders._
+  import visual.easel
+  type Exec = ConditionalExec
+  val ag = new MyDummyAgent[Exec](
+    overseer.ref,
+    setup.criteria,
+    (setup.findPossibleActions[Exec] _).curried,
+    Agents.Id.dummy,
+    foreseeingDepth)
+
+  lazy val finishedScene = new FinishedScene(renderMap.lifted)
 
   def startNicol() = {
-    val game = new Tarea1Game(renderMap(visual.easel).lifted)(visual.easel)
+    val game = new Tarea1Game(renderMap(visual.easel).lifted, finishedScene.lifted)
     game.start
     game
   }
@@ -253,20 +291,28 @@ object Tarea1App extends App{
     actorSystem.stop(overseer.actorRef)
     game.stop
   }
+
+  def setFinishedScene() = Finished.flag = true
 }
 
-class Tarea1Game(renderMap: () => Unit)(implicit easel: NicolLike2DEasel) extends Game(Init("Tarea1 v. 0.01", 800, 600) >> new StubScene(renderMap))
+class Tarea1Game(renderMap: () => Unit, finishedScene: Lifted[FinishedScene])(implicit easel: NicolLike2DEasel)
+  extends Game(Init("Tarea1 v. 0.01", 800, 600) >> new StubScene(renderMap, finishedScene))
 
 object Tarea1EndScene extends End(Tarea1App.terminate())
 
-class StubScene(renderMap: () => Unit)(implicit easel: NicolLike2DEasel) extends LoopScene with SyncableScene with ShowFPS{
+protected object Finished{
+  var flag = false
+}
+
+class StubScene(renderMap: () => Unit, finishedScene: Lifted[FinishedScene])(implicit easel: NicolLike2DEasel) extends LoopScene with SyncableScene with ShowFPS{
   def update: Option[Scene] = {
     sync
     showFPS
 
     renderMap()
 
-    keyEvent {
+    if(Finished.flag) finishedScene()
+    else keyEvent {
       e =>
         e released {
           case _ =>
@@ -303,3 +349,16 @@ class Tarea1PauseScene(renderMap: () => Unit)(implicit easel: NicolLike2DEasel) 
   resumeScene = Tarea1LastSceneKeeper.scene.lifted,
   pausedMessage = "Agent Execution Paused" -> BasicStringDrawOps[NicolLike2DEasel](Center, Color.lightGray, "Arial", 0F, 20F)
 )
+
+class FinishedScene(renderMap: () => Unit)(implicit easel: NicolLike2DEasel) extends PauseScene[NicolLike2DEasel](
+  onPause = renderMap,
+  onResume = {}.lifted,
+  endScene = Tarea1EndScene.lifted,
+  resumeScene = () => null,
+  pausedMessage = "Agent Execution Finished" -> BasicStringDrawOps[NicolLike2DEasel](Center, Color.green, "Arial", 0F, 20F)
+){
+  override def processPressedKey: PartialFunction[String, Scene] = PartialFunction[String, Scene]{
+    case `resumeKey` => this
+    case `quitKey` => endScene()
+  }
+}

@@ -94,7 +94,9 @@ class Overseer(actorSystem: ActorSystem,
 {
   
   overseer =>
-  
+
+  def terminate() = actorSystem.stop(actorRef)
+
   protected def executionContext: ExecutionContext = actorSystem.dispatcher
   protected def scheduler: Scheduler = actorSystem.scheduler
 

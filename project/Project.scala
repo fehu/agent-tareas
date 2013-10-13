@@ -65,7 +65,7 @@ object AgentosTarea1 extends Build {
     )
   ).settings(ideaExcludeFolders := ".idea" :: ".idea_modules" :: Nil)
    .dependsOn(agTarea1)
-   .aggregate(agent, world, drawApi, lwjglVisualization)
+   .aggregate(agent, world, drawApi, lwjglVisualization, agTarea1)
 
 
   lazy val agTarea1 =  Project(

@@ -5,6 +5,8 @@ import scala.concurrent.duration._
 import java.util.Calendar
 
 package object util {
+  type Lifted[+T] = () => T
+
   implicit class PipeWrapper[T](t: => T){
     def pipe[R](f: T => R): R = f(t)
     def |>[R](f: T => R): R = f(t)

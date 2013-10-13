@@ -1,9 +1,8 @@
 package feh.tec.agent
 
-import akka.actor.{ActorRef, Actor}
+import akka.actor.ActorRef
 import feh.tec.util._
 import java.util.UUID
-import feh.tec.agent.AgentId
 import scala.collection.mutable
 import RandomWrappers._
 
@@ -26,7 +25,7 @@ trait IndecisiveAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction, E
   type Perception <: AbstractGlobalPerception
   type DetailedPerception <: AbstractDetailedPerception
 
-  type EnvRef = Env#Ref //<: EnvironmentRef[Position, EnvState, EnvGlobal, Action, Env]
+  type EnvRef = Env#Ref
   def env: EnvRef
 
   def sense(env: EnvRef): Perception
@@ -155,11 +154,6 @@ trait IdealRationalAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction
   extends IndecisiveAgent[Position, EnvState, EnvGlobal, Action, Env] with MeasuredAgent[Position, EnvState, EnvGlobal, Action, Env, Exec, M]
 {
   agent: DecisiveAgent[Position, EnvState, EnvGlobal, Action, Env, Exec] =>
-
-//  override type EnvRef = EnvironmentRef[Position, EnvState, EnvGlobal, Action, Env] with PredictableEnvironmentRef[Position, EnvState, EnvGlobal, Action, Env]
-
-
-//  override def env: PredictableEnvironmentRef[Position, EnvState, EnvGlobal, Action, Env]
 
   protected def calcPerformance(prediction: Env#Prediction): M#Measure
 
