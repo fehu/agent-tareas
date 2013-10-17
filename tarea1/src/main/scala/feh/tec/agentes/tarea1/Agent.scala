@@ -49,7 +49,7 @@ abstract class AbstractAgent[Exec <: ActorAgentExecutionLoop[Position, EnvState,
   lazy val measure = new Measure
 
   protected def calcPerformance(prediction: Env#Prediction) = {
-    val nonEmptyTiles = prediction.asEnv.tiles.filter(_.contents.nonEmpty).toList
+//    val nonEmptyTiles = prediction.asEnv.tiles.filter(_.contents.nonEmpty).toList
     measure.performance(prediction)(performanceCriteria)
   }
 

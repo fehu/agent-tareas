@@ -1,6 +1,7 @@
 package feh.tec.agent
 
 import scala.collection.TraversableLike
+import feh.tec.agent.StatelessAgentPerformanceMeasure.CalculatedCriterion
 
 trait AgentMeasure[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
                    M <: AgentMeasure[Position, EnvState, EnvGlobal, Action, Env, M]]
@@ -18,9 +19,31 @@ trait AgentMeasure[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env 
 
 trait AgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action <: AbstractAction,
                               Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
-                              M <: AgentMeasure[Position, EnvState, EnvGlobal, Action, Env, M]]
+                              M <: AgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action, Env, M]]
   extends AgentMeasure[Position, EnvState, EnvGlobal, Action, Env, M]
+{
+  type CriterionArgs
 
+  type Criterion <: AgentPerformanceMeasureCriterion[Position, EnvState, EnvGlobal, Action, Env, M]
+  type Criteria = Seq[Criterion]
+
+  type CriterionValue <: AgentPerformanceMeasureCriterionValue[Position, EnvState, EnvGlobal, Action, Env, M]
+  type CriteriaValue = Seq[CriterionValue]
+}
+
+trait AgentPerformanceMeasureCriterion[Position, EnvState, EnvGlobal, Action <: AbstractAction,
+                                       Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
+                                       M <: AgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action, Env, M]]{
+  def name: String
+  def assess:  M#CriterionArgs => M#Measure
+}
+
+trait AgentPerformanceMeasureCriterionValue[Position, EnvState, EnvGlobal, Action <: AbstractAction,
+                                            Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
+                                            M <: AgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action, Env, M]]{
+  def name: String
+  def value:  M#Measure
+}
 
 trait StatelessAgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action <: AbstractAction,
                                        Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
@@ -29,22 +52,23 @@ trait StatelessAgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action <: 
 {
   self: M =>
 
-  import StatelessAgentPerformanceMeasure._
 
-  type Arguments = (Snapshot, Seq[Criterion[Position, EnvState, EnvGlobal, Action, Env, M]])
+  type CriterionArgs = Snapshot
+  type Criterion = StatelessAgentPerformanceMeasure.Criterion[Position, EnvState, EnvGlobal, Action, Env, M]
+  type CriterionValue = StatelessAgentPerformanceMeasure.CalculatedCriterion[Position, EnvState, EnvGlobal, Action, Env, M]
+  type Arguments = (CriterionArgs, Criteria)
 
-  import measureNumeric._
 
   def performanceDebug = false
 
-  def performance(snapshot: Snapshot)(implicit criteria: Seq[Criterion[Position, EnvState, EnvGlobal, Action, Env, M]]): Measure =
-    (zero /: criteria){ (acc, criterion) =>
-      val m = criterion.assess(snapshot).asInstanceOf[Measure]
+  def performance(snapshot: Snapshot)(implicit criteria: Criteria): CriteriaValue =
+    (Seq.empty[CriterionValue] /: criteria){ (acc, criterion) =>
+      val m = criterion.calculate(snapshot)
       if(performanceDebug) println(s"[Measure Performance] ${criterion.name}: $m}")
-      acc + m
+      acc :+ m
     }
 
-  def measure(arg: Arguments): Measure = performance(arg._1)(arg._2)
+  def measure(arg: Arguments): Measure = performance(arg._1)(arg._2).map(_.value).sum(measureNumeric.asInstanceOf[Numeric[M#Measure]]).asInstanceOf[Measure]
 }
 
 class StatelessAgentPerformanceDoubleMeasure[Position, EnvState, EnvGlobal, Action <: AbstractAction,
@@ -63,5 +87,13 @@ object StatelessAgentPerformanceMeasure{
   case class Criterion[Position, EnvState, EnvGlobal, Action <: AbstractAction,
                        Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
                        M <: StatelessAgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action, Env, M]]
-    (name: String, assess: M#Snapshot => M#Measure)
+    (name: String, assess: M#Snapshot => M#Measure) extends AgentPerformanceMeasureCriterion[Position, EnvState, EnvGlobal, Action, Env, M]
+  {
+    def calculate(sn: M#Snapshot): CalculatedCriterion[Position, EnvState, EnvGlobal, Action, Env, M] =
+      CalculatedCriterion(name, assess(sn))
+  }
+  case class CalculatedCriterion[Position, EnvState, EnvGlobal, Action <: AbstractAction,
+                                 Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
+                                 M <: AgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action, Env, M]]
+    (name: String, value: M#Measure) extends AgentPerformanceMeasureCriterionValue[Position, EnvState, EnvGlobal, Action, Env, M]
 }

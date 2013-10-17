@@ -109,6 +109,15 @@ object Tarea1 {
       protected def setup: DebuggingSetup = Tarea1.Debug
 
       def debugMessagePrefix: String = "[MyDummyAgent]"
+
+      private var _currentDecisionExplanation: ExplainedAction = _
+      def currentDecisionExplanation = Option(_currentDecisionExplanation)
+      protected def currentDecisionExplanation_=(ea: ExplainedAction) = _currentDecisionExplanation = ea
+
+      def notifyDecision(a: ExplainedAction): Unit = {
+        currentDecisionExplanation = a
+        debugLog(s"Decision taken: $a")
+      }
     }
   }
 

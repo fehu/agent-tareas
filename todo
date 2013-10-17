@@ -1,1 +1,2 @@
 * visualize criteria values for current map state
+* repair and use DistanceToClosestPlugCriterion
