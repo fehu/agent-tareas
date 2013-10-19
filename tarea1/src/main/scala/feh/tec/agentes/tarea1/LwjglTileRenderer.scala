@@ -47,7 +47,9 @@ object LwjglTileRenderer {
                                    strDrawOps: Easel2D#StrDrawOptions)(implicit easel: Easel2D) = {
       import easel._
 
-      implicit def num = easel.unitNumeric.asInstanceOf[Numeric[Easel2D#CoordinateUnit]]
+      implicit def num = easel.unitNumeric .asInstanceOf[Numeric[Easel2D#CoordinateUnit]]
+
+      implicit def coordinateWrapper: Easel2D#Coordinate => easel.Coordinate = _.asInstanceOf[easel.Coordinate]
 
       val newCoord: Coordinate = how match {
         case sq: SquareTileDrawOptions[Easel2D] => num match {

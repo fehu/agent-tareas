@@ -3,7 +3,6 @@ package feh.tec.visual.api
 import feh.tec.map.tile.AbstractTile
 import feh.tec.map.AbstractMap
 
-@deprecated("use nicol")
 trait TileGame {
   type TCoord
   type Tile <: AbstractTile[Tile, TCoord]
@@ -11,12 +10,13 @@ trait TileGame {
   type EaselTpe <: Easel
   type DrawSettings <: DrawEnvironmentSettings
 
-  def map: Map
+//  def map: Map
 
-  implicit def easelCoordinateOps(easel: EaselTpe): EaselCoordinateOps[EaselTpe]
+  def gameLayout: Layout[EaselTpe]
+
+  implicit def easelCoordinateOps: EaselCoordinateOps[EaselTpe]
 
   def prepareDrawEnvironment(ops: DrawSettings)
-  def preCreate()(implicit easel: EaselTpe)
   def render(l: Layout[EaselTpe])(implicit easel: EaselTpe)
 
     @deprecated("render layout with map")
@@ -29,8 +29,7 @@ trait TileGame {
 
   def run(){ // todo
     prepareDrawEnvironment(drawEnvSettings)
-    preCreate()
-    renderMap(mapDrawOps)
+    render(gameLayout)
   }
 }
 

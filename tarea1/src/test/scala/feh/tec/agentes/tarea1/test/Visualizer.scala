@@ -2,7 +2,7 @@ package feh.tec.agentes.tarea1.test
 
 import feh.tec.visual.api.{BasicStringDrawOps, BasicSquareMapDrawOptions, SquareMapDrawOptions, Easel}
 import feh.tec.visual.NicolLike2DEasel
-import feh.tec.agentes.tarea1.{MapJsonSerializer, LwjglTest, Map}
+import feh.tec.agentes.tarea1.{MapJsonSerializer, Lwjgl, Map}
 import nicol._
 import nicol.Init
 import nicol.input.Key._
@@ -47,7 +47,7 @@ class NicolLikeMapsVisualizer(val maps: Seq[Map])
   val tileSize = 50
   val (sizeX, sizeY) = maps.head.coordinates.xRange.size*tileSize -> maps.head.coordinates.yRange.size*tileSize
 
-  val mapRenderer = LwjglTest.createMapRenderer
+  val mapRenderer = Lwjgl.createMapRenderer
   val game = new Game(Init("Tests", sizeX + 100, sizeY + 150, vSync = false) >> new LoopScene with SyncableScene{
     def update: Option[Scene] = {
       sync

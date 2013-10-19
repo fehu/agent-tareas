@@ -180,7 +180,7 @@ object Tarea1 {
 
   def environment(ag: Option[AgentId]): Environment = environment(ag,
     DummyMapGenerator.withHelpers[DummyMapGeneratorRandomPositionSelectHelper]
-      .buildTilesMap(Environment.xRange, Environment.yRange)(LwjglTest.mapBuildingFunc(ag))
+      .buildTilesMap(Environment.xRange, Environment.yRange)(Lwjgl.mapBuildingFunc(ag))
   )
   def environment(ag: Option[AgentId], buildTiles: (Map) => Predef.Map[(Int, Int), SqTile]): Environment =
     new Environment(
@@ -251,12 +251,12 @@ object Tarea1App extends App{
   }
 
   object visual{
-    val tileSideSize = LwjglTest.Settings.tileSideSize
-    val showLabels = LwjglTest.Settings.showLabels
+    val tileSideSize = Lwjgl.Settings.tileSideSize
+    val showLabels = Lwjgl.Settings.showLabels
 
-    implicit val easel = LwjglTest.createEasel
-    val mapRenderer = LwjglTest.createMapRenderer
-    def howToDrawTheMap = LwjglTest.Settings.howToDrawTheMap
+    implicit val easel = Lwjgl.createEasel
+    val mapRenderer = Lwjgl.createMapRenderer
+    def howToDrawTheMap = Lwjgl.Settings.howToDrawTheMap
   }
 
 //  Tarea1.Debug() = true
@@ -299,10 +299,11 @@ object Tarea1App extends App{
   }
 
   def setFinishedScene() = Finished.flag = true
+  def isFinished = Finished.flag
 }
 
-class Tarea1Game(renderMap: () => Unit, finishedScene: Lifted[FinishedScene])(implicit easel: NicolLike2DEasel)
-  extends Game(Init("Tarea1 v. 0.01", 800, 600) >> new StubScene(renderMap, finishedScene))
+class Tarea1Game(render: () => Unit, finishedScene: Lifted[FinishedScene])(implicit easel: NicolLike2DEasel)
+  extends Game(Init("Tarea1 v. 0.01", 800, 600) >> new StubScene(render, finishedScene))
 
 object Tarea1EndScene extends End(Tarea1App.terminate())
 
@@ -345,10 +346,10 @@ object Tarea1PauseSceneKeeper{
   def sceneOpt = Option(scene)
 }
 
-class Tarea1PauseScene(renderMap: () => Unit)(implicit easel: NicolLike2DEasel) extends PauseScene[NicolLike2DEasel](
+class Tarea1PauseScene(render: () => Unit)(implicit easel: NicolLike2DEasel) extends PauseScene[NicolLike2DEasel](
   onPause = {
     Tarea1App.ag.executionLoop.pause()
-    renderMap()
+    render()
   }.lifted,
   onResume = Tarea1App.ag.executionLoop.resume().lifted,
   endScene = Tarea1EndScene.lifted,
@@ -356,8 +357,8 @@ class Tarea1PauseScene(renderMap: () => Unit)(implicit easel: NicolLike2DEasel) 
   pausedMessage = "Agent Execution Paused" -> BasicStringDrawOps[NicolLike2DEasel](Center, Color.lightGray, "Arial", 0F, 20F)
 )
 
-class FinishedScene(renderMap: () => Unit)(implicit easel: NicolLike2DEasel) extends PauseScene[NicolLike2DEasel](
-  onPause = renderMap,
+class FinishedScene(render: () => Unit)(implicit easel: NicolLike2DEasel) extends PauseScene[NicolLike2DEasel] (
+  onPause = render,
   onResume = {}.lifted,
   endScene = Tarea1EndScene.lifted,
   resumeScene = () => null,

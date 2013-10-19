@@ -10,7 +10,7 @@ import feh.tec.agent.AgentId
 import feh.tec.agentes.tarea1.DummyMapGenerator.DummyMapGeneratorRandomPositionSelectHelper
 import feh.tec.visual.LwjglSquare2DMapRenderer.BuildTDrawOpsParams
 
-object LwjglTest{
+object Lwjgl{
   object Settings{
     def tileSideSize = 50
     def showLabels = false

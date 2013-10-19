@@ -3,6 +3,7 @@ package feh.tec
 import scala.collection.TraversableLike
 import scala.concurrent.duration._
 import java.util.Calendar
+import scala.reflect.runtime.universe._
 
 package object util {
   type Lifted[+T] = () => T
@@ -16,6 +17,10 @@ package object util {
     def lift = () => t
     def lifted = lift
     def liftUnit = () => t: Unit
+  }
+
+  object ImplicitLift{
+    implicit def implicitLift[T](t: T): Lifted[T] = t.lifted
   }
 
   implicit class FilteringHelpingWrapper[+A, +Repr](tr: TraversableLike[A, Repr]){
@@ -35,4 +40,11 @@ package object util {
   }
 
   def tryo[R](f: => R): Either[R, Throwable] = try Left(f) catch { case th: Throwable => Right(th) }
+
+  implicit class TryAsWrapper[T](t: T){
+    def tryAs[A: TypeTag]: Option[A] = t match {
+      case x: A => Option(x)
+      case _ => None
+    }
+  }
 }

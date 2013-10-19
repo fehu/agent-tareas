@@ -9,6 +9,8 @@ import feh.tec.visual.helpers.ColorHelpers._
 import org.lwjgl.opengl.{Display, GL11}
 import org.lwjgl.BufferUtils
 import nicol.input.Mouse
+import feh.tec.util._
+import nicol.opengl.GLUtils
 
 /*
 trait NicolLikeTileRenderer[Tile <: AbstractTile[Tile, Coordinate], Coordinate] extends TileRenderer[Tile, Coordinate]{
@@ -20,7 +22,7 @@ trait NicolLikeTileRenderer[Tile <: AbstractTile[Tile, Coordinate], Coordinate] 
  * some parts are taken from Tom Streller's (scan) Nicol-0.1.2 project (https://github.com/scan/Nicol)
  * due to a lack of scala 2.10 compatible version
  */
-class NicolLike2DEasel extends Easel with Easel2DFloat{
+class NicolLike2DEasel extends Easel with Easel2DFloat with EaselAffineTransforms{
   type TDrawOptions = SquareTileDrawOptions[NicolLike2DEasel]
   type StrDrawOptions = StringDrawOptions[NicolLike2DEasel]
   type MDrawOptions = SquareMapDrawOptions[NicolLike2DEasel]
@@ -35,8 +37,8 @@ class NicolLike2DEasel extends Easel with Easel2DFloat{
   protected def setColor(c: Color) = colour(c.getRed, c.getGreen, c.getBlue, c.getAlpha)
 
 
-  def size: NicolLike2DEasel#Coordinate = Display.getWidth.toFloat -> Display.getHeight.toFloat
-  def center: NicolLike2DEasel#Coordinate = size._1/2 -> size._2/2
+  def size: Coordinate = Display.getWidth.toFloat -> Display.getHeight.toFloat
+  def center: Coordinate = size._1/2 -> size._2/2
 
   def withColor[R](color: Color)(f: => R): R = {
     val old = colorHolder.get()
@@ -52,6 +54,26 @@ class NicolLike2DEasel extends Easel with Easel2DFloat{
     res
   }
 
+  def withTransform[R](tr: Transform*)(f: => R): R = {
+    withAffineTransform(tr.flatMap(_.tryAs[AffineTransform]): _*)(f)
+  }
+
+
+  def withAffineTransform[R](tr: AffineTransform*)(f: => R): R = tr map {
+    case Offset((x, y)) => () => translate(x, y)
+    case Rotate(angle) => () => rotate(angle)
+    case Scale(factor) => () => scale(factor)
+  } pipe {
+    transforms =>
+      var x: R = null.asInstanceOf[R] // que horror
+      preserve(withoutTextures {
+        transforms.foreach(_())
+        x = f
+      })
+      x
+  }
+
+
   private implicit class AnyToDrawOp(a: Any) {
     def toDrawOp = new DrawOp{}
   }
@@ -61,7 +83,7 @@ class NicolLike2DEasel extends Easel with Easel2DFloat{
     vertex(end)
   }.toDrawOp
 
-  def drawRect(_bottomLeft: Easel#Coordinate, _topRight: Easel#Coordinate): DrawOp = GLUtils.draw(LineLoop) {
+  def drawRect(_bottomLeft: Coordinate, _topRight: Coordinate): DrawOp = GLUtils.draw(LineLoop) {
     mapCoordinates(_bottomLeft, _topRight){ (bottomLeft, topRight) =>
       vertex(bottomLeft)
       vertex(bottomLeft._1, topRight._2)
@@ -112,7 +134,7 @@ class NicolLike2DEasel extends Easel with Easel2DFloat{
 //  protected def mapCoordinate2d[R](c: Easel2D#Coordinate)(f: Coordinate => R): R = c match {
 //    case x: Coordinate => f(x)
 //  }
-  protected def mapCoordinates[R](c1: Easel#Coordinate, c2: Easel#Coordinate)(f: (Coordinate, Coordinate) => R): R = c1 -> c2 match {
+  protected def mapCoordinates[R](c1: Coordinate, c2: Coordinate)(f: (Coordinate, Coordinate) => R): R = c1 -> c2 match {
     case (x: Coordinate, y: Coordinate) => f(x, y)
   }
 

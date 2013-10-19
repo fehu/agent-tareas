@@ -27,6 +27,10 @@ class LwjglTileGame[Coord, T <: AbstractTile[T, Coord], M <: AbstractMap[T, Coor
   type EaselTpe = E
   type DrawSettings = BasicDrawEnvironmentSettings
 
+  def gameLayout: Layout[LwjglTileGame[Coord, T, M, E]#EaselTpe] = ???
+
+  implicit def easelCoordinateOps: EaselCoordinateOps[LwjglTileGame[Coord, T, M, E]#EaselTpe] = ???
+
   lazy val camera = new View
 
   implicit def easelCoordinateOps(easel: LwjglTileGame[Coord, T, M, E]#EaselTpe): EaselCoordinateOps[LwjglTileGame[Coord, T, M, E]#EaselTpe] = ???

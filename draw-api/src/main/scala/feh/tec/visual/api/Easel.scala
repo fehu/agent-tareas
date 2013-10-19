@@ -16,18 +16,20 @@ trait Easel{ easel =>
   def repr: Repr
 
   def withColor[R](color: java.awt.Color)(f: => R): R
+  def withTransform[R](tr: Transform*)(f: => R): R
 
+  trait Transform
   trait DrawOp
 
-  def drawLine(start: Coordinate, end: Coordinate): DrawOp
-  def drawRect(bottomLeft: Easel#Coordinate, topRight: Easel#Coordinate): DrawOp
-  def drawString(what: String, where: Coordinate, how: StrDrawOptions): DrawOp
+  def drawLine(start: easel.Coordinate, end: easel.Coordinate): DrawOp
+  def drawRect(bottomLeft: easel.Coordinate, topRight: easel.Coordinate): DrawOp
+  def drawString(what: String, where: easel.Coordinate, how: easel.StrDrawOptions): DrawOp
 
   implicit class DrawOpWrapper(op: => Easel#DrawOp) {
     def withColor[R](color: java.awt.Color)(f: => R) = easel.withColor(color)(f)
   }
 
-  implicit class CoordinateOps(c: Easel#Coordinate){
+  implicit class CoordinateOps[C <% Coordinate](c: C){
     def ops = new {
       /*
       * + to every element of vector
@@ -109,4 +111,16 @@ object BasicSquareMapDrawOptions{
 
 trait EaselCoordinateOps[E <: Easel]{
   def zeroCoordinate: E#Coordinate
+}
+
+trait EaselAffineTransforms {
+  self: Easel =>
+
+  trait AffineTransform extends Transform
+
+  case class Offset(c: Coordinate) extends AffineTransform
+  case class Rotate(c: CoordinateUnit) extends AffineTransform
+  case class Scale(f: CoordinateUnit) extends AffineTransform
+
+  def withAffineTransform[R](tr: AffineTransform*)(f: => R): R
 }
