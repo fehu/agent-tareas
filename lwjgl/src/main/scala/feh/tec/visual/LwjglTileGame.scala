@@ -29,6 +29,10 @@ class LwjglTileGame[Coord, T <: AbstractTile[T, Coord], M <: AbstractMap[T, Coor
 
   lazy val camera = new View
 
+  implicit def easelCoordinateOps(easel: LwjglTileGame[Coord, T, M, E]#EaselTpe): EaselCoordinateOps[LwjglTileGame[Coord, T, M, E]#EaselTpe] = ???
+
+  def render(l: Layout[LwjglTileGame[Coord, T, M, E]#EaselTpe])(implicit easel: LwjglTileGame[Coord, T, M, E]#EaselTpe): Unit = ???
+
   def prepareDrawEnvironment(ops: DrawSettings) {
     import Display._
     import ops._
@@ -50,8 +54,11 @@ class LwjglTileGame[Coord, T <: AbstractTile[T, Coord], M <: AbstractMap[T, Coor
     glSettings.setSettings(ops)
   }
 
-  def createMap(ops: EaselTpe#MDrawOptions)(implicit easel: E) {
-    mapRenderer.render(map, ops)
+  def renderMap(ops: EaselTpe#MDrawOptions)(implicit easel: E) {
+    render(Layout[EaselTpe](
+      LayoutElem[Map, EaselTpe](map, easel.zeroCoordinate)(null) :: Nil
+    ))
+
   }
 
   def preCreate()(implicit easel: EaselTpe) { preCreateOpt.foreach(_()) }

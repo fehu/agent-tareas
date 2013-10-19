@@ -17,6 +17,7 @@ object LwjglSquare2DMapRenderer{
 
 class LwjglSquare2DMapRenderer[Map <: AbstractSquareMap[Tile], Tile <: SquareTile[Tile, (Int, Int)], E <: NicolLike2DEasel]
   (val tileRenderer: LwjglTile2DIntRenderer[Tile],
+   val renderOptions: E#MDrawOptions,
    buildTDrawOps: BuildTDrawOpsParams[Map, Tile, E] => NicolLike2DEasel#TDrawOptions
   )
   extends Lwjgl2DMapRenderer[Map, Tile, (Int, Int), E]

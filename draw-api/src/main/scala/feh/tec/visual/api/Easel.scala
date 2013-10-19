@@ -106,3 +106,7 @@ case class BasicSquareMapDrawOptions[E <: Easel](tileSideSize: E#CoordinateUnit,
 object BasicSquareMapDrawOptions{
   def apply[E <: Easel](n: Int, showLabels: Boolean)(implicit easel: E): BasicSquareMapDrawOptions[E] = BasicSquareMapDrawOptions(easel.unitNumeric.fromInt(n), showLabels)
 }
+
+trait EaselCoordinateOps[E <: Easel]{
+  def zeroCoordinate: E#Coordinate
+}

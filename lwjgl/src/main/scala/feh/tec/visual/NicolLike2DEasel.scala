@@ -138,3 +138,7 @@ class NicolLike2DEasel extends Easel with Easel2DFloat{
   def onMouseMove(f: PartialFunction[Coordinate, Unit]) = f(Mouse.apply)
 
 }
+
+object NicoleLike2dEaselCoordinateOps extends EaselCoordinateOps[NicolLike2DEasel]{
+  def zeroCoordinate: NicolLike2DEasel#Coordinate = (0F, 0F)
+}

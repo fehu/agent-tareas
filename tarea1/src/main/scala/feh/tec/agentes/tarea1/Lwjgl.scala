@@ -11,11 +11,26 @@ import feh.tec.agentes.tarea1.DummyMapGenerator.DummyMapGeneratorRandomPositionS
 import feh.tec.visual.LwjglSquare2DMapRenderer.BuildTDrawOpsParams
 
 object LwjglTest{
+  object Settings{
+    def tileSideSize = 50
+    def showLabels = false
+    def howToDrawTheMap = new SquareMapDrawOptions[NicolLike2DEasel]{
+      def tileSideSize: NicolLike2DEasel#CoordinateUnit = Settings.tileSideSize
+      def showLabels: Boolean = Settings.showLabels
+    }
+  }
+  import Settings._
+
   def createEasel = new NicolLike2DEasel
 
-  def createMapRenderer = new LwjglSquare2DMapRenderer[Map, SqTile, NicolLike2DEasel](LwjglTileRenderer.create, ops =>
-    BasicSquareTileDrawOptions[NicolLike2DEasel](50, selectColor(ops), None)
+  implicit def createMapRenderer = new LwjglSquare2DMapRenderer[Map, SqTile, NicolLike2DEasel](
+    LwjglTileRenderer.create,
+    howToDrawTheMap,
+    ops => BasicSquareTileDrawOptions[NicolLike2DEasel](tileSideSize, selectColor(ops), None)
   )
+
+
+
   private def selectColor(ops: BuildTDrawOpsParams[Map, SqTile, NicolLike2DEasel]) = ops match {
     case BuildTDrawOpsParams(_, _, true, true)    => Color.red
     case BuildTDrawOpsParams(_, _, true, false)   => Color.green

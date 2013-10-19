@@ -251,15 +251,12 @@ object Tarea1App extends App{
   }
 
   object visual{
-    val tileSideSize = 50
-    val showLabels = false
+    val tileSideSize = LwjglTest.Settings.tileSideSize
+    val showLabels = LwjglTest.Settings.showLabels
 
     implicit val easel = LwjglTest.createEasel
     val mapRenderer = LwjglTest.createMapRenderer
-    val howToDrawTheMap = new SquareMapDrawOptions[NicolLike2DEasel]{
-      def tileSideSize: NicolLike2DEasel#CoordinateUnit = visual.tileSideSize
-      def showLabels: Boolean = visual.showLabels
-    }
+    def howToDrawTheMap = LwjglTest.Settings.howToDrawTheMap
   }
 
 //  Tarea1.Debug() = true

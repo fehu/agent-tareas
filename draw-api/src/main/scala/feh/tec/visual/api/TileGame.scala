@@ -13,9 +13,14 @@ trait TileGame {
 
   def map: Map
 
+  implicit def easelCoordinateOps(easel: EaselTpe): EaselCoordinateOps[EaselTpe]
+
   def prepareDrawEnvironment(ops: DrawSettings)
   def preCreate()(implicit easel: EaselTpe)
-  def createMap(ops: EaselTpe#MDrawOptions)(implicit easel: EaselTpe)
+  def render(l: Layout[EaselTpe])(implicit easel: EaselTpe)
+
+    @deprecated("render layout with map")
+  def renderMap(ops: EaselTpe#MDrawOptions)(implicit easel: EaselTpe)
 
   def mapDrawOps: EaselTpe#MDrawOptions
   def drawEnvSettings: DrawSettings
@@ -25,7 +30,7 @@ trait TileGame {
   def run(){ // todo
     prepareDrawEnvironment(drawEnvSettings)
     preCreate()
-    createMap(mapDrawOps)
+    renderMap(mapDrawOps)
   }
 }
 
