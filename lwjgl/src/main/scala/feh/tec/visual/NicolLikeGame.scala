@@ -3,17 +3,10 @@ package feh.tec.visual
 import nicol._
 import feh.tec.visual.api.TileGame
 import feh.tec.util._
-import scala.Some
-import scala.Some
 import nicol.input.Key._
 
 trait NicolLikeGame {
   def update(): Option[Scene]
-}
-
-trait PauseEndGameInnerApi{
-  def pauseScene(resume: Scene): Scene
-  def endScene: Scene
 }
 
 trait NicolLikeTileGame extends NicolLikeGame with TileGame{
@@ -22,9 +15,6 @@ trait NicolLikeTileGame extends NicolLikeGame with TileGame{
   def prepareDrawEnvironment(ops: DrawSettings): Unit = ???
 
   protected def pauseEndApi: PauseEndGameInnerApi
-
-//  private var _superRun: () => Unit = _
-  protected def superRun() = super.run() //Option(_superRun).get
 
   protected def newGame(scene: => Scene/*, pauseScene: Scene, endScene: Scene*/): Game
 
@@ -36,9 +26,8 @@ trait NicolLikeTileGame extends NicolLikeGame with TileGame{
   protected def render(): Unit = render(gameLayout)
   protected def baseScene: Scene
 
-  override def run(): Unit = {
-    game.start
-  }
+  def start(): Unit = game.start
+  def stop(): Unit = game.stop
 }
 
 class NicolLikeBasicScene(render: () => Unit, finishedScene: Lifted[Scene], finished_? : () => Boolean, pauseScene: Scene => Scene)
@@ -60,14 +49,6 @@ class NicolLikeBasicScene(render: () => Unit, finishedScene: Lifted[Scene], fini
         e pressed {
           case "escape" => finishedScene()
           case "space" => pauseScene(this)
-//            Tarea1LastSceneKeeper.scene = this
-//            prePauseScene(this)
-//            pauseScene()
-            /*Tarea1PauseSceneKeeper.sceneOpt.getOrElse{
-              val p = new Tarea1PauseScene(renderMap)
-              Tarea1PauseSceneKeeper.scene = p
-              p
-            }*/
         }
     }
   }

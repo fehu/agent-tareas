@@ -279,13 +279,7 @@ object Tarea1App extends App{
 
   lazy val finishedScene = new FinishedScene(renderMap.lifted)
 
-  def startNicol() = {
-    val game = new Tarea1Game(renderMap(visual.easel).lifted, finishedScene.lifted)
-    game.start
-    game
-  }
-
-  val game = startNicol()
+  val game = new NicolLikeTarea1Game(env, AgentRef.create(ag))
 
   def renderMap(implicit easel: NicolLike2DEasel) = visual.mapRenderer.render(env, visual.howToDrawTheMap)
 
@@ -300,42 +294,14 @@ object Tarea1App extends App{
 
   def setFinishedScene() = Finished.flag = true
   def isFinished = Finished.flag
-}
 
-class Tarea1Game(render: () => Unit, finishedScene: Lifted[FinishedScene])(implicit easel: NicolLike2DEasel)
-  extends Game(Init("Tarea1 v. 0.01", 800, 600) >> new StubScene(render, finishedScene))
+  game.start()
+}
 
 object Tarea1EndScene extends End(Tarea1App.terminate())
 
 protected object Finished{
   var flag = false
-}
-
-class StubScene(renderMap: () => Unit, finishedScene: Lifted[FinishedScene])(implicit easel: NicolLike2DEasel) extends LoopScene with SyncableScene with ShowFPS{
-  def update: Option[Scene] = {
-    sync
-    showFPS
-
-    renderMap()
-
-    if(Finished.flag) finishedScene()
-    else keyEvent {
-      e =>
-        e released {
-          case _ =>
-        }
-        e pressed {
-          case "escape" => Tarea1EndScene
-          case "space" =>
-            Tarea1LastSceneKeeper.scene = this
-            Tarea1PauseSceneKeeper.sceneOpt.getOrElse{
-              val p = new Tarea1PauseScene(renderMap)
-              Tarea1PauseSceneKeeper.scene = p
-              p
-            }
-        }
-    }
-  }
 }
 
 object Tarea1LastSceneKeeper{

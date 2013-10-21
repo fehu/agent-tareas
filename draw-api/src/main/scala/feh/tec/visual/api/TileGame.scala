@@ -3,11 +3,11 @@ package feh.tec.visual.api
 import feh.tec.map.tile.AbstractTile
 import feh.tec.map.AbstractMap
 
-trait TileGame {
+trait TileGame extends GameBasicControlApi{
   type TCoord
   type Tile <: AbstractTile[Tile, TCoord]
   type Map <: AbstractMap[Tile, TCoord]
-  type EaselTpe <: Easel
+  type EaselTpe <: Easel with EaselAffineTransforms
   type DrawSettings <: DrawEnvironmentSettings
 
 //  def map: Map
@@ -26,11 +26,6 @@ trait TileGame {
   def drawEnvSettings: DrawSettings
 
   implicit def easel: EaselTpe
-
-  def run(){ // todo
-    prepareDrawEnvironment(drawEnvSettings)
-    render(gameLayout)
-  }
 }
 
 trait DrawEnvironmentSettings{

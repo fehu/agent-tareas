@@ -2,17 +2,19 @@ package feh.tec.agentes.tarea1
 
 import feh.tec.visual._
 import feh.tec.visual.api._
-import nicol.{Init, Game, Scene}
+import nicol.{Game, Scene}
 import feh.tec.util.{ImplicitLift, LiftWrapper}
 import ImplicitLift._
-import nicol.Init
-import feh.tec.visual.api.Layout
-import nicol.Init
-import feh.tec.visual.api.LayoutElem
-import feh.tec.visual.api.BasicDrawEnvironmentSettings
 import feh.tec.agentes.tarea1.{Map => TMap}
 import feh.tec.agentes.tarea1.Tarea1.Agents.MyDummyAgent
 import feh.tec.agentes.tarea1.Agent.Measure
+import java.awt.Color
+import feh.tec.visual.api.BasicStringDrawOps
+import feh.tec.visual.api.BasicDrawEnvironmentSettings
+import feh.tec.visual.api.Layout
+import nicol.Init
+import feh.tec.visual.api.LayoutElem
+import feh.tec.visual.api.StringAlignment.Center
 
 trait Tarea1Types extends NicolLikeTileGame{
   import Agent._
@@ -25,6 +27,10 @@ trait Tarea1Types extends NicolLikeTileGame{
 }
 
 case class AgentRef(ag: MyDummyAgent[Nothing])
+object AgentRef{
+  def create(ag: MyDummyAgent[_]): AgentRef = new AgentRef(ag.asInstanceOf[MyDummyAgent[Nothing]])
+  implicit def AgentRefToRef(ref: AgentRef) = ref.ag
+}
 
 class NicolLikeTarea1Game(env: Environment, agRef: AgentRef) extends NicolLikeTileGame with Tarea1Types{
   protected val pauseEndApi: PauseEndGameInnerApi = new PauseEndGameInnerApi{
@@ -38,7 +44,7 @@ class NicolLikeTarea1Game(env: Environment, agRef: AgentRef) extends NicolLikeTi
     def endScene = Tarea1EndScene
   }
 
-  protected def newGame(scene: => Scene): Game = new Tarea1Game(render(), new FinishedScene(render()))
+  protected def newGame(scene: => Scene): Game = new Game(scene) {}
 
   def gameExecutionFinished(): Boolean = Tarea1App.isFinished
 
@@ -46,9 +52,15 @@ class NicolLikeTarea1Game(env: Environment, agRef: AgentRef) extends NicolLikeTi
   protected def baseScene: Scene = new NicolLikeBasicScene(render().lifted, pauseEndApi.endScene.lifted, gameExecutionFinished().lifted, pauseEndApi.pauseScene)
 
   implicit def mapRenderer: Renderer[Map, NicolLike2DEasel] = Lwjgl.createMapRenderer
+  implicit def criteriaValueRenderer: Renderer[Measure#CriteriaValue, NicolLike2DEasel] = new Tarea1CriteriaValueRenderer
 
-  def gameLayout: Layout[NicolLike2DEasel] = Layout(
-    LayoutElem[Map, NicolLike2DEasel](env, (0, 0F)) :: Nil
+  def gameLayout: Layout[NicolLike2DEasel] = Layout(List[LiftedLayoutElem[_, NicolLike2DEasel]](
+    LayoutElem[Map, NicolLike2DEasel](env, (0, 0)),
+    new LiftedLayoutElem[agRef.ag.measure.CriteriaValue, NicolLike2DEasel](
+      () => agRef.currentDecisionExplanation.get.criteria.toSeq,
+      (530, 0)
+    )
+  )
   )
 
   implicit def easelCoordinateOps = NicoleLike2dEaselCoordinateOps
@@ -62,17 +74,24 @@ class NicolLikeTarea1Game(env: Environment, agRef: AgentRef) extends NicolLikeTi
 
   implicit lazy val easel: EaselTpe = new NicolLike2DEasel
 
-  def render(l: Layout[EaselTpe])(implicit easel: EaselTpe): Unit = ???
-
+  def render(l: Layout[EaselTpe])(implicit easel: EaselTpe): Unit = l.render
 }
 
 
 class Tarea1CriteriaValueRenderer extends CriteriaValueRenderer[Agent.Position, Agent.EnvState, Agent.EnvGlobal, Agent.Action, Agent.Env, Agent.Measure, Agent.Easel]{
 
   override def render(t: Measure#CriteriaValue)(implicit easel: Agent.Easel): Unit = {
-    easel.drawRect(0F -> -300F, 300F -> 0F)
-    super.render(t)(easel)
+    import easel.WithoutTextures
+//    easel.drawRect(0F -> 300F, 300F -> 0F).withoutTextures
+    t.zipWithIndex foreach {
+      case (cval , i) => easel.withAffineTransform(easel.Offset(10, 50+30*i)){
+        render(cval)
+      }
+    }
 
+    easel.drawLine(0F -> 320F, 300F -> 320F).withoutTextures
+    easel.drawString("Criteria value: " + t.map(_.value).sum, 20F -> 350F, BasicStringDrawOps[NicolLike2DEasel](StringAlignment.Left, Color.green, "Arial", 0F, 12F))
   }
-  def render(t: Measure#CriterionValue)(implicit easel: Agent.Easel): Unit = ???
+  def render(t: Measure#CriterionValue)(implicit easel: Agent.Easel): Unit =
+    easel.drawString(s"${t.name}: ${t.value}", (0, 0), BasicStringDrawOps[NicolLike2DEasel](StringAlignment.Left, Color.white, "Arial", 0, 12))
 }

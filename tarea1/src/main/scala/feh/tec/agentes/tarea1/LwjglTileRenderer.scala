@@ -3,13 +3,12 @@ package feh.tec.agentes.tarea1
 import feh.tec.visual._
 import feh.tec.visual.api._
 import feh.tec.map.tile.MapObject
-import scala.Some
-import java.awt.{Font, Color}
+import java.awt.Color
 
 object LwjglTileRenderer {
   type Tile = SqTile
   type TCoord = Map#Coordinate
-  type Easel = Easel2DFloat
+  type Easel = Easel2DFloat with OpenGLEasel
   type MObj = MapObj
 
   def create = new LwjglTile2DIntRenderer[Tile](renderers)

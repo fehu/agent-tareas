@@ -22,7 +22,9 @@ trait NicolLikeTileRenderer[Tile <: AbstractTile[Tile, Coordinate], Coordinate] 
  * some parts are taken from Tom Streller's (scan) Nicol-0.1.2 project (https://github.com/scan/Nicol)
  * due to a lack of scala 2.10 compatible version
  */
-class NicolLike2DEasel extends Easel with Easel2DFloat with EaselAffineTransforms{
+class NicolLike2DEasel extends Easel with Easel2DFloat with EaselAffineTransforms with OpenGLEasel{
+  easel =>
+
   type TDrawOptions = SquareTileDrawOptions[NicolLike2DEasel]
   type StrDrawOptions = StringDrawOptions[NicolLike2DEasel]
   type MDrawOptions = SquareMapDrawOptions[NicolLike2DEasel]
@@ -54,10 +56,21 @@ class NicolLike2DEasel extends Easel with Easel2DFloat with EaselAffineTransform
     res
   }
 
+  def withoutTextures[R](r: => R): R = {
+    import GL11._
+    glDisable(GL_TEXTURE_2D)
+    val x = r
+    glEnable(GL_TEXTURE_2D)
+    x
+  }
+
+  implicit class WithoutTextures[R](r: => R) {
+    def withoutTextures = easel.withoutTextures(r)
+  }
+
   def withTransform[R](tr: Transform*)(f: => R): R = {
     withAffineTransform(tr.flatMap(_.tryAs[AffineTransform]): _*)(f)
   }
-
 
   def withAffineTransform[R](tr: AffineTransform*)(f: => R): R = tr map {
     case Offset((x, y)) => () => translate(x, y)
@@ -66,7 +79,7 @@ class NicolLike2DEasel extends Easel with Easel2DFloat with EaselAffineTransform
   } pipe {
     transforms =>
       var x: R = null.asInstanceOf[R] // que horror
-      preserve(withoutTextures {
+      preserve(/*GLUtils.withoutTextures*/ {
         transforms.foreach(_())
         x = f
       })
@@ -114,8 +127,6 @@ class NicolLike2DEasel extends Easel with Easel2DFloat with EaselAffineTransform
   }
 
   def drawString(what: String, where: Coordinate, how: StrDrawOptions): DrawOp = {
-//    mapCoordinate(_where){ where =>
-//      mapStrOps(_how){ how =>
         val font = getFont(how.font, how.size.toInt)
         how.alignment match{
           case StringAlignment.Left =>
@@ -131,9 +142,7 @@ class NicolLike2DEasel extends Easel with Easel2DFloat with EaselAffineTransform
   protected def mapCoordinate[R](c: Easel#Coordinate)(f: Coordinate => R): R = c match {
     case x: Coordinate => f(x)
   }
-//  protected def mapCoordinate2d[R](c: Easel2D#Coordinate)(f: Coordinate => R): R = c match {
-//    case x: Coordinate => f(x)
-//  }
+
   protected def mapCoordinates[R](c1: Coordinate, c2: Coordinate)(f: (Coordinate, Coordinate) => R): R = c1 -> c2 match {
     case (x: Coordinate, y: Coordinate) => f(x, y)
   }

@@ -2,16 +2,9 @@ package feh.tec.visual
 
 import feh.tec.visual.api._
 import feh.tec.map.tile.{MapObjectContainer, MapObject, SquareTile, AbstractTile}
-import java.util.logging.{Level, Logger}
-import org.lwjgl.opengl.GL11._
-import nicol.opengl.GLUtils._
-import nicol.opengl.GLUtils
 
 trait LwjglTile2DRenderer[Tile <: AbstractTile[Tile, TCoordinate], TCoordinate] extends TileRenderer[Tile, TCoordinate]{
-  override type E <: Easel2D
-
-//  def convertTileCoordinates(c: TCoordinate): E#Coordinate
-//  def convertEaselCoordinates(c: E#Coordinate): TCoordinate
+  override type E <: Easel2D with OpenGLEasel
 
   def renderers: Seq[LwjglTileDrawer[Tile, TCoordinate, E]]
 
@@ -20,29 +13,25 @@ trait LwjglTile2DRenderer[Tile <: AbstractTile[Tile, TCoordinate], TCoordinate] 
   }
 }
 
-class LwjglTile2DIntRenderer[Tile <: AbstractTile[Tile, (Int, Int)]](val renderers: Seq[LwjglTileDrawer[Tile, (Int, Int), Easel2DFloat]])
+class LwjglTile2DIntRenderer[Tile <: AbstractTile[Tile, (Int, Int)]](val renderers: Seq[LwjglTileDrawer[Tile, (Int, Int), Easel2DFloat with OpenGLEasel]])
   extends LwjglTile2DRenderer[Tile, (Int, Int)]
 {
-//  def convertEaselCoordinates(c: LwjglTile2DIntRenderer[Tile]#E#Coordinate): (Int, Int) = c._1.toInt -> c._2.toInt
-//  def convertTileCoordinates(c: (Int, Int)): LwjglTile2DIntRenderer[Tile]#E#Coordinate = c._1.toFloat -> c._2
 
-  type E = Easel2DFloat
+  type E = Easel2DFloat with OpenGLEasel
 }
 
 trait LwjglTileDrawer[Tile <: AbstractTile[Tile, TCoordinate], TCoordinate, E <: Easel]{
   def doTheDrawing(tile: Tile, where: E#Coordinate, how: E#TDrawOptions)(implicit easel: E)
-//  def preDraw()
 }
 
-class BasicLwjglSquareTileDrawer[Tile <: SquareTile[Tile, TCoord], TCoord, E <: Easel2D]
+class BasicLwjglSquareTileDrawer[Tile <: SquareTile[Tile, TCoord], TCoord, E <: Easel2D with OpenGLEasel]
   extends LwjglTileDrawer[Tile, TCoord, E]
 {
-//  def preDraw() { glEnable(GL_TEXTURE_2D) }
 
   def doTheDrawing(tile: Tile, where: E#Coordinate, how: E#TDrawOptions)(implicit easel: E) {
     how match {
       case ops: E#TDrawOptions with SquareTileDrawOptions[E] =>
-        GLUtils.withoutTextures{
+        easel.withoutTextures{
           easel.withColor(ops.lineColor){
             easel.asInstanceOf[E].drawRect(where: E#Coordinate, ops.sideSize, ops.sideSize)
           }
@@ -60,7 +49,6 @@ class Generic2DLwjglContainerTileDrawer[Tile <: MapObjectContainer[Tile, TCoord,
   (val mapObjectDrawers: Seq[MapObjectLwjglTileDrawer[Tile, TCoord, MObj]])
   extends LwjglContainerTileDrawer[Tile, TCoord, E, MObj]
 {
-//  def preDraw() { glDisable(GL_TEXTURE_2D) }
 
   def doTheDrawing(tile: Tile, where: E#Coordinate, how: E#TDrawOptions)(implicit easel: E) {
     for {

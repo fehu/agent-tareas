@@ -21,6 +21,11 @@ class LwjglTileGame[Coord, T <: AbstractTile[T, Coord], M <: AbstractMap[T, Coor
 )(implicit val easel: E)
   extends TileGame
 {
+  sys.error("not used")
+
+  def stop(): Unit = ???
+  def start(): Unit = ???
+
   type TCoord = Coord
   type Tile = T
   type Map = M
