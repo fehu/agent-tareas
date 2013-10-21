@@ -30,8 +30,8 @@ trait NicolLikeTileGame extends NicolLikeGame with TileGame{
   def stop(): Unit = game.stop
 }
 
-class NicolLikeBasicScene(render: () => Unit, finishedScene: Lifted[Scene], finished_? : () => Boolean, pauseScene: Scene => Scene)
-                          (implicit easel: NicolLike2DEasel) 
+class NicolLikeBasicScene(render: () => Unit, finishedScene: Lifted[Scene], terminatedScene: Lifted[Scene], terminated_? : () => Boolean, pauseScene: Scene => Scene)
+                          (implicit easel: NicolLike2DEasel)
   extends LoopScene with SyncableScene with ShowFPS
 {
   def update: Option[Scene] = {
@@ -40,7 +40,7 @@ class NicolLikeBasicScene(render: () => Unit, finishedScene: Lifted[Scene], fini
 
     render()
 
-    if(finished_?()) finishedScene()
+    if(terminated_?()) terminatedScene()
     else keyEvent {
       e =>
         e released {

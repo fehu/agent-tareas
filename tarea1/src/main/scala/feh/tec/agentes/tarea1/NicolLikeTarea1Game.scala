@@ -2,7 +2,7 @@ package feh.tec.agentes.tarea1
 
 import feh.tec.visual._
 import feh.tec.visual.api._
-import nicol.{Game, Scene}
+import nicol.{End, Game, Scene, Init}
 import feh.tec.util.{ImplicitLift, LiftWrapper}
 import ImplicitLift._
 import feh.tec.agentes.tarea1.{Map => TMap}
@@ -12,7 +12,6 @@ import java.awt.Color
 import feh.tec.visual.api.BasicStringDrawOps
 import feh.tec.visual.api.BasicDrawEnvironmentSettings
 import feh.tec.visual.api.Layout
-import nicol.Init
 import feh.tec.visual.api.LayoutElem
 import feh.tec.visual.api.StringAlignment.Center
 
@@ -48,8 +47,10 @@ class NicolLikeTarea1Game(env: Environment, agRef: AgentRef) extends NicolLikeTi
 
   def gameExecutionFinished(): Boolean = Tarea1App.isFinished
 
+  def finishedScene = new FinishedScene(render)
+
   protected def initScene: Scene = Init("Tarea1 v. 0.01", 800, 600)
-  protected def baseScene: Scene = new NicolLikeBasicScene(render().lifted, pauseEndApi.endScene.lifted, gameExecutionFinished().lifted, pauseEndApi.pauseScene)
+  protected def baseScene: Scene = new NicolLikeBasicScene(render().lifted, pauseEndApi.endScene.lifted, finishedScene.lifted, gameExecutionFinished().lifted, pauseEndApi.pauseScene)
 
   implicit def mapRenderer: Renderer[Map, NicolLike2DEasel] = Lwjgl.createMapRenderer
   implicit def criteriaValueRenderer: Renderer[Measure#CriteriaValue, NicolLike2DEasel] = new Tarea1CriteriaValueRenderer

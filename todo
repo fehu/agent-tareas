@@ -1,3 +1,5 @@
+* pause hides map
+* None.get if game tries to draw the criteria values before they are calculated
 * repair ClosestPairIntraDistanceCriterion: always returns 0
 * repair and use DistanceToClosestPlugCriterion
 * string render markup for easel
