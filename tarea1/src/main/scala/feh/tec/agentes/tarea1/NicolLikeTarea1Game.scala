@@ -58,7 +58,7 @@ class NicolLikeTarea1Game(env: Environment, agRef: AgentRef) extends NicolLikeTi
   def gameLayout: Layout[NicolLike2DEasel] = Layout(List[LiftedLayoutElem[_, NicolLike2DEasel]](
     LayoutElem[Map, NicolLike2DEasel](env, (0, 0)),
     new LiftedLayoutElem[agRef.ag.measure.CriteriaValue, NicolLike2DEasel](
-      () => agRef.currentDecisionExplanation.get.criteria.toSeq,
+      () => agRef.currentDecisionExplanation.map(_.criteria.toSeq).getOrElse(Nil),
       (530, 0)
     )
   )

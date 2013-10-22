@@ -23,6 +23,7 @@ trait TileGame extends GameBasicControlApi{
   def renderMap(ops: EaselTpe#MDrawOptions)(implicit easel: EaselTpe)
 
   def mapDrawOps: EaselTpe#MDrawOptions
+    @deprecated("part of old LwjglGame api")
   def drawEnvSettings: DrawSettings
 
   implicit def easel: EaselTpe

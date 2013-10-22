@@ -8,13 +8,12 @@ import feh.tec.map._
 import akka.actor.ActorSystem
 import scala.concurrent.duration._
 import feh.tec.agentes.tarea1.Tarea1.Agents.{ConditionalExec, MyDummyAgent}
-import feh.tec.visual.api.{SquareMapDrawOptions, MapRenderer}
+import feh.tec.visual.api.MapRenderer
 import feh.tec.visual.{PauseScene, NicolLike2DEasel}
 import nicol._
-import nicol.input.Key._
 import Map._
 import feh.tec.util._
-import feh.tec.agentes.tarea1.Criteria.{ClosestPairIntraDistanceCriterion, NumberOfHolesCriterion, PlugsMovingAgentCriteria}
+import feh.tec.agentes.tarea1.Criteria.{NumberOfHolesCriterion, PlugsMovingAgentCriteria}
 import scala.Predef
 import scala.concurrent.Await
 import feh.tec.visual.api.StringAlignment.Center
@@ -23,7 +22,6 @@ import feh.tec.agent.StatelessAgentPerformanceMeasure.Criterion
 import scala.Some
 import feh.tec.agent.AgentId
 import feh.tec.visual.api.BasicStringDrawOps
-import nicol.Init
 
 object Tarea1 {
   object Debug extends GlobalDebuggingSetup
@@ -237,14 +235,16 @@ object Tarea1App extends App{
 
     def criteria: Seq[Criterion[Position, EnvState, EnvGlobal, Action, Env, Measure]] =
       new PlugsMovingAgentCriteria
-//        with DistanceToClosestPlugCriterion
-        with ClosestPairIntraDistanceCriterion
         with NumberOfHolesCriterion
       {
         def numberOfHolesWeight: Double = -10
         def closestHolePlugPairMeanIntraDistanceWeight: Float = -3
 
-        protected def guardCalculatedClosestHolePlugPairsWithIntraDistances(distMap: Predef.Map[Agent.Position, (Agent.Position, Int)]) {}
+//        protected def guardCalculatedClosestHolePlugPairsWithIntraDistances(distMap: Predef.Map[Agent.Position, (Agent.Position, Int)]) {}
+
+        def agentId: AgentId = Agents.Id.dummy
+        def distanceToClosestPlugWeight: Float = -1
+        protected def shortestRouteFinder: MapShortestRouteFinder = new MapShortestRouteFinder
 
         def debug: Boolean = CriteriaDebug
       }.toList

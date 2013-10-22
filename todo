@@ -1,5 +1,6 @@
 * pause hides map
-* None.get if game tries to draw the criteria values before they are calculated
-* repair ClosestPairIntraDistanceCriterion: always returns 0
-* repair and use DistanceToClosestPlugCriterion
+* fix artifacts criteria on text rendering
 * string render markup for easel
+* extend criteria mechanism:
+    - determine criteria success rate
+    - assign failsafe criteria, i.e. additional criteria, used in case of previous criteria failure (insufficient success rate)
