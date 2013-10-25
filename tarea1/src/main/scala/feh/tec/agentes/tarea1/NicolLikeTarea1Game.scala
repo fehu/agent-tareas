@@ -2,10 +2,9 @@ package feh.tec.agentes.tarea1
 
 import feh.tec.visual._
 import feh.tec.visual.api._
-import nicol.{End, Game, Scene, Init}
+import nicol.{Game, Scene, Init}
 import feh.tec.util.{ImplicitLift, LiftWrapper}
 import ImplicitLift._
-import feh.tec.agentes.tarea1.{Map => TMap}
 import feh.tec.agentes.tarea1.Tarea1.Agents.MyDummyAgent
 import feh.tec.visual.api.BasicDrawEnvironmentSettings
 import feh.tec.visual.api.Layout
@@ -14,11 +13,6 @@ import feh.tec.visual.render.CriteriaReasonedDecisionRenderer
 import java.awt.Color
 
 trait Tarea1Types extends NicolLikeTileGame{
-  import Agent._
-
-  type TCoord = Position
-  type Tile = SqTile
-  type Map = TMap
   type EaselTpe = NicolLike2DEasel
   type DrawSettings = BasicDrawEnvironmentSettings
 }
@@ -70,15 +64,6 @@ class NicolLikeTarea1Game(val env: Environment, val agRef: AgentRef) extends Nic
   )
 
   implicit def easelCoordinateOps = NicoleLike2dEaselCoordinateOps
-
-  @deprecated("render layout with map")
-  def renderMap(ops: EaselTpe#MDrawOptions)(implicit easel: EaselTpe): Unit = ???
-
-  def mapDrawOps: EaselTpe#MDrawOptions = Lwjgl.mapDrawOps
-
-  def drawEnvSettings: DrawSettings = ??? //BasicDrawEnvironmentSettings("Tarea1", 600, 800, false)
-
   implicit lazy val easel: EaselTpe = new NicolLike2DEasel
-
   def render(l: Layout[EaselTpe])(implicit easel: EaselTpe): Unit = l.render
 }

@@ -4,7 +4,6 @@ import feh.tec.agent.{AgentExecutionLoop, AgentPerformanceMeasure, Environment, 
 import feh.tec.visual.api._
 import feh.tec.visual.NicolLike2DEasel
 import feh.tec.agent.AgentDecision.CriteriaReasonedDecision
-import feh.tec.visual.helpers.Font.Arial._
 import java.awt.Color
 
 object CriteriaReasonedDecisionRenderer{

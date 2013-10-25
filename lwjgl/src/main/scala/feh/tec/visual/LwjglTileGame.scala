@@ -12,6 +12,7 @@ import feh.tec.visual.render.Lwjgl2DMapRenderer
  * some parts are taken from Tom Streller's (scan) Nicol-0.1.2 project (https://github.com/scan/Nicol)
  * due to a lack of scala 2.10 compatible version
  */
+@deprecated
 class LwjglTileGame[Coord, T <: AbstractTile[T, Coord], M <: AbstractMap[T, Coord], E <: NicolLike2DEasel]
   (val map: M,
    val mapRenderer: Lwjgl2DMapRenderer[M, T, Coord, E],
