@@ -17,7 +17,7 @@ object Agents {
     def randomlyMoving(ref: Environment#Ref, freq: FiniteDuration) =
       new MyDummyAgent[InfExec](ref, Nil, _ => _ => Set(), agentId, -1) { agent =>
 
-        override def decide(currentPerception: Perception): ReasonedDecision =
+        override def decide(currentPerception: Perception): ActionExplanation =
           CriteriaReasonedDecision[Position, EnvState, EnvGlobal, Action, Env, InfExec, Measure](Move.all.toSeq.randomChoose, Set(RandomlyChosenCriteriaValue), 0)
 
         override lazy val executionLoop: InfExec = execLoopBuilder.buildExec(agent).copy(pauseBetweenExecs = freq)

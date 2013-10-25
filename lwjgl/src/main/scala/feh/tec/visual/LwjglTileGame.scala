@@ -6,6 +6,7 @@ import feh.tec.map.AbstractMap
 import org.lwjgl.opengl.{GL11, DisplayMode, Display}
 import feh.tec.visual.api.BasicDrawEnvironmentSettings
 import nicol.{Pretransformed, View}
+import feh.tec.visual.render.Lwjgl2DMapRenderer
 
 /**
  * some parts are taken from Tom Streller's (scan) Nicol-0.1.2 project (https://github.com/scan/Nicol)

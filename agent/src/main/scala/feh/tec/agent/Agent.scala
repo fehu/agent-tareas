@@ -3,10 +3,7 @@ package feh.tec.agent
 import akka.actor.ActorRef
 import feh.tec.util._
 import java.util.UUID
-import scala.collection.mutable
-import RandomWrappers._
 import feh.tec.agent.AgentDecision._
-import feh.tec.agent.AgentDecision.CriteriaReasonedDecisions
 import feh.tec.agent.IdealRationalAgentDecisionStrategies.MeasureBasedDecisionStrategy
 
 /**
@@ -175,7 +172,7 @@ trait IdealRationalAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction
   
   def chooseTheBestBehavior(possibleActions: Set[Action]): ActionExplanation =
     behaviorSelectionStrategy.decide((agent -> possibleActions).asInstanceOf[DecisionArg]).decision
-  
+
 }
 
 /**
@@ -205,36 +202,9 @@ trait IdealForeseeingDummyAgent[Position, EnvState, EnvGlobal, Action <: Abstrac
 
   def foreseeingDepth: Int
 
-  protected def snapshotToPerception(sn: EnvironmentSnapshot[Position, EnvState, EnvGlobal, Action, Env]): Perception
+  def perceiveFromSnapshot(sn: EnvironmentSnapshot[Position, EnvState, EnvGlobal, Action, Env]): Perception
 
-  type ReasonedDecisions = CriteriaReasonedDecisions[Position, EnvState, EnvGlobal, Action, Env, Exec, M]
-  type ReasonedDecision = ActionExplanation
-
-  protected val stackedDecisions = mutable.Queue.empty[ReasonedDecisions]
-  protected var currentDecisions: ReasonedDecisions = _
-  protected val executingDecisions = mutable.Queue.empty[ReasonedDecision]
-
-/*
-  override def decide(currentPerception: Perception): ReasonedDecision = {
-    if(executingDecisions.isEmpty) {
-      if(stackedDecisions.isEmpty) createDecisionSeq()
-      currentDecisions = stackedDecisions.dequeue()
-      executingDecisions.enqueue(currentDecisions.toSeq: _*)
-    }
-
-    executingDecisions.dequeue()
-  }
-*/
-
-  protected def createDecisionSeq() {
-    implicit val num = measure.measureNumeric.asInstanceOf[Numeric[M#Measure]]
-    def behavioursFunc = snapshotToPerception _ andThen possibleBehaviors
-    val tacticalOptions = env.foresee(foreseeingDepth, behavioursFunc)
-    val estimatedPerformance =  tacticalOptions.map{ case (actions, result) => actions -> calcPerformance(result) }
-    val estimatedMeasures = estimatedPerformance.mapValues(v => v -> v.map(_.value).sum)
-    val bestOptions =  estimatedMeasures.filterMax(_._2._2)
-    val chosen = bestOptions.randomChoose
-    stackedDecisions.enqueue(new ReasonedDecisions(chosen._1, chosen._2._1.toSet, chosen._2._2))
-  }
+  override lazy val behaviorSelectionStrategy: DecisionStrategy[Action, DecisionArg, ActionExplanation] =
+    new IdealForeseeingAgentDecisionStrategies.MeasureBasedForeseeingDecisionStrategy[Position, EnvState, EnvGlobal, Action, Env, Exec, M, self.type](foreseeingDepth)
 
 }

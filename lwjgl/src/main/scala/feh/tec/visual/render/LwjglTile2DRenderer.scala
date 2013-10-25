@@ -1,4 +1,4 @@
-package feh.tec.visual
+package feh.tec.visual.render
 
 import feh.tec.visual.api._
 import feh.tec.map.tile.{MapObjectContainer, MapObject, SquareTile, AbstractTile}

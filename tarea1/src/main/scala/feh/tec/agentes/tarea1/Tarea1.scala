@@ -103,7 +103,7 @@ object Tarea1 {
         findPossibleActions(this)(currentPerception)
       }
 
-      protected def snapshotToPerception(sn: EnvironmentSnapshot[Position, EnvState, EnvGlobal, Action, Env]): Perception =
+      def perceiveFromSnapshot(sn: EnvironmentSnapshot[Position, EnvState, EnvGlobal, Action, Env]): Perception =
         sense(sn.asInstanceOf[MapEnvironmentSnapshot[Map, Tile, Position, EnvState, EnvGlobal, Action, Env]]) // todo: casting
 
       protected def setup: DebuggingSetup = Tarea1.Debug
@@ -322,7 +322,7 @@ class Tarea1PauseScene(render: () => Unit)(implicit easel: NicolLike2DEasel) ext
   onResume = Tarea1App.ag.executionLoop.resume().lifted,
   endScene = Tarea1EndScene.lifted,
   resumeScene = Tarea1LastSceneKeeper.scene.lifted,
-  pausedMessage = "Agent Execution Paused" -> BasicStringDrawOps[NicolLike2DEasel](Center, Color.lightGray, "Arial", 0F, 20F)
+  pausedMessage = "Agent Execution Paused" -> BasicStringDrawOps[NicolLike2DEasel](Center, Color.lightGray, "Arial", 20F, 5)
 )
 
 class FinishedScene(render: () => Unit)(implicit easel: NicolLike2DEasel) extends PauseScene[NicolLike2DEasel] (
@@ -330,7 +330,7 @@ class FinishedScene(render: () => Unit)(implicit easel: NicolLike2DEasel) extend
   onResume = {}.lifted,
   endScene = Tarea1EndScene.lifted,
   resumeScene = () => null,
-  pausedMessage = "Agent Execution Finished" -> BasicStringDrawOps[NicolLike2DEasel](Center, Color.green, "Arial", 0F, 20F)
+  pausedMessage = "Agent Execution Finished" -> BasicStringDrawOps[NicolLike2DEasel](Center, Color.green, "Arial", 20F, 5)
 ){
   override def processPressedKey: PartialFunction[String, Scene] = PartialFunction[String, Scene]{
     case `resumeKey` => this

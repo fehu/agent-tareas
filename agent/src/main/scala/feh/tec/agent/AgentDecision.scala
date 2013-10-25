@@ -32,9 +32,9 @@ object AgentDecision{
   {
     self =>
 
-    def failsafe(sFail: DExtended => Boolean,
+    def failsafe(isFail: DExtended => Boolean,
                  onFail: (DArg, DExtended) => DExtended): FailsafeDecisionStrategy[Action, DArg, D, self.type] =
-      GenericFailsafeDecisionStrategy[Action, DArg, D, this.type](this, sFail, onFail)
+      GenericFailsafeDecisionStrategy[Action, DArg, D, this.type](this, isFail, onFail)
   }
 
 
@@ -54,19 +54,24 @@ object AgentDecision{
 
     def criteria: Set[M#CriterionValue]
     def measure: M#Measure
+    def message: CriteriaMessage[M#CriterionValue]
 
     def explain: Explanation = criteria -> measure
   }
 
+  case class CriteriaMessage[CriterionValue](beforeCriteria: String = null, afterCriteria: String = null){
+    def beforeOpt = Option(beforeCriteria)
+    def afterOpt = Option(afterCriteria)
+  }
 
   case class CriteriaReasonedDecisions[Position, EnvState, EnvGlobal, Action <: AbstractAction,
                                        Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
                                        Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env],
                                        M <: AgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action, Env, M]]
-    (action: Seq[Action], criteria: Set[M#CriterionValue], measure: M#Measure)
+    (action: Seq[Action], criteria: Set[M#CriterionValue], measure: M#Measure, message: CriteriaMessage[M#CriterionValue] = CriteriaMessage[M#CriterionValue]())
       extends ExplainedAction[Seq[Action]] with CriteriaReasonedExplanation[Position, EnvState, EnvGlobal, Action, Env, Exec, M]
   {
-    def toSeq = action.map(d => CriteriaReasonedDecision[Position, EnvState, EnvGlobal, Action, Env, Exec, M](d, criteria, measure))
+    def toSeq = action.map(d => CriteriaReasonedDecision[Position, EnvState, EnvGlobal, Action, Env, Exec, M](d, criteria, measure, message))
   }
 
 
@@ -74,6 +79,6 @@ object AgentDecision{
                                       Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
                                       Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env],
                                       M <: AgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action, Env, M]]
-    (action: Action, criteria: Set[M#CriterionValue], measure: M#Measure)
+    (action: Action, criteria: Set[M#CriterionValue], measure: M#Measure, message: CriteriaMessage[M#CriterionValue] = CriteriaMessage[M#CriterionValue]())
       extends ExplainedAction[Action] with CriteriaReasonedExplanation[Position, EnvState, EnvGlobal, Action, Env, Exec, M]
 }
