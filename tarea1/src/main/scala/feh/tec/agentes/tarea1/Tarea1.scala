@@ -94,6 +94,8 @@ object Tarea1 {
         with IdealForeseeingDummyAgent[Position, EnvState, EnvGlobal, Action, Env, Exec, Measure]
         with GlobalDebugging
     {
+      agent =>
+
       override val id: AgentId = _id
 
       def possibleBehaviors(currentPerception: Perception): Set[Action] = {
@@ -101,18 +103,20 @@ object Tarea1 {
         findPossibleActions(this)(currentPerception)
       }
 
-      protected def snapshotToPerception(sn: EnvironmentSnapshot[Position, EnvState, EnvGlobal, Action, Env]): Perception =
+      def perceiveFromSnapshot(sn: EnvironmentSnapshot[Position, EnvState, EnvGlobal, Action, Env]): Perception =
         sense(sn.asInstanceOf[MapEnvironmentSnapshot[Map, Tile, Position, EnvState, EnvGlobal, Action, Env]]) // todo: casting
 
       protected def setup: DebuggingSetup = Tarea1.Debug
 
       def debugMessagePrefix: String = "[MyDummyAgent]"
 
-      private var _currentDecisionExplanation: ExplainedAction = _
-      def currentDecisionExplanation = Option(_currentDecisionExplanation)
-      protected def currentDecisionExplanation_=(ea: ExplainedAction) = _currentDecisionExplanation = ea
+      def lastDecision = currentDecisionExplanation
 
-      def notifyDecision(a: ExplainedAction): Unit = {
+      private var _currentDecisionExplanation: ActionExplanation = _
+      def currentDecisionExplanation = Option(_currentDecisionExplanation)
+      protected def currentDecisionExplanation_=(ea: ActionExplanation) = _currentDecisionExplanation = ea
+
+      def notifyDecision(a: ActionExplanation): Unit = {
         currentDecisionExplanation = a
         debugLog(s"Decision taken: $a")
       }
@@ -211,13 +215,13 @@ object Tarea1App extends App{
     import Agent._
 
     def relativePosition(ranges: AbstractSquareMap[SqTile]#CoordinatesMeta)//(xRange: Range, yRange: Range)
-                        (of: Position, what: Position): SimpleDirection = {
+                        (of: Position, relativelyTo: Position): SimpleDirection = {
       import ranges._
       import SimpleDirection._
 
-      of -> what match{
-        case ((x1, y1), (x2, y2)) if x1 == x2 && (y2 == y1 + 1 || y1 == yRange.max && y2 == yRange.min) => Up
-        case ((x1, y1), (x2, y2)) if x1 == x2 && (y2 == y1 - 1 || y1 == yRange.min && y2 == yRange.max) => Down
+      of -> relativelyTo match{
+        case ((x1, y1), (x2, y2)) if x1 == x2 && (y2 == y1 + 1 || y1 == yRange.max && y2 == yRange.min) => Down
+        case ((x1, y1), (x2, y2)) if x1 == x2 && (y2 == y1 - 1 || y1 == yRange.min && y2 == yRange.max) => Up
         case ((x1, y1), (x2, y2)) if y1 == y2 && (x2 == x1 - 1 || x1 == xRange.min && x2 == xRange.max) => Left
         case ((x1, y1), (x2, y2)) if y1 == y2 && (x2 == x1 + 1 || x1 == xRange.max && x2 == xRange.min) => Right
         case (c1, c2) => sys.error(s"$c1 and $c2 are not neighbouring tiles")
@@ -225,13 +229,11 @@ object Tarea1App extends App{
     }
 
     def findPossibleActions[Exec <: ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, MyDummyAgent[Exec]]]
-      (ag: MyDummyAgent[Exec], perc: MyDummyAgent[Exec]#Perception): Set[Action] = {
-        val x = perc.mapSnapshot.getSnapshot(perc.position).neighboursSnapshots
-        val y = x.filterNot(_.asTile.contents.exists(_.isHole))
-        val z = y.map(tile => relativePosition(perc.mapSnapshot.coordinates)(perc.position, tile.coordinate))
-        val w = z.map(Move(_)).toSet
-        w
-      }
+      (ag: MyDummyAgent[Exec], perc: MyDummyAgent[Exec]#Perception): Set[Action] =
+        perc.mapSnapshot.getSnapshot(perc.position).neighboursSnapshots
+          .filterNot(_.asTile.contents.exists(_.isHole))
+          .map(tile => relativePosition(perc.mapSnapshot.coordinates)(perc.position, tile.coordinate))
+          .map(Move(_)).toSet
 
     def criteria: Seq[Criterion[Position, EnvState, EnvGlobal, Action, Env, Measure]] =
       new PlugsMovingAgentCriteria
@@ -320,7 +322,7 @@ class Tarea1PauseScene(render: () => Unit)(implicit easel: NicolLike2DEasel) ext
   onResume = Tarea1App.ag.executionLoop.resume().lifted,
   endScene = Tarea1EndScene.lifted,
   resumeScene = Tarea1LastSceneKeeper.scene.lifted,
-  pausedMessage = "Agent Execution Paused" -> BasicStringDrawOps[NicolLike2DEasel](Center, Color.lightGray, "Arial", 0F, 20F)
+  pausedMessage = "Agent Execution Paused" -> BasicStringDrawOps[NicolLike2DEasel](Center, Color.lightGray, "Arial", 20F, 5)
 )
 
 class FinishedScene(render: () => Unit)(implicit easel: NicolLike2DEasel) extends PauseScene[NicolLike2DEasel] (
@@ -328,7 +330,7 @@ class FinishedScene(render: () => Unit)(implicit easel: NicolLike2DEasel) extend
   onResume = {}.lifted,
   endScene = Tarea1EndScene.lifted,
   resumeScene = () => null,
-  pausedMessage = "Agent Execution Finished" -> BasicStringDrawOps[NicolLike2DEasel](Center, Color.green, "Arial", 0F, 20F)
+  pausedMessage = "Agent Execution Finished" -> BasicStringDrawOps[NicolLike2DEasel](Center, Color.green, "Arial", 20F, 5)
 ){
   override def processPressedKey: PartialFunction[String, Scene] = PartialFunction[String, Scene]{
     case `resumeKey` => this

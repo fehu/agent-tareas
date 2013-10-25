@@ -1,11 +1,12 @@
-package feh.tec.visual
+package feh.tec.visual.render
 
 import feh.tec.visual.api.{BasicStringDrawOps, SquareMapDrawOptions, MapRenderer}
 import feh.tec.map.{AbstractSquareMap, AbstractMap}
 import feh.tec.map.tile.{AbstractTile, SquareTile}
 import feh.tec.visual.api.StringAlignment.Center
 import java.awt.Color
-import feh.tec.visual.LwjglSquare2DMapRenderer.BuildTDrawOpsParams
+import feh.tec.visual.NicolLike2DEasel
+import feh.tec.visual.render.LwjglSquare2DMapRenderer.BuildTDrawOpsParams
 
 trait Lwjgl2DMapRenderer[Map <: AbstractMap[Tile, Coordinate], Tile <: AbstractTile[Tile, Coordinate], Coordinate, E <: NicolLike2DEasel]
   extends MapRenderer[Map, Tile , Coordinate, E]
@@ -59,7 +60,7 @@ class LwjglSquare2DMapRenderer[Map <: AbstractSquareMap[Tile], Tile <: SquareTil
   def renderLabels(map: Map, how: E#MDrawOptions)(implicit easel: E) =
     if(how.showLabels) {
       val offset = how.tileSideSize / 2
-      val strOps = BasicStringDrawOps[E](Center, Color.white, "arial", 0, 10)
+      val strOps = BasicStringDrawOps[E](Center, Color.white, "arial", 10, 2)
       
       for(x <- map.coordinates.xRange) easel.drawString(x.toString, x*how.tileSideSize + offset -> how.tileSideSize/2, strOps)
       for(y <- map.coordinates.yRange) easel.drawString(y.toString, how.tileSideSize/2 -> (y*how.tileSideSize + offset), strOps)

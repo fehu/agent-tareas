@@ -13,6 +13,10 @@ trait RandomWrappers {
       k -> mlike(k)
     }
   }
+
+  implicit class SetLikeWrapper[A, Repr <: collection.SetLike[A, Repr] with Set[A]](set: collection.SetLike[A, Repr]){
+    def randomChoose: A = set.toSeq.randomChoose
+  }
 }
 
 object RandomWrappers extends RandomWrappers

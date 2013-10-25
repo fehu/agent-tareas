@@ -8,7 +8,8 @@ import feh.tec.visual.api._
 import nicol._
 import feh.tec.agent.AgentId
 import feh.tec.agentes.tarea1.DummyMapGenerator.DummyMapGeneratorRandomPositionSelectHelper
-import feh.tec.visual.LwjglSquare2DMapRenderer.BuildTDrawOpsParams
+import feh.tec.visual.render.LwjglSquare2DMapRenderer
+import LwjglSquare2DMapRenderer.BuildTDrawOpsParams
 
 object Lwjgl{
   object Settings{
@@ -68,12 +69,10 @@ object Lwjgl{
       glSettings = new CopiedFromNicolExampleGL11Settings,
       preCreateOpt = Some(
         () => Pretransformed(
-          easel.drawString("TEST", (100.toFloat, 100.toFloat), BasicStringDrawOps[NicolLike2DEasel](StringAlignment.Center, Color.red, "Arial", 0, 12))
+          easel.drawString("TEST", (100.toFloat, 100.toFloat), BasicStringDrawOps[NicolLike2DEasel](StringAlignment.Center, Color.red, "Arial", 12, 3))
         )
       )
     )
 
   }
 }
-// doesn't work, sue Nicol
-//object LwjglTestApp extends TileGameRunner(LwjglTest.game(LwjglTestAppAgentHolder.get))

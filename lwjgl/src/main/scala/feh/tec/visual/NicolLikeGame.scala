@@ -6,12 +6,10 @@ import feh.tec.util._
 import nicol.input.Key._
 
 trait NicolLikeGame {
-  def update(): Option[Scene]
+  def game: Game
 }
 
 trait NicolLikeTileGame extends NicolLikeGame with TileGame{
-  def update(): Option[Scene] = ???
-
   def prepareDrawEnvironment(ops: DrawSettings): Unit = ???
 
   protected def pauseEndApi: PauseEndGameInnerApi
@@ -20,7 +18,7 @@ trait NicolLikeTileGame extends NicolLikeGame with TileGame{
 
   def gameExecutionFinished(): Boolean
 
-  protected lazy val game: Game = newGame(initScene >> baseScene)
+  lazy val game: Game = newGame(initScene >> baseScene)
 
   protected def initScene: Scene
   protected def render(): Unit = render(gameLayout)

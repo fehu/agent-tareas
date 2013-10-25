@@ -4,6 +4,7 @@ import feh.tec.visual._
 import feh.tec.visual.api._
 import feh.tec.map.tile.MapObject
 import java.awt.Color
+import feh.tec.visual.render.{MapObjectLwjglTileDrawer, Generic2DLwjglContainerTileDrawer, BasicLwjglSquareTileDrawer, LwjglTile2DIntRenderer}
 
 object LwjglTileRenderer {
   type Tile = SqTile
@@ -35,8 +36,8 @@ object LwjglTileRenderer {
         StringAlignment.Center,
         color,
         font = "Arial",
-        rotation = easel.unitNumeric.zero,
-        size = easel.unitNumeric.fromInt(12)
+        size = easel.unitNumeric.fromInt(12),
+        vSpacing = easel.unitNumeric.fromInt(3)
       ).asInstanceOf[Easel2D#StrDrawOptions] // todo ??
 
 
@@ -54,10 +55,10 @@ object LwjglTileRenderer {
         case sq: SquareTileDrawOptions[Easel2D] => num match {
           case integral: Integral[Easel2D#CoordinateUnit] =>
             val halfSide = integral.quot(sq.sideSize, integral.fromInt(2))
-            where.ops + halfSide
+            where.ops plusNum halfSide
           case fract: Fractional[Easel2D#CoordinateUnit] =>
             val halfSide = fract.div(sq.sideSize, fract.fromInt(2))
-            where.ops + halfSide
+            where.ops plusNum halfSide
         }
         case _ => where.asInstanceOf[Coordinate]
       }

@@ -1,13 +1,11 @@
 package feh.tec.agentes.tarea1.test
 
-import feh.tec.visual.api.{BasicStringDrawOps, BasicSquareMapDrawOptions, SquareMapDrawOptions, Easel}
+import feh.tec.visual.api.{BasicStringDrawOps, BasicSquareMapDrawOptions, Easel}
 import feh.tec.visual.NicolLike2DEasel
 import feh.tec.agentes.tarea1.{MapJsonSerializer, Lwjgl, Map}
 import nicol._
-import nicol.Init
 import nicol.input.Key._
 import nicol.Init
-import java.io.File
 import scala.io.Source
 import spray.json._
 import feh.tec.visual.api.StringAlignment.Center
@@ -59,7 +57,7 @@ class NicolLikeMapsVisualizer(val maps: Seq[Map])
         this
       }
 
-      easel.drawString(s"[${currentMap+1}/$n]", 30F -> 15F, BasicStringDrawOps[NicolLike2DEasel](Center, Color.yellow, "arial", 0F, 20F))
+      easel.drawString(s"[${currentMap+1}/$n]", 30F -> 15F, BasicStringDrawOps[NicolLike2DEasel](Center, Color.yellow, "arial", 20F, 5))
 
       keyEvent {
         e =>

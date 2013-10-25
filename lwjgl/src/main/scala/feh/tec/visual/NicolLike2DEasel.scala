@@ -128,13 +128,15 @@ class NicolLike2DEasel extends Easel with Easel2DFloat with EaselAffineTransform
 
   def drawString(what: String, where: Coordinate, how: StrDrawOptions): DrawOp = {
         val font = getFont(how.font, how.size.toInt)
+        val splitted = what split '\n'
+        lazy val offset = how.size + how.vSpacing
+        def write(center: Coordinate) = splitted.zipWithIndex.map{
+          case (s, i) => font.write(s, center.ops + (0, offset*i), how.color.toFloatRgb, 0)
+        }
         how.alignment match{
-          case StringAlignment.Left =>
-            font.write(what, where, how.color.toFloatRgb, how.rotation)
-          case StringAlignment.Center =>
-            font.write(what, (where._1 - font.stringWidth(what) / 2, where._2 - font.height / 2), how.color.toFloatRgb, how.rotation)
-          case StringAlignment.Right =>
-            font.write(what, (where._1 - font.stringWidth(what), where._2), how.color.toFloatRgb, how.rotation)
+          case StringAlignment.Left => write(where)
+          case StringAlignment.Center => write(where._1 - font.stringWidth(what) / 2, where._2 - font.height / 2)
+          case StringAlignment.Right => write(where._1 - font.stringWidth(what), where._2)
         }
 //      }
     }.toDrawOp
