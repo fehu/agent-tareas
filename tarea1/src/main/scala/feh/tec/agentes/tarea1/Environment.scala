@@ -32,7 +32,7 @@ class Environment(buildTilesMap: Map => Seq[Tile],
                   val effects: PartialFunction[Action, Environment => Environment],
                   val initGlobalState: Global,
                   mapStateBuilder: MapStateBuilder[Coordinate, Tile, Map, State])
-  extends Map(null, xRange, yRange)
+  extends Map(xRange, yRange, null)
   with MutableMapEnvironment[Map, Tile, Coordinate, State, Global, Action, Environment]
   with FullyAccessible[Coordinate, State, Global, Action, Environment]
   with Deterministic[Coordinate, State, Global, Action, Environment]

@@ -13,7 +13,7 @@ import feh.tec.visual.{PauseScene, NicolLike2DEasel}
 import nicol._
 import Map._
 import feh.tec.util._
-import feh.tec.agentes.tarea1.Criteria.{NumberOfHolesCriterion, PlugsMovingAgentCriteria}
+import feh.tec.agentes.tarea1.Criteria.{DistanceToClosestPlugAndHoleCriterion, NumberOfHolesCriterion, PlugsMovingAgentCriteria}
 import scala.Predef
 import scala.concurrent.Await
 import feh.tec.visual.api.StringAlignment.Center
@@ -90,7 +90,7 @@ object Tarea1 {
                        _id: AgentId,
                        val foreseeingDepth: Int)
                       (implicit val actorSystem: ActorSystem, exBuilder: ExecLoopBuilder[AbstractAgent[Exec], Exec])
-      extends AbstractAgent[Exec](e, criteria, Environment.mapStateBuilder, shortestRouteFinder)
+      extends AbstractAgent[Exec](e, criteria, Environment.mapStateBuilder, shortestRouteFinder, Measure)
         with IdealForeseeingDummyAgent[Position, EnvState, EnvGlobal, Action, Env, Exec, Measure]
         with GlobalDebugging
     {
@@ -120,6 +120,11 @@ object Tarea1 {
         currentDecisionExplanation = a
         debugLog(s"Decision taken: $a")
       }
+
+//      override protected def createBehaviorSelectionStrategy = super.createBehaviorSelectionStrategy.failsafe(
+//        _.allPredictionsCriteriaValue.distinct.size == 0,
+//
+//      )
     }
   }
 
@@ -199,6 +204,7 @@ trait Tarea1AppSetup{
   import Agent._
 
   def criteria: Seq[Criterion[Position, EnvState, EnvGlobal, Action, Env, Measure]]
+  def backupCriteria: Measure#Criteria
   def findPossibleActions[Exec <: ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, MyDummyAgent[Exec]]]
     (ag: MyDummyAgent[Exec], perc: MyDummyAgent[Exec]#Perception): Set[Action]
 }
@@ -240,16 +246,24 @@ object Tarea1App extends App{
         with NumberOfHolesCriterion
       {
         def numberOfHolesWeight: Double = -10
-        def closestHolePlugPairMeanIntraDistanceWeight: Float = -3
 
-//        protected def guardCalculatedClosestHolePlugPairsWithIntraDistances(distMap: Predef.Map[Agent.Position, (Agent.Position, Int)]) {}
-
-        def agentId: AgentId = Agents.Id.dummy
-        def distanceToClosestPlugWeight: Float = -1
-        protected def shortestRouteFinder: MapShortestRouteFinder = new MapShortestRouteFinder
+//        def distanceToClosestPlugWeight: Float = -1
+//        protected def shortestRouteFinder: MapShortestRouteFinder = new MapShortestRouteFinder
 
         def debug: Boolean = CriteriaDebug
       }.toList
+
+    def backupCriteria: Measure#Criteria = new PlugsMovingAgentCriteria with DistanceToClosestPlugAndHoleCriterion{
+      def agentId: AgentId = Agents.Id.dummy
+      def distanceToClosetPlugWeight: Float = ???
+      def distanceFromPlugToClosestHoleWeight: Float = ???
+
+
+      def findCloset(relativelyTo: Position, cond: (Tile#Snapshot) => Boolean): Seq[Tile#Snapshot] = ???
+      def distance(p1: Position, p2: Position): Int = ???
+
+      def debug: Boolean = CriteriaDebug
+    }.toList
   }
 
   object visual{

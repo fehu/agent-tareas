@@ -21,19 +21,19 @@ object Agent{
 
   type Easel = Environment.Easel // todo: shouldn't be here
 
-  class Measure extends StatelessAgentPerformanceDoubleMeasure[Position, EnvState, EnvGlobal, Action, Env, Measure]{
-//    override type Snapshot = EnvironmentSnapshot[Position, EnvState, EnvGlobal, Action, Env]
-//      with MapEnvironmentSnapshot[Map, Tile, Position, EnvState, EnvGlobal, Action, Env]
-  }
+  class Measure extends StatelessAgentPerformanceDoubleMeasure[Position, EnvState, EnvGlobal, Action, Env, Measure]
+  object Measure extends Measure
+
 }
 
 import Agent._
 
 abstract class AbstractAgent[Exec <: ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, AbstractAgent[Exec]]]
                 (val env: AbstractAgent[Exec]#EnvRef,
-                 val performanceCriteria: Seq[Criterion[Position, EnvState, EnvGlobal, Action, Env, Measure]],
+                 val mainPerformanceCriteria: Seq[Criterion[Position, EnvState, EnvGlobal, Action, Env, Measure]],
                  val mapStateBuilder: MapStateBuilder[Position, Tile, Map, EnvState],
-                 val shortestRouteFinder: ShortestRouteFinder[Map, Tile, Position])
+                 val shortestRouteFinder: ShortestRouteFinder[Map, Tile, Position],
+                 val measure: Measure)
                 (implicit val execLoopBuilder: ExecLoopBuilder[AbstractAgent[Exec], Exec])
   extends Agent[Position, EnvState, EnvGlobal, Action, Env, Exec] with AgentWithActor[Position, EnvState, EnvGlobal, Action, Env, Exec]
     with IdealRationalAgent[Position, EnvState, EnvGlobal, Action, Env, Exec, Measure]
@@ -43,10 +43,16 @@ abstract class AbstractAgent[Exec <: ActorAgentExecutionLoop[Position, EnvState,
 
   protected def actorSystem: ActorSystem
 
-/*
-  AgentApp.Agents.DummyExec <: feh.tec.agent.AgentExecutionLoop[(Int, Int),Agent.EnvState,Agent.EnvGlobal,Agent.Action,Agent.Env]
-   */
-  lazy val measure = new Measure
+  private var _criteria = mainPerformanceCriteria
+  def performanceCriteria = _criteria
+  def withCriteria[R](c: Agent.Measure#Criteria)(f: => R): R = {
+    val old = performanceCriteria
+    _criteria = c
+    val r = f
+    _criteria = old
+    r
+  }
+
 
   def calcPerformance(prediction: Env#Prediction) = measure.performance(prediction)(performanceCriteria)
 

@@ -33,6 +33,11 @@ object IdealRationalAgentDecisionStrategies {
 
     type DExtended = CriteriaExtendedDecision
 
+    def failsafe(sFail: (DExtended) => Boolean, onFail: M#Criteria): FailsafeDecisionStrategy[Action, Ag#DecisionArg, Ag#ActionExplanation, this.type] =
+      failsafe(sFail, (arg, _) => arg match{
+        case (ag, possibleActions) => ag.withCriteria(onFail)(decide(arg))
+      })
+
     def decide: Ag#DecisionArg => CriteriaExtendedDecision = _ match{
       case (ag, possibleActions) =>
         implicit val num = ag.measure.measureNumeric.asInstanceOf[Numeric[M#Measure]]

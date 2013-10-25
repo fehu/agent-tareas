@@ -163,12 +163,15 @@ trait IdealRationalAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction
 
   def calcPerformance(prediction: Env#Prediction): Seq[M#CriterionValue]
 
+  def withCriteria[R](c: M#Criteria)(f: => R): R
+
   type ActionExplanation = CriteriaReasonedDecision[Position, EnvState, EnvGlobal, Action, Env, Exec, M]
 
   type DecisionArg = (agent.type, Set[Action])
 
-  lazy val behaviorSelectionStrategy: DecisionStrategy[Action, DecisionArg, ActionExplanation] =
+  protected def createBehaviorSelectionStrategy: DecisionStrategy[Action, DecisionArg, ActionExplanation] =
     new MeasureBasedDecisionStrategy[Position, EnvState, EnvGlobal, Action, Env, Exec, M, agent.type]
+  lazy val behaviorSelectionStrategy = createBehaviorSelectionStrategy
   
   def chooseTheBestBehavior(possibleActions: Set[Action]): ActionExplanation =
     behaviorSelectionStrategy.decide((agent -> possibleActions).asInstanceOf[DecisionArg]).decision
@@ -204,7 +207,6 @@ trait IdealForeseeingDummyAgent[Position, EnvState, EnvGlobal, Action <: Abstrac
 
   def perceiveFromSnapshot(sn: EnvironmentSnapshot[Position, EnvState, EnvGlobal, Action, Env]): Perception
 
-  override lazy val behaviorSelectionStrategy: DecisionStrategy[Action, DecisionArg, ActionExplanation] =
+  override protected def createBehaviorSelectionStrategy =
     new IdealForeseeingAgentDecisionStrategies.MeasureBasedForeseeingDecisionStrategy[Position, EnvState, EnvGlobal, Action, Env, Exec, M, self.type](foreseeingDepth)
-
 }

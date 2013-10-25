@@ -13,7 +13,7 @@ import spray.json._
 /*
   todo: move
  */
-  class Map(buildTilesMap: Map => Predef.Map[(Int, Int), SqTile], xRange: Range, yRange: Range)
+  class Map(xRange: Range, yRange: Range, buildTilesMap: Map => Predef.Map[(Int, Int), SqTile])
   extends AbstractSquareMap[SqTile] with EnclosedMap[SqTile, (Int, Int)] with AgentsPositionsProvidingMap[SqTile, (Int, Int)]
 { map =>
 
@@ -76,7 +76,7 @@ object Map{
   class SnapshotBuilder extends MapSnapshotBuilder[Map, SqTile, (Int, Int)]{
     lazy val tilesSnapshotBuilder = new SqTile.SnapshotBuilder
 
-    def snapshot(m: Map): MapSnapshot[Map, SqTile, (Int, Int)] = new Map(null, m.coordinates.xRange, m.coordinates.yRange) with MapSnapshot[Map, SqTile, (Int, Int)]{
+    def snapshot(m: Map): MapSnapshot[Map, SqTile, (Int, Int)] = new Map(m.coordinates.xRange, m.coordinates.yRange, null) with MapSnapshot[Map, SqTile, (Int, Int)]{
       lazy val tilesSnapshots: Seq[TileSnapshot[SqTile, (Int, Int)]] = tilesSnapshotsMap.values.toSeq
 
       override lazy val tilesInitMap: Predef.Map[(Int, Int), SqTile] = ???
@@ -341,7 +341,7 @@ class MapJsonSerializer extends AbstractMapSerializer[Map, SqTile, (Int, Int)]{
   def toJson(map: Map): JsValue = MapSerialized(map.tilesToMap.mapValues(_.serialize).toSet, map.coordinates.xRange, map.coordinates.yRange).toJson(mapSerializedFormat)
 
   def toMap(jsVal: JsValue): Map = jsVal.convertTo[MapSerialized] match {
-    case MapSerialized(set, x, y) => new Map(m => set.toMap.mapValues{case Tile(coord, cont) => SqTile(m, coord, cont)}, x, y)
+    case MapSerialized(set, x, y) => new Map(x, y, m => set.toMap.mapValues{case Tile(coord, cont) => SqTile(m, coord, cont)})
   }
 
   def serialize(map: Map): Serialized = toJson(map)
