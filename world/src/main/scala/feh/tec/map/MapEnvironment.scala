@@ -22,6 +22,8 @@ trait MapEnvironment[Map <: AbstractMap[Tile, Coordinate],
   self: Map =>
 
   override type Ref <: MapEnvironmentRef[Coordinate, State, Global, Action, Env, Tile, Map]
+
+  def mapSnapshot: MapSnapshot[Map, Tile, Coordinate]
 }
 
 trait MapAction[Coordinate, Tile <: AbstractTile[Tile, Coordinate], Map <: AbstractMap[Tile, Coordinate]] extends AbstractAction

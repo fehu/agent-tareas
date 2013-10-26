@@ -15,7 +15,7 @@ object Agents {
     object RandomlyChosenCriteriaValue extends StatelessAgentPerformanceMeasure.CalculatedCriterion[Position, EnvState, EnvGlobal, Action, Env, Measure]("Randomly chosen", 0)
 
     def randomlyMoving(ref: Environment#Ref, freq: FiniteDuration) =
-      new MyDummyAgent[InfExec](ref, Nil, _ => _ => Set(), agentId, -1) { agent =>
+      new MyDummyAgent[InfExec](ref, Nil, Nil, _ => _ => Set(), agentId, -1) { agent =>
 
         override def decide(currentPerception: Perception): ActionExplanation =
           CriteriaReasonedDecision[Position, EnvState, EnvGlobal, Action, Env, InfExec, Measure](Move.all.toSeq.randomChoose, Set(RandomlyChosenCriteriaValue), 0)

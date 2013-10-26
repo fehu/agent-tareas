@@ -169,7 +169,7 @@ trait IdealRationalAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction
 
   type DecisionArg = (agent.type, Set[Action])
 
-  protected def createBehaviorSelectionStrategy: DecisionStrategy[Action, DecisionArg, ActionExplanation] =
+  protected def createBehaviorSelectionStrategy: DecisionStrategy[Action, DecisionArg, ExtendedCriteriaBasedDecision[ActionExplanation, Position, EnvState, EnvGlobal, Action, Env, Exec, M]] =
     new MeasureBasedDecisionStrategy[Position, EnvState, EnvGlobal, Action, Env, Exec, M, agent.type]
   lazy val behaviorSelectionStrategy = createBehaviorSelectionStrategy
   
@@ -199,7 +199,7 @@ trait IdealForeseeingDummyAgent[Position, EnvState, EnvGlobal, Action <: Abstrac
                                 Env <: Environment[Position, EnvState, EnvGlobal, Action, Env] with ForeseeableEnvironment[Position, EnvState, EnvGlobal, Action, Env],
                                 Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env],
                                 M <: AgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action, Env, M]]
-  extends IdealDummyAgent[Position, EnvState, EnvGlobal, Action, Env, Exec, M]
+  extends IdealDummyAgent[Position, EnvState, EnvGlobal, Action, Env, Exec, M] with Debugging
 {
   self: AgentExecution[Position, EnvState, EnvGlobal, Action, Env, Exec] =>
 
@@ -207,6 +207,6 @@ trait IdealForeseeingDummyAgent[Position, EnvState, EnvGlobal, Action <: Abstrac
 
   def perceiveFromSnapshot(sn: EnvironmentSnapshot[Position, EnvState, EnvGlobal, Action, Env]): Perception
 
-  override protected def createBehaviorSelectionStrategy =
-    new IdealForeseeingAgentDecisionStrategies.MeasureBasedForeseeingDecisionStrategy[Position, EnvState, EnvGlobal, Action, Env, Exec, M, self.type](foreseeingDepth)
+  override protected def createBehaviorSelectionStrategy: DecisionStrategy[Action, DecisionArg, ExtendedCriteriaBasedDecision[ActionExplanation, Position, EnvState, EnvGlobal, Action, Env, Exec, M]] =
+    new IdealForeseeingAgentDecisionStrategies.MeasureBasedForeseeingDecisionStrategy[Position, EnvState, EnvGlobal, Action, Env, Exec, M, self.type](foreseeingDepth, debug)
 }

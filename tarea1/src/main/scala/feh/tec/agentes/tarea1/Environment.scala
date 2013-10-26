@@ -73,6 +73,8 @@ class Environment(buildTilesMap: Map => Seq[Tile],
 
   override def tiles: Seq[Tile] = super[MutableMapEnvironment].tiles
   override def agentsPositions: Predef.Map[AgentId, Tile] = super[MutableMapEnvironment].agentsPositions
+
+  def mapSnapshot: MapSnapshot[Map, Tile, Coordinate] = Map.snapshotBuilder.snapshot(this)
 }
 
 class Overseer(actorSystem: ActorSystem,
@@ -116,7 +118,7 @@ class Overseer(actorSystem: ActorSystem,
         with MapEnvironmentSnapshot[Map, Tile, Coordinate, State, Global, Action, Environment]
       {
 
-        val mapSnapshot: MapSnapshot[Map, Tile, Coordinate] = Map.snapshotBuilder.snapshot(env)
+        override val mapSnapshot: MapSnapshot[Map, Tile, Coordinate] = Map.snapshotBuilder.snapshot(env)
 
         override def initTiles: Seq[Tile] = _tilesMap.values.toSeq
         override val states = _states

@@ -3,12 +3,12 @@ package feh.tec.agentes.tarea1
 import scala.language.postfixOps
 import feh.tec.agentes.tarea1.DummyMapGenerator.DummyMapGeneratorRandomPositionSelectHelper
 import feh.tec.agent._
-import java.util.UUID
+import java.util.{Calendar, UUID}
 import feh.tec.map._
 import akka.actor.ActorSystem
 import scala.concurrent.duration._
 import feh.tec.agentes.tarea1.Tarea1.Agents.{ConditionalExec, MyDummyAgent}
-import feh.tec.visual.api.MapRenderer
+import feh.tec.visual.api.{StringAlignment, MapRenderer, BasicStringDrawOps}
 import feh.tec.visual.{PauseScene, NicolLike2DEasel}
 import nicol._
 import Map._
@@ -21,12 +21,13 @@ import java.awt.Color
 import feh.tec.agent.StatelessAgentPerformanceMeasure.Criterion
 import scala.Some
 import feh.tec.agent.AgentId
-import feh.tec.visual.api.BasicStringDrawOps
+import scala.collection.mutable
+import feh.tec.agent.AgentDecision.{FailsafeDecisionStrategy, ExtendedCriteriaBasedDecision, DecisionStrategy}
 
 object Tarea1 {
   object Debug extends GlobalDebuggingSetup
 
-  val pauseBetween = 0.5 seconds span
+  val pauseBetween = 0.1 seconds span
 
   object Agents{
     object Id{
@@ -85,7 +86,8 @@ object Tarea1 {
     }
     class MyDummyAgent[Exec <: ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, MyDummyAgent[Exec]]](
                        e: Env#Ref,
-                       criteria: Seq[Criterion[Position, EnvState, EnvGlobal, Action, Env, Measure]],
+                       criteria: Measure#Criteria,
+                       backupCriteria: Measure#Criteria,
                        findPossibleActions: MyDummyAgent[Exec] => MyDummyAgent[Exec]#Perception => Set[Action],
                        _id: AgentId,
                        val foreseeingDepth: Int)
@@ -121,10 +123,22 @@ object Tarea1 {
         debugLog(s"Decision taken: $a")
       }
 
-//      override protected def createBehaviorSelectionStrategy = super.createBehaviorSelectionStrategy.failsafe(
-//        _.allPredictionsCriteriaValue.distinct.size == 0,
-//
-//      )
+      override protected def createBehaviorSelectionStrategy: DecisionStrategy[Action, DecisionArg, ExtendedCriteriaBasedDecision[ActionExplanation, Position, EnvState, EnvGlobal, Action, Env, Exec, Measure]] =
+        {
+          val strategy = super.createBehaviorSelectionStrategy
+          FailsafeDecisionStrategy.Builder(strategy)
+            .append(
+              p => {
+                val t = p
+                val y = t.consideredOptionsCriteriaValues.flatten.distinct.size == 1
+                y
+              },
+              new IdealForeseeingAgentDecisionStrategies.MeasureBasedForeseeingDecisionStrategy[Position, EnvState, EnvGlobal, Action, Env, Exec, Measure, agent.type](foreseeingDepth, debug){
+                override lazy val rewriteCriteria: Option[Measure#Criteria] = Some(backupCriteria)
+              }
+            )
+            .build()
+        }
     }
   }
 
@@ -211,7 +225,7 @@ trait Tarea1AppSetup{
 
 
 object Tarea1App extends App{
-  val CriteriaDebug = false
+  val CriteriaDebug = true
 
   import Tarea1._
 
@@ -255,12 +269,48 @@ object Tarea1App extends App{
 
     def backupCriteria: Measure#Criteria = new PlugsMovingAgentCriteria with DistanceToClosestPlugAndHoleCriterion{
       def agentId: AgentId = Agents.Id.dummy
-      def distanceToClosetPlugWeight: Float = ???
-      def distanceFromPlugToClosestHoleWeight: Float = ???
+      def distanceToClosetPlugWeight: Float = -1
+      def distanceFromPlugToClosestHoleWeight: Float = -1
+
+      lazy val floydWarshall = new FloydWarshall
+      protected def clearDistanceMap(): Unit = minDistsMapCache.clear()
 
 
-      def findCloset(relativelyTo: Position, cond: (Tile#Snapshot) => Boolean): Seq[Tile#Snapshot] = ???
-      def distance(p1: Position, p2: Position): Int = ???
+      val minDistsMapCache = mutable.HashMap.empty[Set[Position], FloydWarshall#MinDistMap]
+
+      def getHolesCoordinates(s: Measure.Snapshot) = s.asEnv.mapSnapshot.tilesSnapshots.withFilter(_.asTile.exists(_.isHole)).map(_.coordinate).toSet
+
+      def minDists(s: Measure.Snapshot) = {
+        val holesCoords = getHolesCoordinates(s)
+        minDistsMapCache.getOrElse(holesCoords, {
+          val t1 = Calendar.getInstance.getTimeInMillis
+          val gr = Graph.mapAsGraph(s.asEnv.mapSnapshot)
+          val t2 = Calendar.getInstance.getTimeInMillis
+          val d = floydWarshall.findMinimalDistances(gr)
+          val t3 = Calendar.getInstance.getTimeInMillis
+          debugLog(s"graph by snapshot building time: ${t2 - t1}")
+          debugLog(s"min distance by graph building time: ${t3 - t2}")
+
+          minDistsMapCache += holesCoords -> d
+          d
+        })
+      }
+
+      def findClosetRespectingHoles(relativelyTo: Position, cond: (Tile#Snapshot) => Boolean, sn: Measure.Snapshot): Seq[Tile#Snapshot] =
+        minDists(sn).withFilter{case ((c1, c2), d) => c1 == relativelyTo && cond(sn.asEnv.mapSnapshot.getSnapshot(c2))}.map(p => sn.asEnv.mapSnapshot.getSnapshot(p._1._2)).toSeq
+      def findClosetDisregardingHoles(relativelyTo: Position, cond: Tile#Snapshot => Boolean, sn: Measure.Snapshot): Seq[Tile#Snapshot] =
+        sn.asEnv.mapSnapshot.tilesSnapshots.filter(cond).filterMin(distanceDisregardingHoles(relativelyTo, _, sn))
+
+      def distanceRespectingHoles(p1: Position, p2: Position, sn: Measure.Snapshot): Int =
+        minDists(sn).collectFirst{
+          case ((`p1`, `p2`), d) => d
+        }.get
+      def distanceDisregardingHoles(p1: Position, p2: Position, sn: Measure.Snapshot): Int = {
+        import scala.math._
+        val distX = min(abs(p1._1 - p2._1), abs(p2._1 - p1._1))
+        val distY = min(abs(p1._2 - p2._2), abs(p2._2 - p1._2))
+        distX + distY
+      }
 
       def debug: Boolean = CriteriaDebug
     }.toList
@@ -275,7 +325,7 @@ object Tarea1App extends App{
     def howToDrawTheMap = Lwjgl.Settings.howToDrawTheMap
   }
 
-//  Tarea1.Debug() = true
+  Tarea1.Debug() = true
 
   val env = environment(Option(Agents.Id.dummy))
 //  val env = TestEnvironment.test1(Option(Agents.Id.dummy))
@@ -289,6 +339,7 @@ object Tarea1App extends App{
   val ag = new MyDummyAgent[Exec](
     overseer.ref,
     setup.criteria,
+    setup.backupCriteria,
     (setup.findPossibleActions[Exec] _).curried,
     Agents.Id.dummy,
     foreseeingDepth)
@@ -344,10 +395,12 @@ class FinishedScene(render: () => Unit)(implicit easel: NicolLike2DEasel) extend
   onResume = {}.lifted,
   endScene = Tarea1EndScene.lifted,
   resumeScene = () => null,
-  pausedMessage = "Agent Execution Finished" -> BasicStringDrawOps[NicolLike2DEasel](Center, Color.green, "Arial", 20F, 5)
+  pausedMessage = "Agent Execution Finished" -> BasicStringDrawOps[NicolLike2DEasel](StringAlignment.Left, Color.green, "Arial", 20F, 5)
 ){
   override def processPressedKey: PartialFunction[String, Scene] = PartialFunction[String, Scene]{
     case `resumeKey` => this
     case `quitKey` => endScene()
   }
+
+  override def messagePosition = (530, 300)
 }

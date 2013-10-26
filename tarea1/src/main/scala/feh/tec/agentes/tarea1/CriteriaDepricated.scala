@@ -106,7 +106,7 @@ object CriteriaDepricated {
         println(s"plugsClosestToHoles = $plugsClosestToHoleOpt")
 
         plugsClosestToHoleOpt.map{ pos =>
-          val gr = shortestRouteFinder.mapAsGraph(mapSnapshot)
+          val gr = Graph.mapAsGraph(mapSnapshot)
           val minDistMap = shortestRouteFinder.findMinimalDistances(gr)
           shortestRouteFinder.withMinDistMap(minDistMap, _.onGraph(gr){
             val plugsClosestToAg = shortestRouteFinder.findClosest(mapSnapshot)(agPos, pos == _-> _)

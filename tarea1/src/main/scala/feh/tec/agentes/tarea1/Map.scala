@@ -222,7 +222,7 @@ class MapShortestRouteFinder extends ShortestRouteFinder[Map, SqTile, (Int, Int)
   private def getMinDistMap(gr: Graph) = scopedDistMap.get getOrElse findMinimalDistances(gr)
 
   private def getGraph(snapshot: MapSnapshot[Map, SqTile, (Int, Int)]) =
-    scopedGraph.get getOrElse  mapAsGraph(snapshot)
+    scopedGraph.get getOrElse Graph.mapAsGraph(snapshot)
 
   def shortestRoutes(snapshot: MapSnapshot[Map, SqTile, (Int, Int)])
                     (from: (Int, Int), to: Set[(Int, Int)]): Predef.Map[(Int, Int), Route[(Int, Int)]] = {
@@ -230,6 +230,21 @@ class MapShortestRouteFinder extends ShortestRouteFinder[Map, SqTile, (Int, Int)
     floydWarshall.findShortestRoutes(graph, from, to)(getMinDistMap(graph))
   }
 
+
+  def findClosest(map: Map)(relativelyTo: (Int, Int), what: (Int, Int) => Boolean): Predef.Map[(Int, Int), Int] =
+    findClosest(Map.snapshotBuilder.snapshot(map))(relativelyTo, what)
+  def findClosest(snapshot: MapSnapshot[Map, SqTile, (Int, Int)])(relativelyTo: (Int, Int), what: (Int, Int) => Boolean): Predef.Map[(Int, Int), Int] = {
+    val gr = getGraph(snapshot)
+    val minDist = getMinDistMap(gr)
+    val acceptablePairs =  minDist.withFilter(_._1._1 == relativelyTo).withFilter(what.tupled apply _._1._2).map{case ((_, c), d) => c -> d}
+
+    if(acceptablePairs.nonEmpty) acceptablePairs.filterMin(_._2).toMap
+    else Predef.Map.empty
+  }
+
+}
+
+object Graph{
   def mapAsGraph(snapshot: MapSnapshot[Map, SqTile, (Int, Int)]): Graph = {
     def findConnections(tile: TileSnapshot[SqTile, (Int, Int)]): Seq[((Int, Int), (Int, Int))] =
       tile.neighboursSnapshots.filterNot(_.asTile.contents.exists(_.isHole)).map(tile.coordinate -> _.coordinate)
@@ -248,20 +263,11 @@ class MapShortestRouteFinder extends ShortestRouteFinder[Map, SqTile, (Int, Int)
     Graph(nodesMap, nodesConnections)
   }
 
-  def findClosest(map: Map)(relativelyTo: (Int, Int), what: (Int, Int) => Boolean): Predef.Map[(Int, Int), Int] =
-    findClosest(Map.snapshotBuilder.snapshot(map))(relativelyTo, what)
-  def findClosest(snapshot: MapSnapshot[Map, SqTile, (Int, Int)])(relativelyTo: (Int, Int), what: (Int, Int) => Boolean): Predef.Map[(Int, Int), Int] = {
-    val gr = getGraph(snapshot)
-    val minDist = getMinDistMap(gr)
-    val acceptablePairs =  minDist.withFilter(_._1._1 == relativelyTo).withFilter(what.tupled apply _._1._2).map{case ((_, c), d) => c -> d}
-
-    if(acceptablePairs.nonEmpty) acceptablePairs.filterMin(_._2).toMap
-    else Predef.Map.empty
-  }
-
 }
 
-case class Graph(nodesMap: Predef.Map[(Int, Int), GraphNode], connections: Seq[((Int, Int), (Int, Int))])
+case class Graph(nodesMap: Predef.Map[(Int, Int), GraphNode], connections: Seq[((Int, Int), (Int, Int))]){
+  lazy val coordinatesRange = (nodesMap.minBy(_._1._1)._1._1 to nodesMap.maxBy(_._1._1)._1._1, nodesMap.minBy(_._1._2)._1._2 to nodesMap.maxBy(_._1._2)._1._2)
+}
 case class GraphNode(contents: Option[MapObj], coord: (Int, Int))(getConnections: => List[GraphNode]){
   lazy val connections: List[GraphNode] = getConnections
 }
@@ -274,6 +280,7 @@ class FloydWarshall{
   type Coord = (Int, Int)
   type MinDistMap = Predef.Map[((Int, Int), (Int, Int)), Int]
 
+/*
   def findMinimalDistances(gr: Graph): MinDistMap = {
     val dists = mutable.HashMap.empty[(Coord, Coord), Float].withDefault(_ => Float.PositiveInfinity) // it's flaot only to put Inf
     def dist(c1: Coord, c2: Coord) = dists(c1 -> c2) //getOrElse sys.error("smth is wrong in Floyd-Warshall")
@@ -296,6 +303,41 @@ class FloydWarshall{
     } update(i, j, newDist)
 
     dists.toMap.mapValues(_.toInt)
+  }
+*/
+
+  def findMinimalDistances(gr: Graph): MinDistMap = {
+    val dists = Array.fill(
+      gr.coordinatesRange._1.length,
+      gr.coordinatesRange._2.length,
+      gr.coordinatesRange._1.length,
+      gr.coordinatesRange._2.length)(Float.PositiveInfinity)
+
+    //mutable.HashMap.empty[(Coord, Coord), Float].withDefault(_ => Float.PositiveInfinity) // it's flaot only to put Inf
+    def dist(c1: Coord, c2: Coord) = dists(c1._1)(c1._2)(c2._1)(c2._2) //getOrElse sys.error("smth is wrong in Floyd-Warshall")
+    def update(c1: Coord, c2: Coord, f: Float) = dists(c1._1)(c1._2)(c2._1)(c2._2) = f
+
+    // init known distances
+    for((from, to) <- gr.connections) {
+      update(from, from, 0)
+      update(from, to, 1)
+    }
+
+    val coordsSeq = gr.nodesMap.keys
+
+    for{
+      k <- coordsSeq
+      i <- coordsSeq
+      j <- coordsSeq
+      newDist = dist(i, k) + dist(k, j)
+      if newDist < dist(i, j)
+    } update(i, j, newDist)
+
+    Predef.Map((for{
+      c1 <- gr.nodesMap.keySet.toSeq
+      c2 <- gr.nodesMap.keySet
+//      if c1 != c2
+    } yield (c1 -> c2) -> dist(c1, c2).toInt): _*)
   }
 
   /**
