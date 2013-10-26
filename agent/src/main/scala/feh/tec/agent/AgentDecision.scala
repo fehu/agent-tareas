@@ -39,7 +39,7 @@ object AgentDecision{
   }
   
   object FailsafeDecisionStrategy{
-    var Debug = true
+    var Debug = false
 
     case class FailProbeStrategy[Action <: AbstractAction, Arg, Decision](fail: Decision => Boolean, strategy: DecisionStrategy[Action, Arg, Decision])
 

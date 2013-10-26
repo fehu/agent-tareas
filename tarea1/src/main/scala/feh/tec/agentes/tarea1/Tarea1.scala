@@ -23,11 +23,12 @@ import scala.Some
 import feh.tec.agent.AgentId
 import scala.collection.mutable
 import feh.tec.agent.AgentDecision.{FailsafeDecisionStrategy, ExtendedCriteriaBasedDecision, DecisionStrategy}
+import feh.tec.agentes.tarea1.Tarea1.Agents.ExecLoopBuilders.PauseBetweenExecs
 
 object Tarea1 {
   object Debug extends GlobalDebuggingSetup
 
-  val pauseBetween = 0.1 seconds span
+  lazy val defaultPauseBetweenExecs = 0.1 seconds span
 
   object Agents{
     object Id{
@@ -66,7 +67,7 @@ object Tarea1 {
                                       stopConditions: Set[ConditionalExec#StopCondition],
                                       onFinished: () => Unit) extends ExecLoopBuilder[AbstractAgent[ConditionalExec], ConditionalExec]{
       def buildExec(ag: AbstractAgent[ConditionalExec]): ConditionalExec =
-        ConditionalExec(ag.asInstanceOf[MyDummyAgent[ConditionalExec]], pauseBetween, execControlTimeout, stopConditions, onFinished)
+        ConditionalExec(ag.asInstanceOf[MyDummyAgent[ConditionalExec]], pauseBetweenExecs, execControlTimeout, stopConditions, onFinished)
     }
 
     object ExecLoopBuilders{
@@ -75,9 +76,11 @@ object Tarea1 {
         case (_, states) => !states.exists(_.hole) || !states.exists(_.plug)
       }
 
-      implicit def infinite: ExecLoopBuilder[AbstractAgent[InfExec], InfExec] = InfExecBuilder(pauseBetween, execControlTimeout)
-      implicit def environmentCondition: ExecLoopBuilder[AbstractAgent[ConditionalExec], ConditionalExec] =
-        ConditionalExecBuilder(pauseBetween, execControlTimeout, Set(stopEnvCondition), Tarea1App.setFinishedScene.lifted)
+      case class PauseBetweenExecs(dur: FiniteDuration)
+      
+      implicit def infinite(implicit pause: PauseBetweenExecs): ExecLoopBuilder[AbstractAgent[InfExec], InfExec] = InfExecBuilder(pause.dur, execControlTimeout)
+      implicit def environmentCondition(implicit pause: PauseBetweenExecs): ExecLoopBuilder[AbstractAgent[ConditionalExec], ConditionalExec] =
+        ConditionalExecBuilder(pause.dur, execControlTimeout, Set(stopEnvCondition), Tarea1App.setFinishedScene.lifted)
     }
 
 
@@ -225,7 +228,7 @@ trait Tarea1AppSetup{
 
 
 object Tarea1App extends App{
-  val CriteriaDebug = true
+  val CriteriaDebug = false
 
   import Tarea1._
 
@@ -325,7 +328,16 @@ object Tarea1App extends App{
     def howToDrawTheMap = Lwjgl.Settings.howToDrawTheMap
   }
 
-  Tarea1.Debug() = true
+//  Tarea1.Debug() = true
+
+  def processArgsForTimeSpan(): Option[FiniteDuration] =
+    if(args.nonEmpty) {
+      val dur = Duration(args.mkString(" ")).ensuring(_.isFinite())
+      Some(FiniteDuration(dur.length, dur.unit))
+    }
+    else None
+
+  implicit val pauseBetweenExecs = PauseBetweenExecs(processArgsForTimeSpan getOrElse defaultPauseBetweenExecs)
 
   val env = environment(Option(Agents.Id.dummy))
 //  val env = TestEnvironment.test1(Option(Agents.Id.dummy))
