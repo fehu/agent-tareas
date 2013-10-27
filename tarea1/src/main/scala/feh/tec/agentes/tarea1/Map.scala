@@ -314,8 +314,8 @@ class FloydWarshall{
       gr.coordinatesRange._2.length)(Float.PositiveInfinity)
 
     //mutable.HashMap.empty[(Coord, Coord), Float].withDefault(_ => Float.PositiveInfinity) // it's flaot only to put Inf
-    def dist(c1: Coord, c2: Coord) = dists(c1._1 - 1)(c1._2 - 1)(c2._1 - 1)(c2._2 - 1) //getOrElse sys.error("smth is wrong in Floyd-Warshall")
-    def update(c1: Coord, c2: Coord, f: Float) = dists(c1._1 - 1)(c1._2 - 1)(c2._1 - 1)(c2._2 - 1) = f
+    def dist(c1: Coord, c2: Coord) = dists(c1._1)(c1._2)(c2._1)(c2._2) //getOrElse sys.error("smth is wrong in Floyd-Warshall")
+    def update(c1: Coord, c2: Coord, f: Float) = dists(c1._1)(c1._2)(c2._1)(c2._2) = f
 
     // init known distances
     for((from, to) <- gr.connections) {
