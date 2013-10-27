@@ -1,9 +1,13 @@
 package feh.tec.map.tile
 
+import feh.tec.map.TileSnapshot
+
 trait AbstractTile[Tile <: AbstractTile[Tile, Coordinate], Coordinate] {
   def coordinate: Coordinate
 
   def neighbours: Seq[Tile]
+
+  type Snapshot = TileSnapshot[Tile, Coordinate]
 }
 
 trait TypedContainerTile[Tile <: AbstractTile[Tile, Coordinate], Coordinate, Contents] extends AbstractTile[Tile, Coordinate]{
@@ -43,6 +47,7 @@ trait OptionalMabObjectContainerTile[Tile <: AbstractTile[Tile, Coordinate], Con
   def isOptionalContainer: Boolean = true
   def isSequenceContainer: Boolean = false
   def containerObjectsToList: List[Contents] = contents.toList
+  def exists(f: Contents => Boolean): Boolean = contents.exists(f)
 }
 
 trait MapObjectListContainerTile[Tile <: AbstractTile[Tile, Coordinate], Contents <: MapObject, Coordinate]

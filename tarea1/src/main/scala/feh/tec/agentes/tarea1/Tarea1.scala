@@ -3,17 +3,17 @@ package feh.tec.agentes.tarea1
 import scala.language.postfixOps
 import feh.tec.agentes.tarea1.DummyMapGenerator.DummyMapGeneratorRandomPositionSelectHelper
 import feh.tec.agent._
-import java.util.UUID
+import java.util.{Calendar, UUID}
 import feh.tec.map._
 import akka.actor.ActorSystem
 import scala.concurrent.duration._
 import feh.tec.agentes.tarea1.Tarea1.Agents.{ConditionalExec, MyDummyAgent}
-import feh.tec.visual.api.MapRenderer
+import feh.tec.visual.api.{StringAlignment, MapRenderer, BasicStringDrawOps}
 import feh.tec.visual.{PauseScene, NicolLike2DEasel}
 import nicol._
 import Map._
 import feh.tec.util._
-import feh.tec.agentes.tarea1.Criteria.{NumberOfHolesCriterion, PlugsMovingAgentCriteria}
+import feh.tec.agentes.tarea1.Criteria.{DistanceToClosestPlugAndHoleCriterion, NumberOfHolesCriterion, PlugsMovingAgentCriteria}
 import scala.Predef
 import scala.concurrent.Await
 import feh.tec.visual.api.StringAlignment.Center
@@ -21,12 +21,14 @@ import java.awt.Color
 import feh.tec.agent.StatelessAgentPerformanceMeasure.Criterion
 import scala.Some
 import feh.tec.agent.AgentId
-import feh.tec.visual.api.BasicStringDrawOps
+import scala.collection.mutable
+import feh.tec.agent.AgentDecision.{FailsafeDecisionStrategy, ExtendedCriteriaBasedDecision, DecisionStrategy}
+import feh.tec.agentes.tarea1.Tarea1.Agents.ExecLoopBuilders.PauseBetweenExecs
 
 object Tarea1 {
   object Debug extends GlobalDebuggingSetup
 
-  val pauseBetween = 0.5 seconds span
+  lazy val defaultPauseBetweenExecs = 0.1 seconds span
 
   object Agents{
     object Id{
@@ -65,7 +67,7 @@ object Tarea1 {
                                       stopConditions: Set[ConditionalExec#StopCondition],
                                       onFinished: () => Unit) extends ExecLoopBuilder[AbstractAgent[ConditionalExec], ConditionalExec]{
       def buildExec(ag: AbstractAgent[ConditionalExec]): ConditionalExec =
-        ConditionalExec(ag.asInstanceOf[MyDummyAgent[ConditionalExec]], pauseBetween, execControlTimeout, stopConditions, onFinished)
+        ConditionalExec(ag.asInstanceOf[MyDummyAgent[ConditionalExec]], pauseBetweenExecs, execControlTimeout, stopConditions, onFinished)
     }
 
     object ExecLoopBuilders{
@@ -74,9 +76,11 @@ object Tarea1 {
         case (_, states) => !states.exists(_.hole) || !states.exists(_.plug)
       }
 
-      implicit def infinite: ExecLoopBuilder[AbstractAgent[InfExec], InfExec] = InfExecBuilder(pauseBetween, execControlTimeout)
-      implicit def environmentCondition: ExecLoopBuilder[AbstractAgent[ConditionalExec], ConditionalExec] =
-        ConditionalExecBuilder(pauseBetween, execControlTimeout, Set(stopEnvCondition), Tarea1App.setFinishedScene.lifted)
+      case class PauseBetweenExecs(dur: FiniteDuration)
+      
+      implicit def infinite(implicit pause: PauseBetweenExecs): ExecLoopBuilder[AbstractAgent[InfExec], InfExec] = InfExecBuilder(pause.dur, execControlTimeout)
+      implicit def environmentCondition(implicit pause: PauseBetweenExecs): ExecLoopBuilder[AbstractAgent[ConditionalExec], ConditionalExec] =
+        ConditionalExecBuilder(pause.dur, execControlTimeout, Set(stopEnvCondition), Tarea1App.setFinishedScene.lifted)
     }
 
 
@@ -85,12 +89,13 @@ object Tarea1 {
     }
     class MyDummyAgent[Exec <: ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, MyDummyAgent[Exec]]](
                        e: Env#Ref,
-                       criteria: Seq[Criterion[Position, EnvState, EnvGlobal, Action, Env, Measure]],
+                       criteria: Measure#Criteria,
+                       backupCriteria: Measure#Criteria,
                        findPossibleActions: MyDummyAgent[Exec] => MyDummyAgent[Exec]#Perception => Set[Action],
                        _id: AgentId,
                        val foreseeingDepth: Int)
                       (implicit val actorSystem: ActorSystem, exBuilder: ExecLoopBuilder[AbstractAgent[Exec], Exec])
-      extends AbstractAgent[Exec](e, criteria, Environment.mapStateBuilder, shortestRouteFinder)
+      extends AbstractAgent[Exec](e, criteria, Environment.mapStateBuilder, shortestRouteFinder, Measure)
         with IdealForeseeingDummyAgent[Position, EnvState, EnvGlobal, Action, Env, Exec, Measure]
         with GlobalDebugging
     {
@@ -120,6 +125,23 @@ object Tarea1 {
         currentDecisionExplanation = a
         debugLog(s"Decision taken: $a")
       }
+
+      override protected def createBehaviorSelectionStrategy: DecisionStrategy[Action, DecisionArg, ExtendedCriteriaBasedDecision[ActionExplanation, Position, EnvState, EnvGlobal, Action, Env, Exec, Measure]] =
+        {
+          val strategy = super.createBehaviorSelectionStrategy
+          FailsafeDecisionStrategy.Builder(strategy)
+            .append(
+              p => {
+                val t = p
+                val y = t.consideredOptionsCriteriaValues.flatten.distinct.size == 1
+                y
+              },
+              new IdealForeseeingAgentDecisionStrategies.MeasureBasedForeseeingDecisionStrategy[Position, EnvState, EnvGlobal, Action, Env, Exec, Measure, agent.type](foreseeingDepth, debug){
+                override lazy val rewriteCriteria: Option[Measure#Criteria] = Some(backupCriteria)
+              }
+            )
+            .build()
+        }
     }
   }
 
@@ -199,6 +221,7 @@ trait Tarea1AppSetup{
   import Agent._
 
   def criteria: Seq[Criterion[Position, EnvState, EnvGlobal, Action, Env, Measure]]
+  def backupCriteria: Measure#Criteria
   def findPossibleActions[Exec <: ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, MyDummyAgent[Exec]]]
     (ag: MyDummyAgent[Exec], perc: MyDummyAgent[Exec]#Perception): Set[Action]
 }
@@ -240,16 +263,60 @@ object Tarea1App extends App{
         with NumberOfHolesCriterion
       {
         def numberOfHolesWeight: Double = -10
-        def closestHolePlugPairMeanIntraDistanceWeight: Float = -3
 
-//        protected def guardCalculatedClosestHolePlugPairsWithIntraDistances(distMap: Predef.Map[Agent.Position, (Agent.Position, Int)]) {}
-
-        def agentId: AgentId = Agents.Id.dummy
-        def distanceToClosestPlugWeight: Float = -1
-        protected def shortestRouteFinder: MapShortestRouteFinder = new MapShortestRouteFinder
+//        def distanceToClosestPlugWeight: Float = -1
+//        protected def shortestRouteFinder: MapShortestRouteFinder = new MapShortestRouteFinder
 
         def debug: Boolean = CriteriaDebug
       }.toList
+
+    def backupCriteria: Measure#Criteria = new PlugsMovingAgentCriteria with DistanceToClosestPlugAndHoleCriterion{
+      def agentId: AgentId = Agents.Id.dummy
+      def distanceToClosetPlugWeight: Float = -1
+      def distanceFromPlugToClosestHoleWeight: Float = -1
+
+      lazy val floydWarshall = new FloydWarshall
+      protected def clearDistanceMap(): Unit = minDistsMapCache.clear()
+
+
+      val minDistsMapCache = mutable.HashMap.empty[Set[Position], FloydWarshall#MinDistMap]
+
+      def getHolesCoordinates(s: Measure.Snapshot) = s.asEnv.mapSnapshot.tilesSnapshots.withFilter(_.asTile.exists(_.isHole)).map(_.coordinate).toSet
+
+      def minDists(s: Measure.Snapshot) = {
+        val holesCoords = getHolesCoordinates(s)
+        minDistsMapCache.getOrElse(holesCoords, {
+          val t1 = Calendar.getInstance.getTimeInMillis
+          val gr = Graph.mapAsGraph(s.asEnv.mapSnapshot)
+          val t2 = Calendar.getInstance.getTimeInMillis
+          val d = floydWarshall.findMinimalDistances(gr)
+          val t3 = Calendar.getInstance.getTimeInMillis
+          debugLog(s"graph by snapshot building time: ${t2 - t1}")
+          debugLog(s"min distance by graph building time: ${t3 - t2}")
+
+          minDistsMapCache += holesCoords -> d
+          d
+        })
+      }
+
+      def findClosetRespectingHoles(relativelyTo: Position, cond: (Tile#Snapshot) => Boolean, sn: Measure.Snapshot): Seq[Tile#Snapshot] =
+        minDists(sn).withFilter{case ((c1, c2), d) => c1 == relativelyTo && cond(sn.asEnv.mapSnapshot.getSnapshot(c2))}.map(p => sn.asEnv.mapSnapshot.getSnapshot(p._1._2)).toSeq
+      def findClosetDisregardingHoles(relativelyTo: Position, cond: Tile#Snapshot => Boolean, sn: Measure.Snapshot): Seq[Tile#Snapshot] =
+        sn.asEnv.mapSnapshot.tilesSnapshots.filter(cond).filterMin(distanceDisregardingHoles(relativelyTo, _, sn))
+
+      def distanceRespectingHoles(p1: Position, p2: Position, sn: Measure.Snapshot): Int =
+        minDists(sn).collectFirst{
+          case ((`p1`, `p2`), d) => d
+        }.get
+      def distanceDisregardingHoles(p1: Position, p2: Position, sn: Measure.Snapshot): Int = {
+        import scala.math._
+        val distX = min(abs(p1._1 - p2._1), abs(p2._1 - p1._1))
+        val distY = min(abs(p1._2 - p2._2), abs(p2._2 - p1._2))
+        distX + distY
+      }
+
+      def debug: Boolean = CriteriaDebug
+    }.toList
   }
 
   object visual{
@@ -263,6 +330,15 @@ object Tarea1App extends App{
 
 //  Tarea1.Debug() = true
 
+  def processArgsForTimeSpan(): Option[FiniteDuration] =
+    if(args.nonEmpty) {
+      val dur = Duration(args.mkString(" ")).ensuring(_.isFinite())
+      Some(FiniteDuration(dur.length, dur.unit))
+    }
+    else None
+
+  implicit val pauseBetweenExecs = PauseBetweenExecs(processArgsForTimeSpan getOrElse defaultPauseBetweenExecs)
+
   val env = environment(Option(Agents.Id.dummy))
 //  val env = TestEnvironment.test1(Option(Agents.Id.dummy))
   val overseer = Tarea1.overseer(env, timeouts, visual.mapRenderer, visual.easel, visual.howToDrawTheMap)
@@ -275,6 +351,7 @@ object Tarea1App extends App{
   val ag = new MyDummyAgent[Exec](
     overseer.ref,
     setup.criteria,
+    setup.backupCriteria,
     (setup.findPossibleActions[Exec] _).curried,
     Agents.Id.dummy,
     foreseeingDepth)
@@ -315,25 +392,26 @@ object Tarea1PauseSceneKeeper{
 }
 
 class Tarea1PauseScene(render: () => Unit)(implicit easel: NicolLike2DEasel) extends PauseScene[NicolLike2DEasel](
-  onPause = {
-    Tarea1App.ag.executionLoop.pause()
-    render()
-  }.lifted,
+  onPause = render,
   onResume = Tarea1App.ag.executionLoop.resume().lifted,
   endScene = Tarea1EndScene.lifted,
   resumeScene = Tarea1LastSceneKeeper.scene.lifted,
-  pausedMessage = "Agent Execution Paused" -> BasicStringDrawOps[NicolLike2DEasel](Center, Color.lightGray, "Arial", 20F, 5)
-)
+  pausedMessage = "Agent Execution Paused" -> BasicStringDrawOps[NicolLike2DEasel](StringAlignment.Left, Color.lightGray, "Arial", 20F, 5)
+){
+  override def messagePosition = (530, 300)
+ }
 
 class FinishedScene(render: () => Unit)(implicit easel: NicolLike2DEasel) extends PauseScene[NicolLike2DEasel] (
   onPause = render,
   onResume = {}.lifted,
   endScene = Tarea1EndScene.lifted,
   resumeScene = () => null,
-  pausedMessage = "Agent Execution Finished" -> BasicStringDrawOps[NicolLike2DEasel](Center, Color.green, "Arial", 20F, 5)
+  pausedMessage = "Agent Execution Finished" -> BasicStringDrawOps[NicolLike2DEasel](StringAlignment.Left, Color.green, "Arial", 20F, 5)
 ){
   override def processPressedKey: PartialFunction[String, Scene] = PartialFunction[String, Scene]{
     case `resumeKey` => this
     case `quitKey` => endScene()
   }
+
+  override def messagePosition = (530, 300)
 }

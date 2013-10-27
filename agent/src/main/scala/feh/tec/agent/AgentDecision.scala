@@ -1,40 +1,84 @@
 package feh.tec.agent
 
+import scala.collection.mutable
+import feh.tec.util.Debugging
+
 object AgentDecision{
-  trait ExtendedDecision[D]{
+  trait AbstractDecision[D]{
     def decision: D
   }
 
-  trait DecisionStrategy[Action, DArg, D]{ self =>
-    type DExtended <: ExtendedDecision[D] 
-    def decide: DArg => DExtended 
-
-    def failsafe(isFail: DExtended => Boolean,
-                 onFail: (DArg, DExtended) => DExtended): FailsafeDecisionStrategy[Action, DArg, D, self.type]
+  trait DecisionStrategy[Action <: AbstractAction, -Arg, +Decision]{
+    def name: String
+    def decide: Arg => Decision
   }
 
-  trait FailsafeDecisionStrategy[Action, DArg, D, G <: DecisionStrategy[Action, DArg, D]] extends DecisionStrategy[Action, DArg, D]{
-    type DExtended = G#DExtended
 
-    def guardedStrategy: G
-    def strategyFailed: G#DExtended => Boolean
-    def onFailure: (DArg, G#DExtended) => DExtended
+  trait FailsafeDecisionStrategy[Action <: AbstractAction, Arg, Decision] extends DecisionStrategy[Action, Arg, Decision] with Debugging{
+    def decisionsChain: Seq[FailsafeDecisionStrategy.FailProbeStrategy[Action, Arg, Decision]]
+    def lastStrategy: DecisionStrategy[Action, Arg, Decision]
 
-    def decide: (DArg) => DExtended = { arg =>
-      val g = guardedStrategy.decide(arg)
-      if(strategyFailed(g)) onFailure(arg, g)
-      else g
+    
+    
+    def decide: (Arg) => Decision = arg => (Option.empty[Decision] /: decisionsChain)(
+      (acc, str) =>
+        acc orElse {
+          str.strategy.decide(arg) match{
+            case dec if str fail dec =>
+              debugLog(s"strategy '${str.strategy.name}' has failed, proceeding to failsafe strategy")
+              None
+            case dec =>
+              debugLog(s"strategy '${str.strategy.name}' provided an acceptable decision to proceed")
+              Some(dec)
+          }
+        }
+      ) getOrElse {
+      debugLog(s"using last strategy ${lastStrategy.name}")
+      lastStrategy.decide(arg)
     }
   }
+  
+  object FailsafeDecisionStrategy{
+    var Debug = false
 
-  case class GenericFailsafeDecisionStrategy[Action, DArg, D, G <: DecisionStrategy[Action, DArg, D]](guardedStrategy: G, strategyFailed: G#DExtended => Boolean, onFailure: (DArg, G#DExtended) => G#DExtended)
-    extends FailsafeDecisionStrategy[Action, DArg, D, G]
+    case class FailProbeStrategy[Action <: AbstractAction, Arg, Decision](fail: Decision => Boolean, strategy: DecisionStrategy[Action, Arg, Decision])
+
+    def Builder[Action <: AbstractAction, Arg, Decision](init: DecisionStrategy[Action, Arg, Decision]): Builder[Action, Arg, Decision] = new Builder[Action, Arg, Decision](init)
+
+    class Builder[Action <: AbstractAction, Arg, Decision](init: DecisionStrategy[Action, Arg, Decision]){
+      builder =>
+
+      protected val decisionsChain = mutable.Buffer[FailProbeStrategy[Action, Arg, Decision]]()
+      protected var lastStrategy = init
+      
+      def append(previousFailed: Decision => Boolean, strategy: DecisionStrategy[Action, Arg, Decision]): Builder[Action, Arg, Decision] = {
+        decisionsChain += FailProbeStrategy(previousFailed, lastStrategy)
+        lastStrategy = strategy
+        this
+      }
+
+      def build(): FailsafeDecisionStrategy[Action, Arg, Decision]  = new FailsafeDecisionStrategy[Action, Arg, Decision]{
+        val decisionsChain: Seq[FailProbeStrategy[Action, Arg, Decision]] = builder.decisionsChain
+        val lastStrategy: DecisionStrategy[Action, Arg, Decision] = builder.lastStrategy
+
+        val debug: Boolean = Debug
+        val debugMessagePrefix: String = "[FailsafeDecisionStrategy] "
+        val name: String = "chained strategy: " + (decisionsChain.map(_.strategy.name) :+ lastStrategy.name).mkString(",")
+      }
+    }
+  }
+  
+  case class ExtendedCriteriaBasedDecision[D, Position, EnvState, EnvGlobal, Action <: AbstractAction,
+                                           Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
+                                           Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env],
+                                           M <: AgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action, Env, M]]
+  (decision: D, consideredOptionsCriteriaValues: Seq[Set[M#CriterionValue]]) extends AbstractDecision[D]
   {
-    self =>
+    def map[R](f: D => R): ExtendedCriteriaBasedDecision[R, Position, EnvState, EnvGlobal, Action, Env, Exec, M] =
+      copy(f(decision), consideredOptionsCriteriaValues)
 
-    def failsafe(isFail: DExtended => Boolean,
-                 onFail: (DArg, DExtended) => DExtended): FailsafeDecisionStrategy[Action, DArg, D, self.type] =
-      GenericFailsafeDecisionStrategy[Action, DArg, D, this.type](this, isFail, onFail)
+    def flatMap[R](f: D => Seq[R]): Seq[ExtendedCriteriaBasedDecision[R, Position, EnvState, EnvGlobal, Action, Env, Exec, M]] =
+      f(decision).map(ExtendedCriteriaBasedDecision[R, Position, EnvState, EnvGlobal, Action, Env, Exec, M](_, consideredOptionsCriteriaValues))
   }
 
 

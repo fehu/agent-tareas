@@ -14,13 +14,14 @@ object Agents {
   object MyDummyAgent{
     object RandomlyChosenCriteriaValue extends StatelessAgentPerformanceMeasure.CalculatedCriterion[Position, EnvState, EnvGlobal, Action, Env, Measure]("Randomly chosen", 0)
 
-    def randomlyMoving(ref: Environment#Ref, freq: FiniteDuration) =
-      new MyDummyAgent[InfExec](ref, Nil, _ => _ => Set(), agentId, -1) { agent =>
+    def randomlyMoving(ref: Environment#Ref, freq: FiniteDuration) ={
+      implicit def pauseBetweenExecs = PauseBetweenExecs(freq)
+
+      new MyDummyAgent[InfExec](ref, Nil, Nil, _ => _ => Set(), agentId, -1) { agent =>
 
         override def decide(currentPerception: Perception): ActionExplanation =
           CriteriaReasonedDecision[Position, EnvState, EnvGlobal, Action, Env, InfExec, Measure](Move.all.toSeq.randomChoose, Set(RandomlyChosenCriteriaValue), 0)
-
-        override lazy val executionLoop: InfExec = execLoopBuilder.buildExec(agent).copy(pauseBetweenExecs = freq)
       }
+    }
   }
 }

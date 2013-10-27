@@ -32,7 +32,7 @@ class Environment(buildTilesMap: Map => Seq[Tile],
                   val effects: PartialFunction[Action, Environment => Environment],
                   val initGlobalState: Global,
                   mapStateBuilder: MapStateBuilder[Coordinate, Tile, Map, State])
-  extends Map(null, xRange, yRange)
+  extends Map(xRange, yRange, null)
   with MutableMapEnvironment[Map, Tile, Coordinate, State, Global, Action, Environment]
   with FullyAccessible[Coordinate, State, Global, Action, Environment]
   with Deterministic[Coordinate, State, Global, Action, Environment]
@@ -73,6 +73,8 @@ class Environment(buildTilesMap: Map => Seq[Tile],
 
   override def tiles: Seq[Tile] = super[MutableMapEnvironment].tiles
   override def agentsPositions: Predef.Map[AgentId, Tile] = super[MutableMapEnvironment].agentsPositions
+
+  def mapSnapshot: MapSnapshot[Map, Tile, Coordinate] = Map.snapshotBuilder.snapshot(this)
 }
 
 class Overseer(actorSystem: ActorSystem,
@@ -116,7 +118,7 @@ class Overseer(actorSystem: ActorSystem,
         with MapEnvironmentSnapshot[Map, Tile, Coordinate, State, Global, Action, Environment]
       {
 
-        val mapSnapshot: MapSnapshot[Map, Tile, Coordinate] = Map.snapshotBuilder.snapshot(env)
+        override val mapSnapshot: MapSnapshot[Map, Tile, Coordinate] = Map.snapshotBuilder.snapshot(env)
 
         override def initTiles: Seq[Tile] = _tilesMap.values.toSeq
         override val states = _states
