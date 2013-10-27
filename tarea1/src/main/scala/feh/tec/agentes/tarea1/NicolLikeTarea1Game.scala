@@ -25,9 +25,10 @@ object AgentRef{
 
 class NicolLikeTarea1Game(val env: Environment, val agRef: AgentRef) extends NicolLikeTileGame with Tarea1Types{
   protected val pauseEndApi: PauseEndGameInnerApi = new PauseEndGameInnerApi{
-    lazy val pauseScene = new Tarea1PauseScene(render())
+    lazy val pauseScene = new Tarea1PauseScene(render().lifted)
 
     def pauseScene(resume: Scene): Scene = {
+      Tarea1App.ag.executionLoop.pause()
       Tarea1LastSceneKeeper.scene = resume
       pauseScene
     }
@@ -41,7 +42,7 @@ class NicolLikeTarea1Game(val env: Environment, val agRef: AgentRef) extends Nic
 
   def finishedScene = new FinishedScene(render)
 
-  protected def initScene: Scene = Init("Tarea1 v. 0.01", 900, 600)
+  protected def initScene: Scene = Init("Agent Closing Hole With Plugs \t v. 0.2", 900, 600)
   protected def baseScene: Scene = new NicolLikeBasicScene(render().lifted, pauseEndApi.endScene.lifted, finishedScene.lifted, gameExecutionFinished().lifted, pauseEndApi.pauseScene)
 
   val criteriaRendererScheme = CriteriaReasonedDecisionRenderer.Scheme(

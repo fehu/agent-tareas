@@ -392,15 +392,14 @@ object Tarea1PauseSceneKeeper{
 }
 
 class Tarea1PauseScene(render: () => Unit)(implicit easel: NicolLike2DEasel) extends PauseScene[NicolLike2DEasel](
-  onPause = {
-    Tarea1App.ag.executionLoop.pause()
-    render()
-  }.lifted,
+  onPause = render,
   onResume = Tarea1App.ag.executionLoop.resume().lifted,
   endScene = Tarea1EndScene.lifted,
   resumeScene = Tarea1LastSceneKeeper.scene.lifted,
-  pausedMessage = "Agent Execution Paused" -> BasicStringDrawOps[NicolLike2DEasel](Center, Color.lightGray, "Arial", 20F, 5)
-)
+  pausedMessage = "Agent Execution Paused" -> BasicStringDrawOps[NicolLike2DEasel](StringAlignment.Left, Color.lightGray, "Arial", 20F, 5)
+){
+  override def messagePosition = (530, 300)
+ }
 
 class FinishedScene(render: () => Unit)(implicit easel: NicolLike2DEasel) extends PauseScene[NicolLike2DEasel] (
   onPause = render,

@@ -72,7 +72,7 @@ object Criteria {
      *    without taking in consideration agent's movement specifics, but considering which tiles the agent can walk into
      *
      */
-    def distanceToClosestPlugHolePair = criterion("distance from agent to the closest plug and the plug to the closet hole",
+    def distanceToClosestPlugHolePair = criterion("distance from agent to the closest plug\n and the plug to the closet hole",
       sn => {
         val agPos = sn.asEnv.agentsPositions(agentId)
         val closetPlugs = findClosetRespectingHoles(agPos, _.asTile.exists(_.isPlug), sn)
