@@ -131,13 +131,10 @@ object Tarea1 {
           val strategy = super.createBehaviorSelectionStrategy
           FailsafeDecisionStrategy.Builder(strategy)
             .append(
-              p => {
-                val t = p
-                val y = t.consideredOptionsCriteriaValues.flatten.distinct.size == 1
-                y
-              },
+              _.consideredOptionsCriteriaValues.flatten.distinct.size == 1,
               new IdealForeseeingAgentDecisionStrategies.MeasureBasedForeseeingDecisionStrategy[Position, EnvState, EnvGlobal, Action, Env, Exec, Measure, agent.type](foreseeingDepth, debug){
                 override lazy val rewriteCriteria: Option[Measure#Criteria] = Some(backupCriteria)
+                override def tacticalOptionsIncludeShorter: Boolean = false
               }
             )
             .build()
@@ -215,6 +212,21 @@ object Tarea1 {
       Environment.initGlobal,
       Environment.mapStateBuilder
     )
+
+  def relativePosition(ranges: AbstractSquareMap[SqTile]#CoordinatesMeta)
+                      (of:  Agent.Position, relativelyTo:  Agent.Position): SimpleDirection = {
+    import ranges._
+    import SimpleDirection._
+
+    relativelyTo -> of match{
+      case ((x1, y1), (x2, y2)) if x1 == x2 && (y2 == y1 + 1 || y1 == yRange.max && y2 == yRange.min) => Down
+      case ((x1, y1), (x2, y2)) if x1 == x2 && (y2 == y1 - 1 || y1 == yRange.min && y2 == yRange.max) => Up
+      case ((x1, y1), (x2, y2)) if y1 == y2 && (x2 == x1 - 1 || x1 == xRange.min && x2 == xRange.max) => Left
+      case ((x1, y1), (x2, y2)) if y1 == y2 && (x2 == x1 + 1 || x1 == xRange.max && x2 == xRange.min) => Right
+      case (c1, c2) => sys.error(s"$c1 and $c2 are not neighbouring tiles")
+    }
+  }
+
 }
 
 trait Tarea1AppSetup{
@@ -231,31 +243,18 @@ object Tarea1App extends App{
   val CriteriaDebug = false
 
   import Tarea1._
+  import Agent._
 
   implicit val actorSystem = ActorSystem()
 
+
+
   val setup: Tarea1AppSetup = new Tarea1AppSetup {
-    import Agent._
-
-    def relativePosition(ranges: AbstractSquareMap[SqTile]#CoordinatesMeta)//(xRange: Range, yRange: Range)
-                        (of: Position, relativelyTo: Position): SimpleDirection = {
-      import ranges._
-      import SimpleDirection._
-
-      of -> relativelyTo match{
-        case ((x1, y1), (x2, y2)) if x1 == x2 && (y2 == y1 + 1 || y1 == yRange.max && y2 == yRange.min) => Down
-        case ((x1, y1), (x2, y2)) if x1 == x2 && (y2 == y1 - 1 || y1 == yRange.min && y2 == yRange.max) => Up
-        case ((x1, y1), (x2, y2)) if y1 == y2 && (x2 == x1 - 1 || x1 == xRange.min && x2 == xRange.max) => Left
-        case ((x1, y1), (x2, y2)) if y1 == y2 && (x2 == x1 + 1 || x1 == xRange.max && x2 == xRange.min) => Right
-        case (c1, c2) => sys.error(s"$c1 and $c2 are not neighbouring tiles")
-      }
-    }
-
     def findPossibleActions[Exec <: ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, MyDummyAgent[Exec]]]
       (ag: MyDummyAgent[Exec], perc: MyDummyAgent[Exec]#Perception): Set[Action] =
         perc.mapSnapshot.getSnapshot(perc.position).neighboursSnapshots
           .filterNot(_.asTile.contents.exists(_.isHole))
-          .map(tile => relativePosition(perc.mapSnapshot.coordinates)(perc.position, tile.coordinate))
+          .map(tile => relativePosition(perc.mapSnapshot.coordinates)(tile.coordinate, perc.position))
           .map(Move(_)).toSet
 
     def criteria: Seq[Criterion[Position, EnvState, EnvGlobal, Action, Env, Measure]] =

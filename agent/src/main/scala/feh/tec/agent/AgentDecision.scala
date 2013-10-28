@@ -1,7 +1,7 @@
 package feh.tec.agent
 
 import scala.collection.mutable
-import feh.tec.util.Debugging
+import feh.tec.util._
 
 object AgentDecision{
   trait AbstractDecision[D]{
@@ -11,6 +11,8 @@ object AgentDecision{
   trait DecisionStrategy[Action <: AbstractAction, -Arg, +Decision]{
     def name: String
     def decide: Arg => Decision
+    
+    def reset()
   }
 
 
@@ -22,7 +24,7 @@ object AgentDecision{
     
     def decide: (Arg) => Decision = arg => (Option.empty[Decision] /: decisionsChain)(
       (acc, str) =>
-        acc orElse {
+        acc.$(_ => str.strategy.reset()) orElse {
           str.strategy.decide(arg) match{
             case dec if str fail dec =>
               debugLog(s"strategy '${str.strategy.name}' has failed, proceeding to failsafe strategy")
@@ -32,10 +34,10 @@ object AgentDecision{
               Some(dec)
           }
         }
-      ) getOrElse {
-      debugLog(s"using last strategy ${lastStrategy.name}")
-      lastStrategy.decide(arg)
-    }
+      ) $ (_ => lastStrategy.reset()) getOrElse {
+        debugLog(s"using last strategy ${lastStrategy.name}")
+        lastStrategy.decide(arg)
+      }
   }
   
   object FailsafeDecisionStrategy{
@@ -64,6 +66,11 @@ object AgentDecision{
         val debug: Boolean = Debug
         val debugMessagePrefix: String = "[FailsafeDecisionStrategy] "
         val name: String = "chained strategy: " + (decisionsChain.map(_.strategy.name) :+ lastStrategy.name).mkString(",")
+
+        def reset(): Unit = {
+          decisionsChain.foreach(_.strategy.reset())
+          lastStrategy.reset()
+        }
       }
     }
   }

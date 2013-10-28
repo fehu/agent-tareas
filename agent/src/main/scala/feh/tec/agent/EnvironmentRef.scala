@@ -61,8 +61,20 @@ trait ForeseeableEnvironmentRef[Coordinate, State, Global, Action <: AbstractAct
                                 Env <: Environment[Coordinate, State, Global, Action, Env] with ForeseeableEnvironment[Coordinate, State, Global, Action, Env]]
   extends PredictableEnvironmentRef[Coordinate, State, Global, Action, Env]
 {
-  def foresee(depth: Int, possibleActions: EnvironmentSnapshot[Coordinate, State, Global, Action, Env] => Set[Action]): Map[Seq[Action], Env#Prediction]
-  def asyncForesee(depth: Int, possibleActions: EnvironmentSnapshot[Coordinate, State, Global, Action, Env] => Set[Action]): Future[Map[Seq[Action], Env#Prediction]]
+  /**
+   *
+   * @param possibleActions previous actions => current snapshot => possible actions
+   * @param includeShorter include action seqs of length less then foreseeing depth
+   * @param excludeTurningBack exclude action seqs that pass twice same state
+   */
+  def foresee(depth: Int,
+              possibleActions: Seq[Action] => EnvironmentSnapshot[Coordinate, State, Global, Action, Env] => Set[Action],
+              includeShorter: Boolean,
+              excludeTurningBack: Boolean): Map[Seq[Action], Env#Prediction]
+  def asyncForesee(depth: Int,
+                   possibleActions: Seq[Action] => EnvironmentSnapshot[Coordinate, State, Global, Action, Env] => Set[Action],
+                   includeShorter: Boolean,
+                   excludeTurningBack: Boolean): Future[Map[Seq[Action], Env#Prediction]]
 }
 
 /*
@@ -91,11 +103,11 @@ trait EnvironmentRefBlockingApiImpl[Coordinate, State, Global, Action <: Abstrac
  * should be mixed-in last
  */
 trait EnvironmentSnapshot[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]]
-  extends Environment[Coordinate, State, Global, Action, Env] /*with Determinism[Coordinate, State, Global, Action]*/{
+  extends Environment[Coordinate, State, Global, Action, Env]
+{
   self: Env =>
 
-
-  val states: PartialFunction[Coordinate, State]
+  def states: Map[Coordinate, State]
   val effects: PartialFunction[Action, (Env) => Env]
   val definedAt: Seq[Coordinate]
   val globalState: Global
@@ -107,6 +119,14 @@ trait EnvironmentSnapshot[Coordinate, State, Global, Action <: AbstractAction, E
   def affected(act: Action): SideEffect[Env] = SideEffect(this)
 
   def asEnv: Env with EnvironmentSnapshot[Coordinate, State, Global, Action, Env] = self
+
+  override def equals(obj: scala.Any): Boolean = PartialFunction.cond(obj){
+    case snap: EnvironmentSnapshot[_, _, _, _, _] =>
+      snap.globalState == this.globalState &&
+      snap.states == this.states
+  }
+
+  override def toString: String = s"EnvironmentSnapshot($globalState, $states)"
 }
 
 /**

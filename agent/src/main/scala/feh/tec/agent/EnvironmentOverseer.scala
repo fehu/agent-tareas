@@ -251,7 +251,16 @@ trait ForeseeingEnvironmentOverseer[Coordinate, State, Global, Action <: Abstrac
                                      with ForeseeableEnvironment[Coordinate, State, Global, Action, Env]]{
   self: PredictingEnvironmentOverseer[Coordinate, State, Global, Action, Env] =>
 
-  def foresee(depth: Int, possibleActions: EnvironmentSnapshot[Coordinate, State, Global, Action, Env] => Set[Action]): Map[Seq[Action], Env#Prediction]
+  /**
+   *
+   * @param possibleActions previous actions => current snapshot => possible actions
+   * @param includeShorter include action seqs of length less then foreseeing depth
+   * @param excludeTurningBack exclude action seqs that pass twice same state
+   */
+  def foresee(depth: Int,
+              possibleActions: (Seq[Action]) => (EnvironmentSnapshot[Coordinate, State, Global, Action, Env]) => Set[Action],
+              includeShorter: Boolean,
+              excludeTurningBack: Boolean): Map[Seq[Action], Env#Prediction]
 }
 
 trait ForeseeingEnvironmentOverseerWithActor[Coordinate, State, Global, Action <: AbstractAction,
@@ -262,22 +271,27 @@ trait ForeseeingEnvironmentOverseerWithActor[Coordinate, State, Global, Action <
   overseer: PredictingEnvironmentOverseer[Coordinate, State, Global, Action, Env] =>
 
   case class Foresee(possibleActions: EnvironmentSnapshot[Coordinate, State, Global, Action, Env] => Set[Action], depth: Int) extends UUIDed
+  case class ForeseeExtended(possibleActions: Seq[Action] => EnvironmentSnapshot[Coordinate, State, Global, Action, Env] => Set[Action],
+                             depth: Int, includeShorter: Boolean, excludeTurningBack: Boolean) extends UUIDed
   case class Foresight(uuid: UUID, predictions: Map[Seq[Action], Env#Prediction]) extends HasUUID
 
   def foreseeMaxDelay: FiniteDuration
 
   protected def foreseeingActorResponses: PartialFunction[Any, () => Unit] = {
-    case msg@Foresee(possibleActions, depth) => Foresight(msg.uuid, overseer.foresee(depth, possibleActions)).liftUnit
+    case msg@ForeseeExtended(possibleActions, depth, includeShorter, excludeTurningBack) => overseer.foresee(depth, possibleActions, includeShorter, excludeTurningBack).liftUnit
   }
 
   trait ForeseeableEnvironmentRefImpl extends ForeseeableEnvironmentRef[Coordinate, State, Global, Action, Env]{
-    def foresee(depth: Int, possibleActions: EnvironmentSnapshot[Coordinate, State, Global, Action, Env] => Set[Action]): Map[Seq[Action], Env#Prediction] =
-      overseer.foresee(depth, possibleActions)
-    def asyncForesee(depth: Int, possibleActions: EnvironmentSnapshot[Coordinate, State, Global, Action, Env] => Set[Action]): Future[Map[Seq[Action], Env#Prediction]] =
-      Foresee(possibleActions, depth) |> { msg =>
-        (overseer.actorRef ? msg)(foreseeMaxDelay)
-          .mapTo[Foresight].havingSameUUID(msg).map(_.predictions)
+    def foresee(depth: Int, possibleActions: (Seq[Action]) => (EnvironmentSnapshot[Coordinate, State, Global, Action, Env]) => Set[Action], includeShorter: Boolean, excludeTurningBack: Boolean): Map[Seq[Action], Env#Prediction] =
+      overseer.foresee(depth, possibleActions, includeShorter, excludeTurningBack)
+
+    def asyncForesee(depth: Int, possibleActions: (Seq[Action]) => (EnvironmentSnapshot[Coordinate, State, Global, Action, Env]) => Set[Action], includeShorter: Boolean, excludeTurningBack: Boolean): Future[Map[Seq[Action], Env#Prediction]] =
+      ForeseeExtended(possibleActions, depth, includeShorter, excludeTurningBack) |> {
+        msg =>
+          (overseer.actorRef ? msg)(foreseeMaxDelay)
+            .mapTo[Foresight].havingSameUUID(msg).map(_.predictions)
       }
+
   }
 }
 
@@ -290,28 +304,42 @@ trait ForeseeingMutableDeterministicEnvironmentOverseer[Coordinate, State, Globa
 {
   self: PredictingMutableDeterministicEnvironmentOverseer[Coordinate, State, Global, Action, Env] =>
 
-  def foresee(maxDepth: Int, possibleActions: EnvironmentSnapshot[Coordinate, State, Global, Action, Env] => Set[Action]): Map[Seq[Action], Env#Prediction] = {
+  @deprecated
+  def foresee(maxDepth: Int, possibleActions: EnvironmentSnapshot[Coordinate, State, Global, Action, Env] => Set[Action]): Map[Seq[Action], Env#Prediction] =
+    foresee(maxDepth, _ => possibleActions, includeShorter = false, excludeTurningBack = false)
+
+  def foresee(maxDepth: Int, possibleActions: (Seq[Action]) => (EnvironmentSnapshot[Coordinate, State, Global, Action, Env]) => Set[Action], includeShorter: Boolean, excludeTurningBack: Boolean): Map[Seq[Action], Env#Prediction] = {
     debugLog(s"foreseeing for $maxDepth possible actions ahead")
 
     def getPrediction(act: Action, snapshot: CustomisableEnvironmentSnapshot[Coordinate, State, Global, Action, Env] with Env) = predictOnSnapshot(act, snapshot.copy())
 
-    def getPossActions(mSnapshot: CustomisableEnvironmentSnapshot[Coordinate, State, Global, Action, Env] with Env) = possibleActions(mSnapshot.snapshot())
+    def getPossActions(previous: Seq[Action], mSnapshot: CustomisableEnvironmentSnapshot[Coordinate, State, Global, Action, Env] with Env) = possibleActions(previous)(mSnapshot.snapshot())
 
     def rec(depth: Int,
             snapshot: CustomisableEnvironmentSnapshot[Coordinate, State, Global, Action, Env] with Env,
-            previousActs: Seq[Action],
-            currentAction: Action): Set[(Seq[Action], Env#Prediction)] ={
-
+            previousActsWithPredictions: Seq[(Action,  EnvironmentSnapshot[Coordinate, State, Global, Action, Env])],
+            currentAction: Action): Set[(Seq[Action], Env#Prediction)] = {
+      val previousActs = previousActsWithPredictions.map(_._1)
       debugLog(s"foreseeing recursively: depth=$depth, previous actions=$previousActs, current action=$currentAction")
-      if(depth == maxDepth) Set((previousActs :+ currentAction) -> getPrediction(currentAction, snapshot).snapshot())
-      else getPossActions(snapshot).flatMap(rec(depth + 1, getPrediction(currentAction, snapshot), previousActs :+ currentAction, _))
+      val currentActions =  previousActs :+ currentAction
+      val currentSnapshot = snapshot.snapshot()
+      val prediction = getPrediction(currentAction, snapshot)
+      def nextLengthPossActions = getPossActions(currentActions, snapshot)
+        .flatMap(rec(depth + 1, prediction, previousActsWithPredictions :+ (currentAction -> currentSnapshot), _))
+      def currentActionsWithPrediction = (previousActs :+ currentAction) -> prediction.snapshot()
+
+      if(excludeTurningBack && previousActsWithPredictions.exists(_._2 == currentSnapshot)) return Set()
+
+      if(depth == maxDepth) Set(currentActionsWithPrediction)
+      else if(includeShorter) Set(currentActionsWithPrediction) ++ nextLengthPossActions
+      else nextLengthPossActions
     }
 
-
     val initSnapshot = mutableSnapshot()
-    val poss = getPossActions(initSnapshot)
+    val poss = getPossActions(Nil, initSnapshot)
     val res = poss.flatMap(rec(1, initSnapshot, Nil, _)).toMap
     res
   }
+
 
 }

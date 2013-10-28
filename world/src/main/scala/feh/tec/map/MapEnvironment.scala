@@ -65,6 +65,7 @@ trait MutableMapEnvironment[Map <: AbstractMap[Tile, Coordinate],
   def tiles: Seq[Tile] = tilesAsMap.values.toSeq
 
   def stateByTile(tile: Tile): State
+  def statesAsMap = tilesAsMap mapValues stateByTile
   override def states: PartialFunction[Coordinate, State] = PartialFunction(tilesAsMap.apply _ andThen stateByTile)
   override def states_=(pf: PartialFunction[Coordinate, State]): Unit = {}
 
@@ -101,7 +102,7 @@ trait MapEnvironmentRef[Coordinate, State <: MapState[Coordinate, Tile, Map], Gl
                         Tile <: AbstractTile[Tile, Coordinate], Map <: AbstractMap[Tile, Coordinate]]
   extends EnvironmentRef[Coordinate, State, Global, Action, Env]
 {
-  def getMap(e: Env#Ref): MapSnapshot[Map, Tile, Coordinate]
+  def getMap: MapSnapshot[Map, Tile, Coordinate]
   def getMap(s: EnvironmentSnapshot[Coordinate, State, Global, Action, Env]): MapSnapshot[Map, Tile, Coordinate]
   def position(a: AbstractAgent[Coordinate, State, Global, Action, Env] with InAbstractMapEnvironment[Coordinate, State, Global, Action, Env, Tile, Map]): Coordinate
   def position(id: AgentId): Option[Coordinate]
@@ -151,7 +152,7 @@ trait InAbstractMapEnvironment[Position,
 
   def sense(env: EnvRef): Perception =
     new MapPerception{
-      val mapSnapshot = env.getMap(env).asInstanceOf[MapSnapshot[Map, Tile, Position] with Map] // todo: casting
+      val mapSnapshot = env.getMap.asInstanceOf[MapSnapshot[Map, Tile, Position] with Map] // todo: casting
 
       lazy val connectedStates: TilesConnections = TilesConnections(mapSnapshot, perceived, position)
 
@@ -240,7 +241,7 @@ trait MapEnvironmentOverseerWithActor[Map <: AbstractMap[Tile, Coordinate],
   }
 
   trait MapEnvironmentRefImpl extends MapEnvironmentRef[Coordinate, State, Global, Action, Env, Tile, Map]{
-    def getMap(e: Env#Ref): MapSnapshot[Map, Tile, Coordinate] = overseer.mapSnapshot()
+    def getMap: MapSnapshot[Map, Tile, Coordinate] = overseer.mapSnapshot()
     def getMap(s: EnvironmentSnapshot[Coordinate, State, Global, Action, Env]): MapSnapshot[Map, Tile, Coordinate] = overseer.mapSnapshot(s)
     def position(a: Ag): Coordinate = overseer.position(a)
     def position(id: AgentId): Option[Coordinate] = overseer.position(id)

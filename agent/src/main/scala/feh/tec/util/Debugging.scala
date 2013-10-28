@@ -1,5 +1,7 @@
 package feh.tec.util
 
+import scala.concurrent.duration.Duration
+
 trait Debugging {
   outer =>
 
@@ -13,6 +15,11 @@ trait Debugging {
     }
 
     def debugLog(msg: String): R = debugLog(_ => msg + ": " + r)
+    def debugLogElapsedTime(msg: Duration => String): R = {
+      val (res, time) = elapsed(r)
+      outer.debugLog(msg(time))
+      res
+    }
   }
 
   def debugMessagePrefix: String

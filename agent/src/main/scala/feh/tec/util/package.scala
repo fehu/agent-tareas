@@ -47,4 +47,11 @@ package object util {
       case _ => None
     }
   }
+
+  implicit class OptionWrapper[T](opt: Option[T]){
+    def $(u: T => Unit): Option[T] = {
+      opt foreach u
+      opt
+    }
+  }
 }

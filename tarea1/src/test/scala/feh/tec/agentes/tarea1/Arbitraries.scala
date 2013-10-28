@@ -24,13 +24,13 @@ trait Arbitraries{ self: Specification with ScalaCheck =>
     for { x <- Gen.chooseNum(10, 30); y <- Gen.chooseNum(5, 15) }
     yield new Environment(
       DummyMapGenerator.withHelpers[DummyMapGeneratorRandomPositionSelectHelper]
-        .buildTilesMap(1 to x, 1 to y)(h => (x, y) => PartialFunction.condOpt(Random.nextDouble()) {
+        .buildTilesMap(0 until x, 0 until y)(h => (x, y) => PartialFunction.condOpt(Random.nextDouble()) {
         case _ if h.uniqueRandomPosition == x -> y => AgentAvatar(agentId)
         case r if r > 0.8 => Hole()
         case r if r < 0.2 => Plug()
       }) andThen (_.values.toSeq),
-      1 to x,
-      1 to y,
+      0 until x,
+      0 until y,
       Env.effects,
       Env.initGlobal,
       Env.mapStateBuilder

@@ -61,6 +61,42 @@ class EnvironmentSpec extends Specification with ScalaCheck with Arbitraries{
   "Environment snapshots" should{
     "be accessible at all coordinates defined" in
       prop{ s: Environment#Snapshot =>  s.definedAt forall s.asEnv.get.isDefinedAt }
+    "be correctly compared" in prop{
+      ref: Environment#Ref =>
+        val pos = ref.position(agentId).get
+        val moveTiles = ref.getMap.getSnapshot(pos).neighboursSnapshots.filterNot(_.asTile.exists(_.isHole))
+
+        moveTiles.map{
+          tile =>
+            val moveCoord = tile.coordinate
+            val isPlug = tile.asTile.exists(_.isPlug)
+            val snapshot0 = ref.blocking.snapshot
+            val movement = Tarea1.relativePosition(snapshot0.coordinates)(moveCoord, pos)
+            val m1 = Move(movement)
+            ref.blocking.affect(m1)
+            val snapshot1 = ref.blocking.snapshot
+            val m2 = Move(movement.opposite)
+            ref.blocking.affect(m2)
+            val snapshot2 = ref.blocking.snapshot
+
+            val mustEqualSelf =
+              (snapshot0 mustEqual snapshot0) and
+              (snapshot1 mustEqual snapshot1) and
+              (snapshot2 mustEqual snapshot2)
+
+              mustEqualSelf and
+                (ref.position(agentId).get mustEqual pos) and (
+                if(isPlug)
+                  (snapshot0 mustNotEqual snapshot2) and
+                  (snapshot1 mustNotEqual snapshot0) and
+                  (snapshot1 mustNotEqual snapshot2)
+                else
+                  (snapshot0 mustEqual snapshot2) and
+                  (snapshot1 mustNotEqual snapshot0) and
+                  (snapshot1 mustNotEqual snapshot2)
+              )
+        }.all
+    }
   }
 
   def createTestsFolder() {   // todo

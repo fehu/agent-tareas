@@ -1,12 +1,6 @@
 * pause hides map
-* fix artifacts criteria on text rendering
+* fix artifacts on text rendering
 * string render markup for easel
-* extend criteria mechanism:
-    - determine criteria success rate
-    - assign failsafe criteria, i.e. additional criteria, used in case of previous criteria failure (insufficient success rate)
-* agent-plug-hole distance criteria needs to consider agent movements specifics(use distance not to plug,
-    but to a tile, opposite to hole's position), see fail-example-01.png
-* search for slow parts in agent-plug-hole criteria, except performance calc
-** use jprofiler to see slow parts
-* generate tactical options without ones passing same time twice
+* agent-plug-hole distance criteria needs to consider agent movements specifics, see fail-example-01.png, fail-example-02.png
 * heavy calculations must be carried out outside main agent thread in order not to interfere with pause/stop
+* maybe build Floyd-Warshall distances map only for a piece of map, that participates in criteria in order of performance enhancement

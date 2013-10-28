@@ -155,6 +155,7 @@ trait MapObj extends MapObject{
   def isAgent: Boolean = false
   def isPlug: Boolean = false
   def isHole: Boolean = false
+  def isEmpty = !isAgent && !isPlug && !isHole
 }
 case class AgentAvatar(ag: AgentId) extends MapObj {override def isAgent = true}
 case class Plug() extends MapObj { override def isPlug = true }

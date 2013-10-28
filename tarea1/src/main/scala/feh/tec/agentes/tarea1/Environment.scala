@@ -6,11 +6,9 @@ import scala.reflect.runtime.universe._
 import akka.actor._
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.{Duration, FiniteDuration}
-import scala.collection
 import feh.tec.visiual.AsyncMapDrawingEnvironmentOverseer
 import feh.tec.visual.NicolLike2DEasel
 import feh.tec.visual.api.MapRenderer
-import scala.Some
 import feh.tec.agent.AgentId
 import akka.event.Logging
 import feh.tec.util.{DebuggingSetup, GlobalDebugging, Debugging}
@@ -110,7 +108,7 @@ class Overseer(actorSystem: ActorSystem,
   protected lazy val SnapshotBuilder = new SnapshotBuilder(env)
 
   class SnapshotBuilder(env: Environment){
-    def snapshot(_states: PartialFunction[Coordinate, State] = env.states,
+    def snapshot(_states: Predef.Map[Coordinate, State] = env.statesAsMap,
                  _globalState: Global = env.globalState,
                  _tilesMap: Predef.Map[(Int, Int), SqTile] = env.tilesAsMap ): EnvironmentSnapshot[Coordinate, State, Global, Action, Environment] =
       new Environment(null, env.xRange, env.yRange, env.effects, _globalState, mapStateBuilder)
@@ -121,7 +119,7 @@ class Overseer(actorSystem: ActorSystem,
         override val mapSnapshot: MapSnapshot[Map, Tile, Coordinate] = Map.snapshotBuilder.snapshot(env)
 
         override def initTiles: Seq[Tile] = _tilesMap.values.toSeq
-        override val states = _states
+        override val states: Predef.Map[Environment.Coordinate, Environment.State] = _states
         override def states_=(pf: PartialFunction[Coordinate, State]) {}
         override val globalState = _globalState
         override def globalState_=(g: Global) {}

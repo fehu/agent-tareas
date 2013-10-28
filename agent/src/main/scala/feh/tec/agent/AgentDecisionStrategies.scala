@@ -36,6 +36,7 @@ object IdealRationalAgentDecisionStrategies {
 
     lazy val rewriteCriteria: Option[M#Criteria] = None
 
+    def reset(): Unit = {}
   }
 }
 
@@ -61,20 +62,38 @@ object IdealForeseeingAgentDecisionStrategies{
     protected var currentDecisions: Option[Decisions] = None
     protected val executeQueue = mutable.Queue.empty[Decision]
 
+    def tacticalOptionsIncludeShorter = true
+    def tacticalOptionsExcludeTurningBack = true
+    def tacticalOptionsFilterLeadingToSameState = true
+    def bestOptionsPreferShorter = true
+
+
     protected def makeDecisions(arg: Ag#DecisionArg): Decisions = arg match {
       case (ag, possibleActions) =>
         implicit val num = ag.measure.measureNumeric.asInstanceOf[Numeric[M#Measure]]
         def behavioursFunc = ag.perceiveFromSnapshot _ andThen ag.possibleBehaviors
-        val tacticalOptions = ag.env.foresee(foreseeingDepth, behavioursFunc)
-        def calcPerformance(prediction: Env#Prediction) = {
-          val (r, t) = elapsed(rewriteCriteria.map(ag.withCriteria(_)(ag.calcPerformance(prediction))) getOrElse ag.calcPerformance(prediction))
-          debugLog(s"performance calc time: $t}")
-          r
-        }
+        def filterTacticalOptions(ops: Map[scala.Seq[Action], Env#Prediction]) =
+          if(!tacticalOptionsFilterLeadingToSameState) ops
+          else ops.groupBy(_._2).map{
+            case (prediction, map) => map.keys.toSeq.randomChoose -> prediction
+          }
+
+        val tacticalOptions = ag.env
+          .foresee(foreseeingDepth, _ => behavioursFunc, includeShorter = tacticalOptionsIncludeShorter, excludeTurningBack = tacticalOptionsExcludeTurningBack)
+          .pipe(filterTacticalOptions)
+          .debugLog(ops => s"considering ${ops.size} tactical options")
+          .debugLogElapsedTime("tacticalOptions calc time: "+)
+        def calcPerformance(prediction: Env#Prediction) =
+          (rewriteCriteria.map(ag.withCriteria(_)(ag.calcPerformance(prediction))) getOrElse ag.calcPerformance(prediction))
+            .debugLogElapsedTime("performance calc time: "+)
         val estimatedPerformance = tacticalOptions.map{ case (actions, result) => actions -> calcPerformance(result)}
+          .debugLogElapsedTime("estimatedPerformance calc time: "+)
         val estimatedMeasures = estimatedPerformance.mapValues(v => v -> v.map(_.value).sum)
         val bestOptions = estimatedMeasures.filterMax(_._2._2)
-        val chosen = bestOptions.randomChoose
+        val chosen = (
+            if(tacticalOptionsIncludeShorter && bestOptionsPreferShorter) bestOptions.filterMin(_._1.length)
+            else bestOptions
+          ).randomChoose
         val criteriaMsg = CriteriaMessage[M#CriterionValue](
           beforeCriteria = "The action is part of decision sequence made by actor,\n the criteria values are presented for the whole sequence"
         )
@@ -89,5 +108,7 @@ object IdealForeseeingAgentDecisionStrategies{
         }
         executeQueue.dequeue()
     }
+
+    override def reset(): Unit = executeQueue.clear()
   }
 }
