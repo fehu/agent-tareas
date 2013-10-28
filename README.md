@@ -10,7 +10,7 @@ To build and run the project one would need the <a href="http://www.scala-sbt.or
 * To run the application execute <code>sbt run</code>
   * To run with agent execution frequency specified run <code> sbt "run execution_frequency"</code>
     where <i>execution_frequency</i> is a string, composed of duration and unit, for example:
-      1 sec      0.5 sec      200 millis
+    1 sec, 0.5 sec, 200 millis
   * The application is stopped by 'Escape' and paused/resumed by 'Space' keys
 
 IDE Integration
