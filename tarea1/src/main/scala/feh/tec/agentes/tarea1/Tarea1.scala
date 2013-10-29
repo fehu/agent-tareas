@@ -348,6 +348,8 @@ object Tarea1App extends App{
   val foreseeingDepth = 5
 
   import visual.easel
+  import Tarea1.Agents.ExecLoopBuilders._
+
   type Exec = ConditionalExec
   val ag = new MyDummyAgent[Exec](
     overseer.ref,
