@@ -1,9 +1,7 @@
 package feh.tec.agentes.tarea1
 
 import feh.tec.agent._
-import feh.tec.agent.StatelessAgentPerformanceMeasure.Criterion
 import feh.tec.map._
-import feh.tec.util.SideEffect
 import scala.concurrent.duration.FiniteDuration
 import akka.actor.{ActorRef, Props, ActorSystem, Actor}
 import akka.event.Logging
@@ -77,7 +75,7 @@ trait ExecLoopBuilder[Ag <: AbstractAgent[Exec], Exec <: ActorAgentExecutionLoop
 }
 
 class AgentInfiniteExecLoopBuilder[Ag <: AbstractAgent[AgentInfiniteExecution[Position, EnvState, EnvGlobal, Action, Env, Ag]]]
-  (pauseBetweenExecs: FiniteDuration, stopTimeout: FiniteDuration)
+  (pauseBetweenExecs: FiniteDuration, stopTimeout: FiniteDuration, actorSystem: ActorSystem)
   extends ExecLoopBuilder[Ag, AgentInfiniteExecution[Position, EnvState, EnvGlobal, Action, Env, Ag]]
 {
   outer =>
@@ -87,6 +85,7 @@ class AgentInfiniteExecLoopBuilder[Ag <: AbstractAgent[AgentInfiniteExecution[Po
       def agent: Ag = ag
       def pauseBetweenExecs: FiniteDuration = outer.pauseBetweenExecs
       def execControlTimeout: FiniteDuration = outer.stopTimeout
+      def actorSystem: ActorSystem = outer.actorSystem
     }
 }
   

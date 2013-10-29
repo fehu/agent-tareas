@@ -16,7 +16,6 @@ import feh.tec.util._
 import feh.tec.agentes.tarea1.Criteria.{DistanceToClosestPlugAndHoleCriterion, NumberOfHolesCriterion, PlugsMovingAgentCriteria}
 import scala.Predef
 import scala.concurrent.Await
-import feh.tec.visual.api.StringAlignment.Center
 import java.awt.Color
 import feh.tec.agent.StatelessAgentPerformanceMeasure.Criterion
 import scala.Some
@@ -42,6 +41,7 @@ object Tarea1 {
     case class InfExec(agent: MyDummyAgent[InfExec],
                          pauseBetweenExecs: FiniteDuration,
                          execControlTimeout: FiniteDuration)
+                      (implicit val actorSystem: ActorSystem)
       extends AgentInfiniteExecution[Position, EnvState, EnvGlobal, Action, Env, MyDummyAgent[InfExec]]
 
     case class ConditionalExec(agent: MyDummyAgent[ConditionalExec],
@@ -49,13 +49,15 @@ object Tarea1 {
                                execControlTimeout: FiniteDuration,
                                stopConditions: Set[ConditionalExec#StopCondition],
                                onFinished: () => Unit)
+                              (implicit val actorSystem: ActorSystem)
       extends AgentExecutionEnvironmentStopCondition[Position, EnvState, EnvGlobal, Action, Env, MyDummyAgent[ConditionalExec]]
     {
       def notifyFinished(): Unit = onFinished()
     }
 
     case class InfExecBuilder(pauseBetweenExecs: FiniteDuration,
-                                stopTimeout: FiniteDuration)
+                              stopTimeout: FiniteDuration)
+                             (implicit val actorSystem: ActorSystem)
       extends ExecLoopBuilder[AbstractAgent[InfExec], InfExec]
     {
       def buildExec(ag: AbstractAgent[InfExec]): InfExec =
@@ -65,7 +67,8 @@ object Tarea1 {
     case class ConditionalExecBuilder(pauseBetweenExecs: FiniteDuration,
                                       execControlTimeout: FiniteDuration,
                                       stopConditions: Set[ConditionalExec#StopCondition],
-                                      onFinished: () => Unit) extends ExecLoopBuilder[AbstractAgent[ConditionalExec], ConditionalExec]{
+                                      onFinished: () => Unit)
+                                     (implicit val actorSystem: ActorSystem) extends ExecLoopBuilder[AbstractAgent[ConditionalExec], ConditionalExec]{
       def buildExec(ag: AbstractAgent[ConditionalExec]): ConditionalExec =
         ConditionalExec(ag.asInstanceOf[MyDummyAgent[ConditionalExec]], pauseBetweenExecs, execControlTimeout, stopConditions, onFinished)
     }
@@ -78,8 +81,8 @@ object Tarea1 {
 
       case class PauseBetweenExecs(dur: FiniteDuration)
       
-      implicit def infinite(implicit pause: PauseBetweenExecs): ExecLoopBuilder[AbstractAgent[InfExec], InfExec] = InfExecBuilder(pause.dur, execControlTimeout)
-      implicit def environmentCondition(implicit pause: PauseBetweenExecs): ExecLoopBuilder[AbstractAgent[ConditionalExec], ConditionalExec] =
+      implicit def infinite(implicit pause: PauseBetweenExecs, actorSystem: ActorSystem): ExecLoopBuilder[AbstractAgent[InfExec], InfExec] = InfExecBuilder(pause.dur, execControlTimeout)
+      implicit def environmentCondition(implicit pause: PauseBetweenExecs, actorSystem: ActorSystem): ExecLoopBuilder[AbstractAgent[ConditionalExec], ConditionalExec] =
         ConditionalExecBuilder(pause.dur, execControlTimeout, Set(stopEnvCondition), Tarea1App.setFinishedScene.lifted)
     }
 
@@ -344,7 +347,6 @@ object Tarea1App extends App{
 
   val foreseeingDepth = 5
 
-  import Tarea1.Agents.ExecLoopBuilders._
   import visual.easel
   type Exec = ConditionalExec
   val ag = new MyDummyAgent[Exec](

@@ -55,6 +55,7 @@ trait AgentExecutionStopPauseImplementation[Position, EnvState, EnvGlobal, Actio
   case object Resumed
   case object AlreadyResumed
 
+
   protected var pausedFlag: Boolean = true
 
   def pause(): Unit = Await.result(agent.actorRef.ask(Pause)(execControlTimeout), execControlTimeout)
@@ -65,7 +66,7 @@ trait AgentExecutionStopPauseImplementation[Position, EnvState, EnvGlobal, Actio
 
   def receive: PartialFunction[Any, Option[Any]] = {
     case Exec if pausedFlag || stoppedFlag => None // do nothing
-    case Exec => exec(); None
+    case Exec => execActor ! Exec; None
     case Stop =>
       stoppedFlag = true
       gracefulStop(agent.actorRef, execControlTimeout)
@@ -80,6 +81,15 @@ trait AgentExecutionStopPauseImplementation[Position, EnvState, EnvGlobal, Actio
     case Pause => Some(AlreadyPaused)
     case Resume => Some(AlreadyResumed)
   } 
+
+  import akka.actor.ActorDSL._
+
+  def actorSystem: ActorSystem
+  protected val execActor = actor(actorSystem)(new Act {
+    become{
+      case Exec => exec()
+    }
+  })
 
   protected def exec()
   
