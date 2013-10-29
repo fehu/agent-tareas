@@ -216,20 +216,6 @@ object Tarea1 {
       Environment.mapStateBuilder
     )
 
-  def relativePosition(ranges: AbstractSquareMap[SqTile]#CoordinatesMeta)
-                      (of:  Agent.Position, relativelyTo:  Agent.Position): SimpleDirection = {
-    import ranges._
-    import SimpleDirection._
-
-    relativelyTo -> of match{
-      case ((x1, y1), (x2, y2)) if x1 == x2 && (y2 == y1 + 1 || y1 == yRange.max && y2 == yRange.min) => Down
-      case ((x1, y1), (x2, y2)) if x1 == x2 && (y2 == y1 - 1 || y1 == yRange.min && y2 == yRange.max) => Up
-      case ((x1, y1), (x2, y2)) if y1 == y2 && (x2 == x1 - 1 || x1 == xRange.min && x2 == xRange.max) => Left
-      case ((x1, y1), (x2, y2)) if y1 == y2 && (x2 == x1 + 1 || x1 == xRange.max && x2 == xRange.min) => Right
-      case (c1, c2) => sys.error(s"$c1 and $c2 are not neighbouring tiles")
-    }
-  }
-
 }
 
 trait Tarea1AppSetup{
@@ -257,7 +243,7 @@ object Tarea1App extends App{
       (ag: MyDummyAgent[Exec], perc: MyDummyAgent[Exec]#Perception): Set[Action] =
         perc.mapSnapshot.getSnapshot(perc.position).neighboursSnapshots
           .filterNot(_.asTile.contents.exists(_.isHole))
-          .map(tile => relativePosition(perc.mapSnapshot.coordinates)(tile.coordinate, perc.position))
+          .map(tile => perc.mapSnapshot.asMap.relativeNeighboursPosition(tile.coordinate, perc.position))
           .map(Move(_)).toSet
 
     def criteria: Seq[Criterion[Position, EnvState, EnvGlobal, Action, Env, Measure]] =
@@ -304,7 +290,7 @@ object Tarea1App extends App{
       def findClosetRespectingHoles(relativelyTo: Position, cond: (Tile#Snapshot) => Boolean, sn: Measure.Snapshot): Seq[Tile#Snapshot] =
         minDists(sn).withFilter{case ((c1, c2), d) => c1 == relativelyTo && cond(sn.asEnv.mapSnapshot.getSnapshot(c2))}.map(p => sn.asEnv.mapSnapshot.getSnapshot(p._1._2)).toSeq
       def findClosetDisregardingHoles(relativelyTo: Position, cond: Tile#Snapshot => Boolean, sn: Measure.Snapshot): Seq[Tile#Snapshot] =
-        sn.asEnv.mapSnapshot.tilesSnapshots.filter(cond).filterMin(distanceDisregardingHoles(relativelyTo, _, sn))
+        sn.asEnv.mapSnapshot.tilesSnapshots.filter(cond).filterMin(distanceDisregardingHoles(relativelyTo, _, sn)) // might be slow; can search recursively, increasing search distance
 
       def distanceRespectingHoles(p1: Position, p2: Position, sn: Measure.Snapshot): Int =
         minDists(sn).collectFirst{

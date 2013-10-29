@@ -14,7 +14,7 @@ import spray.json._
   todo: move
  */
   class Map(xRange: Range, yRange: Range, buildTilesMap: Map => Predef.Map[(Int, Int), SqTile])
-  extends AbstractSquareMap[SqTile] with EnclosedMap[SqTile, (Int, Int)] with AgentsPositionsProvidingMap[SqTile, (Int, Int)]
+    extends AbstractSquareMap[SqTile] with EnclosedSquareMap[SqTile] with AgentsPositionsProvidingMap[SqTile, (Int, Int)]
 { map =>
 
   type Tile = SqTile

@@ -64,14 +64,15 @@ class EnvironmentSpec extends Specification with ScalaCheck with Arbitraries{
     "be correctly compared" in prop{
       ref: Environment#Ref =>
         val pos = ref.position(agentId).get
-        val moveTiles = ref.getMap.getSnapshot(pos).neighboursSnapshots.filterNot(_.asTile.exists(_.isHole))
+        val mapSnap = ref.getMap
+        val moveTiles = mapSnap.getSnapshot(pos).neighboursSnapshots.filterNot(_.asTile.exists(_.isHole))
 
         moveTiles.map{
           tile =>
             val moveCoord = tile.coordinate
             val isPlug = tile.asTile.exists(_.isPlug)
             val snapshot0 = ref.blocking.snapshot
-            val movement = Tarea1.relativePosition(snapshot0.coordinates)(moveCoord, pos)
+            val movement = mapSnap.asMap.relativeNeighboursPosition(moveCoord, pos)
             val m1 = Move(movement)
             ref.blocking.affect(m1)
             val snapshot1 = ref.blocking.snapshot

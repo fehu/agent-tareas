@@ -30,6 +30,8 @@ trait MapSnapshot[+Map <: AbstractMap[Tile, Coordinate], Tile <: AbstractTile[Ti
   def get: PartialFunction[Coordinate, Tile] = ???
 
   def getSnapshot: PartialFunction[Coordinate, TileSnapshot[Tile, Coordinate]]
+
+  def asMap: Map with MapSnapshot[Map, Tile, Coordinate] = self
 }
 
 trait TileSnapshotBuilder[Tile <: AbstractTile[Tile, Coordinate], Coordinate]{
