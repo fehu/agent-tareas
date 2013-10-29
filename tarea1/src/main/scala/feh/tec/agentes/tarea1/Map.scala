@@ -99,7 +99,10 @@ object Map{
   lazy val snapshotBuilder = new SnapshotBuilder
 
   implicit class DirectionOps(map: Map){
-    def tileTo(from: (Int, Int), direction: SimpleDirection): SqTile = map.get(positionTo(from, direction))
+    def tileTo(from: (Int, Int), direction: SimpleDirection): SqTile = map match{
+      case snap: Map with MapSnapshot[Map, SqTile, (Int, Int)] => snap.getSnapshot(positionTo(from, direction)).asTile
+      case _ => map.get(positionTo(from, direction))
+    }
 
     def positionTo = MapHelper.positionTo(map.coordinates.xRange, map.coordinates.yRange) _
   }

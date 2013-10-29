@@ -48,6 +48,7 @@ trait OptionalMabObjectContainerTile[Tile <: AbstractTile[Tile, Coordinate], Con
   def isSequenceContainer: Boolean = false
   def containerObjectsToList: List[Contents] = contents.toList
   def exists(f: Contents => Boolean): Boolean = contents.exists(f)
+  def notExists(f: Contents => Boolean): Boolean = !contents.exists(f)
 }
 
 trait MapObjectListContainerTile[Tile <: AbstractTile[Tile, Coordinate], Contents <: MapObject, Coordinate]
