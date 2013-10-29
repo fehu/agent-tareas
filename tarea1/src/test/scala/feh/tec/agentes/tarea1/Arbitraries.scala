@@ -73,8 +73,8 @@ trait Arbitraries{ self: Specification with ScalaCheck =>
 
 object Conf{
   implicit def actorSystem = ActorSystem()
-  def mapRenderer = Lwjgl.createMapRenderer
-  def easel = Lwjgl.createEasel
+  def mapRenderer = NicolLikeTarea1Game.mapRenderer()
+  val easel = new NicolLike2DEasel
   def mapDrawConfig = new SquareMapDrawOptions[NicolLike2DEasel]{
     def tileSideSize: NicolLike2DEasel#CoordinateUnit = 50
     def showLabels: Boolean = true

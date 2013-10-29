@@ -38,6 +38,11 @@ class Environment(buildTilesMap: Map => Seq[Tile],
   with ForeseeableEnvironment[Coordinate, State, Global, Action, Environment]
   with Static[Coordinate, State, Global, Action, Environment]
 {
+  def this(map: Map,
+           effects: PartialFunction[Action, Environment => Environment],
+           initGlobalState: Global,
+           mapStateBuilder: MapStateBuilder[Coordinate, Tile, Map, State]) =
+    this(_ => map.tiles, map.coordinates.xRange, map.coordinates.yRange, effects, initGlobalState, mapStateBuilder)
 
   type Ref = ForeseeableEnvironmentRef[Coordinate, State, Global, Action, Environment] with MapEnvironmentRef[Coordinate, State, Global, Action, Environment, Tile, Map]
   type Snapshot = EnvironmentSnapshot[Coordinate, State, Global, Action, Environment]

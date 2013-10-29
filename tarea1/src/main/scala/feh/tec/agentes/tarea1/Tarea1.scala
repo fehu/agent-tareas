@@ -8,7 +8,7 @@ import feh.tec.map._
 import akka.actor.ActorSystem
 import scala.concurrent.duration._
 import feh.tec.agentes.tarea1.Tarea1.Agents.{ConditionalExec, MyDummyAgent}
-import feh.tec.visual.api.{StringAlignment, MapRenderer, BasicStringDrawOps}
+import feh.tec.visual.api.{SquareMapDrawOptions, StringAlignment, MapRenderer, BasicStringDrawOps}
 import feh.tec.visual.{PauseScene, NicolLike2DEasel}
 import nicol._
 import Map._
@@ -202,10 +202,15 @@ object Tarea1 {
               (implicit actorSystem: ActorSystem) =
     new Overseer(actorSystem, env, mapRenderer, easel, mapDrawConfig, Environment.mapStateBuilder, timeouts)
 
-  def environment(ag: Option[AgentId]): Environment = environment(ag,
-    DummyMapGenerator.withHelpers[DummyMapGeneratorRandomPositionSelectHelper]
-      .buildTilesMap(Environment.xRange, Environment.yRange)(Lwjgl.mapBuildingFunc(ag))
+  def environment(ag: Option[AgentId]): Environment = environment(ag, Maps.randomMap(Environment.xRange, Environment.yRange, ag))
+
+  def environment(ag: Option[AgentId], map: Map): Environment = new Environment(
+    map,
+    Environment.effects,
+    Environment.initGlobal,
+    Environment.mapStateBuilder
   )
+
   def environment(ag: Option[AgentId], buildTiles: (Map) => Predef.Map[(Int, Int), SqTile]): Environment =
     new Environment(
       buildTiles andThen (_.values.toSeq),
@@ -308,12 +313,14 @@ object Tarea1App extends App{
   }
 
   object visual{
-    val tileSideSize = Lwjgl.Settings.tileSideSize
-    val showLabels = Lwjgl.Settings.showLabels
+    val tileSideSize = 50
+    val showLabels = true
 
-    implicit val easel = Lwjgl.createEasel
-    val mapRenderer = Lwjgl.createMapRenderer
-    def howToDrawTheMap = Lwjgl.Settings.howToDrawTheMap
+    implicit val easel = new NicolLike2DEasel
+    val mapDrawConfig = new SquareMapDrawOptions[NicolLike2DEasel]{
+      def tileSideSize: NicolLike2DEasel#CoordinateUnit = visual.tileSideSize
+      def showLabels: Boolean = visual.showLabels
+    }
   }
 
 //  Tarea1.Debug() = true
@@ -327,9 +334,10 @@ object Tarea1App extends App{
 
   implicit val pauseBetweenExecs = PauseBetweenExecs(processArgsForTimeSpan getOrElse defaultPauseBetweenExecs)
 
+  val mapRenderer = NicolLikeTarea1Game.mapRenderer()
   val env = environment(Option(Agents.Id.dummy))
 //  val env = TestEnvironment.test1(Option(Agents.Id.dummy))
-  val overseer = Tarea1.overseer(env, timeouts, visual.mapRenderer, visual.easel, visual.howToDrawTheMap)
+  val overseer = Tarea1.overseer(env, timeouts, mapRenderer, visual.easel, visual.mapDrawConfig)
 
   val foreseeingDepth = 5
 
@@ -349,7 +357,7 @@ object Tarea1App extends App{
 
   val game = new NicolLikeTarea1Game(env, AgentRef.create(ag))
 
-  def renderMap(implicit easel: NicolLike2DEasel) = visual.mapRenderer.render(env, visual.howToDrawTheMap)
+  def renderMap(implicit easel: NicolLike2DEasel) = mapRenderer.render(env, visual.mapDrawConfig)
 
   val agStop = ag.execution()
 

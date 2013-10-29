@@ -9,8 +9,9 @@ import feh.tec.agentes.tarea1.Tarea1.Agents.MyDummyAgent
 import feh.tec.visual.api.BasicDrawEnvironmentSettings
 import feh.tec.visual.api.Layout
 import feh.tec.visual.api.LayoutElem
-import feh.tec.visual.render.CriteriaReasonedDecisionRenderer
+import feh.tec.visual.render.{LwjglSquare2DMapRenderer, CriteriaReasonedDecisionRenderer}
 import java.awt.Color
+import feh.tec.visual.render.LwjglSquare2DMapRenderer.BuildTDrawOpsParams
 
 trait Tarea1Types extends NicolLikeTileGame{
   type EaselTpe = NicolLike2DEasel
@@ -52,7 +53,7 @@ class NicolLikeTarea1Game(val env: Environment, val agRef: AgentRef) extends Nic
     frameColor = Some(Color.blue), sepLineColor = Some(Color.white)
   )
 
-  implicit def mapRenderer: Renderer[Map, NicolLike2DEasel] = Lwjgl.createMapRenderer
+  implicit def mapRenderer: Renderer[Map, NicolLike2DEasel] = NicolLikeTarea1Game.mapRenderer()
   implicit def criteriaValueRenderer: Renderer[agRef.ag.ActionExplanation, NicolLike2DEasel] = new CriteriaReasonedDecisionRenderer(criteriaRendererScheme)
 
   val gameLayout: Layout[NicolLike2DEasel] = Layout(List[LiftedOptionLayoutElem[_, NicolLike2DEasel]](
@@ -67,4 +68,20 @@ class NicolLikeTarea1Game(val env: Environment, val agRef: AgentRef) extends Nic
   implicit def easelCoordinateOps = NicoleLike2dEaselCoordinateOps
   implicit lazy val easel: EaselTpe = new NicolLike2DEasel
   def render(l: Layout[EaselTpe])(implicit easel: EaselTpe): Unit = l.render
+}
+
+object NicolLikeTarea1Game{
+  def mapRenderer(mapDrawConfig: NicolLike2DEasel#MDrawOptions = Tarea1App.visual.mapDrawConfig) =
+    new LwjglSquare2DMapRenderer[Map, SqTile, NicolLike2DEasel](
+      LwjglTileRenderer.create,
+      mapDrawConfig,
+      ops => BasicSquareTileDrawOptions[NicolLike2DEasel](mapDrawConfig.tileSideSize, selectColor(ops), None)
+    )
+
+  private def selectColor(ops: BuildTDrawOpsParams[Map, SqTile, NicolLike2DEasel]) = ops match {
+    case BuildTDrawOpsParams(_, _, true, true)    => Color.red
+    case BuildTDrawOpsParams(_, _, true, false)   => Color.green
+    case BuildTDrawOpsParams(_, _, false, true)   => Color.blue
+    case _ => Color.white
+  }
 }

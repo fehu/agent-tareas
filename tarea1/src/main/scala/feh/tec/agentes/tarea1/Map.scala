@@ -13,7 +13,7 @@ import spray.json._
 /*
   todo: move
  */
-  class Map(xRange: Range, yRange: Range, buildTilesMap: Map => Predef.Map[(Int, Int), SqTile])
+  class Map protected[tarea1] (xRange: Range, yRange: Range, buildTilesMap: Map => Predef.Map[(Int, Int), SqTile])
     extends AbstractSquareMap[SqTile] with EnclosedSquareMap[SqTile] with AgentsPositionsProvidingMap[SqTile, (Int, Int)]
 { map =>
 
@@ -73,6 +73,25 @@ import spray.json._
 }
 
 object Map{
+  def build(xRange: Range, yRange: Range, buildTilesMap: Map => PartialFunction[(Int, Int), SqTile]) =
+    new Map(xRange, yRange, map => {
+      val buildPf = buildTilesMap(map)
+        for{
+        x <- xRange
+        y <- yRange
+        tile = buildPf(x, y)
+      } yield (x, y) -> tile
+    }.toMap)
+  
+  def build(xRange: Range, yRange: Range)(default: Map => ((Int, Int)) => SqTile, buildTilesMap: Map => Predef.Map[(Int, Int), SqTile]) =
+    new Map(xRange, yRange, map => {
+      val tilesMap = buildTilesMap(map).withDefault(default(map))
+      for{
+        x <- xRange
+        y <- yRange
+      } yield (x, y) -> tilesMap(x, y)
+    }.toMap)
+  
   class SnapshotBuilder extends MapSnapshotBuilder[Map, SqTile, (Int, Int)]{
     lazy val tilesSnapshotBuilder = new SqTile.SnapshotBuilder
 
