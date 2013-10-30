@@ -9,7 +9,7 @@ class MapSpec extends Specification with ScalaCheck with Arbitraries{
   import Conf._
 
   "The Map (effectively 'Environment')" should {
-/*    "provide correct information about neighbouring tiles" in prop{
+    "provide correct information about neighbouring tiles" in prop{
       (overseer: Overseer) =>
         val ref = overseer.ref
         val env = overseer.env
@@ -29,7 +29,7 @@ class MapSpec extends Specification with ScalaCheck with Arbitraries{
 
         stopFunc()
         res.all
-    }*/
+    }
 
     "provide correct relative tile positions" in {
       import SimpleDirection._
