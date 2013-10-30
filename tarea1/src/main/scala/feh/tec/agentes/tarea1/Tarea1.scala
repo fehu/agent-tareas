@@ -314,7 +314,7 @@ object Tarea1App extends App{
 
   object visual{
     val tileSideSize = 50
-    val showLabels = true
+    val showLabels = false
 
     implicit val easel = new NicolLike2DEasel
     val mapDrawConfig = new SquareMapDrawOptions[NicolLike2DEasel]{

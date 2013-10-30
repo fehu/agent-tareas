@@ -25,15 +25,15 @@ trait AbstractSquareMap[Tile <: SquareTile[Tile, (Int, Int)]] extends AbstractMa
     def yRange: Range
   }
 
-  /**
-   * @return A relative position of `of` relatively to `relativelyTo` as a sequence of directions.
-   *         one direction in list means that coordinates have the same vert/horiz position;
+  /**         todo: description!!
+   * @return A relative position of `of` relatively to `relativelyTo` as a set of directions.
+   *         one direction in set means that coordinates have the same vert/horiz position;
    *         three directions can be returned by Enclosed maps,
    *           case of 3 means that the distances between two coordinates are equal for both possible vertical or horizontal routes
    *         two directions are returned in the rest of cases, e.g. A is up and left of B
-   *         Nil is returned if `of` == `relativelyTo`
+   *         Set() is returned if `of` == `relativelyTo`
    */
-  def relativePosition(of: (Int, Int), relativelyTo: (Int, Int)): Seq[SimpleDirection]
+  def relativePosition(of: (Int, Int), relativelyTo: (Int, Int)): Set[SimpleDirection]
 
   def relativeNeighboursPosition(of:  (Int, Int), relativelyTo:  (Int, Int)): SimpleDirection
 }
@@ -46,21 +46,21 @@ trait EnclosedMap[Tile <: AbstractTile[Tile, Coordinate], Coordinate] extends Ab
 }
 
 trait EnclosedSquareMap[Tile <: SquareTile[Tile, (Int, Int)]] extends AbstractSquareMap[Tile] with EnclosedMap[Tile, (Int, Int)]{
-  def relativePosition(of: (Int, Int), relativelyTo: (Int, Int)): Seq[SimpleDirection] = {
+  def relativePosition(of: (Int, Int), relativelyTo: (Int, Int)): Set[SimpleDirection] = {
     import coordinates._
     import SimpleDirection._
 
-    if(of == relativelyTo) return Nil
+    if(of == relativelyTo) return Set()
 
-    def leftUpDist(ofProjection: Int, relProjection: Int, maxRange: => Int) =
-      if(ofProjection < relProjection) relProjection - ofProjection else relProjection + maxRange - ofProjection
-    def rightDownDist(ofProjection: Int, relProjection: Int, maxRange: => Int) =
-      if(ofProjection > relProjection) ofProjection - relProjection else maxRange - relProjection + ofProjection
+    def leftUpDist(ofProjection: Int, relProjection: Int, sizeProjection: => Int) =
+      if(ofProjection < relProjection) relProjection - ofProjection else relProjection + sizeProjection - ofProjection
+    def rightDownDist(ofProjection: Int, relProjection: Int, sizeProjection: => Int) =
+      if(ofProjection > relProjection) ofProjection - relProjection else sizeProjection - relProjection + ofProjection
 
-    val leftDist = leftUpDist(of._1, relativelyTo._1, xRange.max)
-    val rightDist = rightDownDist(of._1, relativelyTo._1, xRange.max)
-    val upDist = leftUpDist(of._2, relativelyTo._2, yRange.max)
-    val downDist = rightDownDist(of._2, relativelyTo._2, yRange.max)
+    val leftDist = leftUpDist(of._1, relativelyTo._1, xRange.length)
+    val rightDist = rightDownDist(of._1, relativelyTo._1, xRange.length)
+    val upDist = leftUpDist(of._2, relativelyTo._2, yRange.length)
+    val downDist = rightDownDist(of._2, relativelyTo._2, yRange.length)
 
     def selectDirection(dir1: SimpleDirection, dir2: SimpleDirection)(dist1: Int, dist2: Int) =
       if(dist1 == dist2) dir1 :: dir2 :: Nil
@@ -70,7 +70,8 @@ trait EnclosedSquareMap[Tile <: SquareTile[Tile, (Int, Int)]] extends AbstractSq
     val horDir = selectDirection(Left, Right)(leftDist, rightDist)
     val vertDir = selectDirection(Up, Down)(upDist, downDist)
 
-    horDir ++ vertDir
+    (if(horDir.size == 2 && vertDir.nonEmpty) Set() else horDir.toSet) ++
+      (if(vertDir.size == 2 && horDir.nonEmpty) Set() else vertDir.toSet)
   }
 
   def relativeNeighboursPosition(of: (Int, Int), relativelyTo: (Int, Int)): SimpleDirection = {

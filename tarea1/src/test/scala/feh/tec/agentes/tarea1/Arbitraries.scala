@@ -23,14 +23,7 @@ trait Arbitraries{ self: Specification with ScalaCheck =>
   implicit def environment: Arbitrary[Environment] = Arbitrary{
     for { x <- Gen.chooseNum(10, 30); y <- Gen.chooseNum(5, 15) }
     yield new Environment(
-      DummyMapGenerator.withHelpers[DummyMapGeneratorRandomPositionSelectHelper]
-        .buildTilesMap(0 until x, 0 until y)(h => (x, y) => PartialFunction.condOpt(Random.nextDouble()) {
-        case _ if h.uniqueRandomPosition == x -> y => AgentAvatar(agentId)
-        case r if r > 0.8 => Hole()
-        case r if r < 0.2 => Plug()
-      }) andThen (_.values.toSeq),
-      0 until x,
-      0 until y,
+      Maps.randomMap(0 until x, 0 until y, Option(agentId)),
       Env.effects,
       Env.initGlobal,
       Env.mapStateBuilder

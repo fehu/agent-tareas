@@ -20,16 +20,18 @@ object Maps {
     }.toMap
 
 
-  def randomMap(xRange: Range, yRange: Range, agentIdOpt: Option[AgentId]) = DummyMapGenerator.withHelpers[DummyMapGeneratorRandomPositionSelectHelper]
-    .apply(xRange, yRange){
-    h => (x, y) =>
-      if (agentIdOpt.isDefined && x -> y == h.uniqueRandomPosition) Some(AgentAvatar(agentIdOpt.get))
-      else {
-        val r = Random.nextDouble()
-        if(r < 0.2) Some(Hole())
-        else if (r > 0.8) Some(Plug())
-        else None
-      }
-  }
+  def randomMap(xRange: Range, yRange: Range, agentIdOpt: Option[AgentId],
+                holeProbability: Double = .2,  plugProbability: Double = .2) =
+    DummyMapGenerator.withHelpers[DummyMapGeneratorRandomPositionSelectHelper]
+      .apply(xRange, yRange){
+        h => (x, y) =>
+          if (agentIdOpt.isDefined && x -> y == h.uniqueRandomPosition) Some(AgentAvatar(agentIdOpt.get))
+          else {
+            val r = Random.nextDouble()
+            if(r < holeProbability) Some(Hole())
+            else if (r > 1 - plugProbability) Some(Plug())
+            else None
+          }
+    }
 
 }
