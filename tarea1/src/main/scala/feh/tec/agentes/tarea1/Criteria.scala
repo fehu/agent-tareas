@@ -79,21 +79,22 @@ object Criteria {
         val agPos = sn.asEnv.agentsPositions(agentId)
         val closetPlugs = findClosetRespectingHoles(agPos, _.asTile.exists(_.isPlug), sn)
         val closetPlugHoles = closetPlugs.map(plSn => plSn -> findClosetDisregardingHoles(plSn.coordinate, _.asTile.exists(_.isHole), sn)).toMap
-        val bestPlugHoles = closetPlugHoles
-          .map{
-            case (pc, v) => pc -> v
-              .flatMap{
-                hc => relativePosition(pc, hc)
-                  .map(pseudoMap.tileTo(pc, _))
+        val bestPlugHoles = closetPlugHoles.flatMap{
+          case (plugTile, holeTiles) =>
+            holeTiles.flatMap{
+              holeTile =>
+                relativePosition(plugTile, holeTile)
+                  .map(pseudoMap.tileTo(plugTile, _))
                   .filter(_.notExists(_.isHole))
-                  .pipe(oppositeTiles => if(oppositeTiles.isEmpty) pc.asTile :: Nil else oppositeTiles)
-              }
-              .filterMin{c => distanceDisregardingHoles(pc, c, sn)}
-          }
-          .filterMin{case (k, v) => distanceRespectingHoles(agPos, k, sn)}
-        val theBest = bestPlugHoles.collectFirst{
-          case (plug, holes) if holes.nonEmpty => plug -> holes.head
-        }.get
+                  .pipe(oppositeTiles => if(oppositeTiles.isEmpty) plugTile.asTile :: Nil else oppositeTiles)
+                  .map(_ -> holeTile)
+            }
+            .filterMin{
+              case (p, h) => distanceDisregardingHoles(p, h, sn) + distanceRespectingHoles(agPos, p, sn)
+            }
+        }
+        val theBest = bestPlugHoles.randomChoose
+        debugLog(s"the best = $theBest")
         distanceRespectingHoles(agPos, theBest._1, sn) * distanceToClosetPlugWeight + distanceDisregardingHoles(theBest._1, theBest._2, sn) * distanceFromPlugToClosestHoleWeight
       }
     )

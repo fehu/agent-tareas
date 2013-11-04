@@ -129,16 +129,19 @@ object Tarea1 {
         debugLog(s"Decision taken: $a")
       }
 
+      private class BackupMeasureBasedForeseeingDecisionStrategy
+        extends IdealForeseeingAgentDecisionStrategies.MeasureBasedForeseeingDecisionStrategy[Position, EnvState, EnvGlobal, Action, Env, Exec, Measure, agent.type](foreseeingDepth, debug)
+      {
+        override lazy val rewriteCriteria: Option[Measure#Criteria] = Some(backupCriteria)
+      }
+
       override protected def createBehaviorSelectionStrategy: DecisionStrategy[Action, DecisionArg, ExtendedCriteriaBasedDecision[ActionExplanation, Position, EnvState, EnvGlobal, Action, Env, Exec, Measure]] =
         {
           val strategy = super.createBehaviorSelectionStrategy
           FailsafeDecisionStrategy.Builder(strategy)
             .append(
               _.consideredOptionsCriteriaValues.flatten.distinct.size == 1,
-              new IdealForeseeingAgentDecisionStrategies.MeasureBasedForeseeingDecisionStrategy[Position, EnvState, EnvGlobal, Action, Env, Exec, Measure, agent.type](foreseeingDepth, debug){
-                override lazy val rewriteCriteria: Option[Measure#Criteria] = Some(backupCriteria)
-                override def tacticalOptionsIncludeShorter: Boolean = false
-              }
+              new BackupMeasureBasedForeseeingDecisionStrategy
             )
             .build()
         }
@@ -335,6 +338,7 @@ object Tarea1App extends App{
   implicit val pauseBetweenExecs = PauseBetweenExecs(processArgsForTimeSpan getOrElse defaultPauseBetweenExecs)
 
   val mapRenderer = NicolLikeTarea1Game.mapRenderer()
+//  val env = environment(Option(Agents.Id.dummy), Maps.failExample1(Agents.Id.dummy))
   val env = environment(Option(Agents.Id.dummy))
 //  val env = TestEnvironment.test1(Option(Agents.Id.dummy))
   val overseer = Tarea1.overseer(env, timeouts, mapRenderer, visual.easel, visual.mapDrawConfig)
