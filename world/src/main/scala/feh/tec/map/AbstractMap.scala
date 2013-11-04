@@ -48,7 +48,7 @@ trait EnclosedMap[Tile <: AbstractTile[Tile, Coordinate], Coordinate] extends Ab
 trait EnclosedSquareMap[Tile <: SquareTile[Tile, (Int, Int)]] extends AbstractSquareMap[Tile] with EnclosedMap[Tile, (Int, Int)]{
   def relativePosition(of: (Int, Int), relativelyTo: (Int, Int)): Set[SimpleDirection] = {
     import coordinates._
-    import SimpleDirection._
+    import Simple2dDirection._
 
     if(of == relativelyTo) return Set()
 
@@ -75,7 +75,7 @@ trait EnclosedSquareMap[Tile <: SquareTile[Tile, (Int, Int)]] extends AbstractSq
 
   def relativeNeighboursPosition(of: (Int, Int), relativelyTo: (Int, Int)): SimpleDirection = {
     import coordinates._
-    import SimpleDirection._
+    import Simple2dDirection._
 
     relativelyTo -> of match{
       case ((x1, y1), (x2, y2)) if x1 == x2 && (y2 == y1 + 1 || y1 == yRange.max && y2 == yRange.min) => Down

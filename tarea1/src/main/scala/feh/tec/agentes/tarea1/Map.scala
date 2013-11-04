@@ -34,7 +34,7 @@ import spray.json._
   }
 
 
-  import SimpleDirection._
+  import Simple2dDirection._
 
   def onCoordinateGridEdge(c: (Int, Int)): Seq[SimpleDirection] = MapHelper.onCoordinateGridEdge(xRange, yRange, c)
   def onCoordinateGridEdge(tile: Tile): Seq[SimpleDirection] = onCoordinateGridEdge(tile.coordinate)
@@ -129,7 +129,7 @@ object Map{
 }
 
 object MapHelper{
-  import SimpleDirection._
+  import Simple2dDirection._
 
   def onCoordinateGridEdge(xRange: Range, yRange: Range, c: (Int, Int)): Seq[SimpleDirection] =  {
     val leftRight = PartialFunction.condOpt(c){

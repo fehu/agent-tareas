@@ -219,17 +219,17 @@ object Move{
   def apply(move: Move): SimpleDirection = direction(move)
 
   def move: PartialFunction[SimpleDirection, Move] = {
-    case SimpleDirection.Up => MoveNorth
-    case SimpleDirection.Down => MoveSouth
-    case SimpleDirection.Left => MoveWest
-    case SimpleDirection.Right => MoveEast
+    case Simple2dDirection.Up => MoveNorth
+    case Simple2dDirection.Down => MoveSouth
+    case Simple2dDirection.Left => MoveWest
+    case Simple2dDirection.Right => MoveEast
   }
 
   def direction: PartialFunction[Move, SimpleDirection] = {
-    case MoveNorth => SimpleDirection.Up
-    case MoveSouth => SimpleDirection.Down
-    case MoveWest => SimpleDirection.Left
-    case MoveEast => SimpleDirection.Right
+    case MoveNorth => Simple2dDirection.Up
+    case MoveSouth => Simple2dDirection.Down
+    case MoveWest => Simple2dDirection.Left
+    case MoveEast => Simple2dDirection.Right
   }
 
   def all = Set(MoveNorth, MoveSouth, MoveEast, MoveWest)

@@ -4,7 +4,7 @@ trait SimpleDirection{
   def opposite: SimpleDirection
 }
 
-object SimpleDirection{
+object Simple2dDirection{
   object Left extends SimpleDirection{
     def opposite: SimpleDirection = Right
     override def toString: String = "Left"

@@ -3,7 +3,7 @@ package feh.tec.agentes.tarea1
 import org.specs2.mutable.Specification
 import org.specs2.ScalaCheck
 import scala.concurrent.duration._
-import feh.tec.map.SimpleDirection
+import feh.tec.map.Simple2dDirection
 
 class MapSpec extends Specification with ScalaCheck with Arbitraries{
   import Conf._
@@ -32,7 +32,7 @@ class MapSpec extends Specification with ScalaCheck with Arbitraries{
     }
 
     "provide correct relative tile positions" in {
-      import SimpleDirection._
+      import Simple2dDirection._
       val map = Maps.randomMap(0 until 10, 0 until 10, Some(agentId))
 
       Seq(
