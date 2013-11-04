@@ -7,12 +7,12 @@ import feh.tec.agent.AgentId
 
 
 object Maps {
-  def failExample1Map(agentId: AgentId) =
+  def failExample1Setup(agentId: AgentId) =
     Seq(0 -> 0, 1 -> 1, 2 -> 3, 2 -> 4, 2 -> 6, 5 -> 2) -> Plug().lifted ::
     Seq(1 -> 5, 1 -> 7, 2 -> 7) -> Hole().lifted ::
     Seq(1 -> 6) -> AgentAvatar(agentId).lifted :: Nil
 
-  def failExample1(agentId: AgentId) = Map.build(0 until 10, 0 until 10)(map => SqTile(map, _, None), map => buildExampleMap(map, failExample1Map(agentId)))
+  def failExample1(agentId: AgentId) = Map.build(0 until 10, 0 until 10)(map => SqTile(map, _, None), map => buildExampleMap(map, failExample1Setup(agentId)))
 
   def buildExampleMap(map: Map, tilesDef: List[(Seq[(Int, Int)], Lifted[MapObj])]) =
     tilesDef.flatMap{

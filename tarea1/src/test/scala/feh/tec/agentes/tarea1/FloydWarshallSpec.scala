@@ -1,11 +1,8 @@
-package feh.tec.agentes.tarea1.test
+package feh.tec.agentes.tarea1
 
 import org.specs2.mutable.Specification
 import org.specs2.ScalaCheck
-import feh.tec.agentes.tarea1._
-import feh.tec.map.{TileSnapshot, MapSnapshot}
-import feh.tec.agentes.tarea1.Graph
-import feh.tec.agentes.tarea1.GraphNode
+import feh.tec.map.MapSnapshot
 
 class FloydWarshallSpec extends Specification with ScalaCheck with Arbitraries{
 
