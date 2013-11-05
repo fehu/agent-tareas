@@ -5,17 +5,17 @@ import feh.tec.visual.NicolLike2DEasel
 import feh.tec.visual.api._
 import feh.tec.visual.api.StringAlignment.Center
 import java.awt.Color
-import feh.tec.visual.render.LwjglSquare2DTileRenderer.BuildTDrawOpsParams
+import feh.tec.visual.render.LwjglSquareMapRenderer.BuildTDrawOpsParams
 import scala.Some
 import feh.tec.visual.api.BasicStringDrawOps
 
 
-object LwjglSquare2DTileRenderer{
+object LwjglSquareMapRenderer{
   case class BuildTDrawOpsParams[Map <: AbstractSquareMap[Tile], Tile <: SquareTile[Tile, (Int, Int)], E <: NicolLike2DEasel]
   (tile: Tile, mOps: NicolLike2DEasel#MDrawOptions with SquareMapDrawOptions[NicolLike2DEasel], highlightedX: Boolean, highlightedY: Boolean)
 }
 
-class LwjglSquare2DTileRenderer[Map <: AbstractSquareMap[Tile], Tile <: SquareTile[Tile, (Int, Int)], E <: NicolLike2DEasel]
+class LwjglSquareMapRenderer[Map <: AbstractSquareMap[Tile], Tile <: SquareTile[Tile, (Int, Int)], E <: NicolLike2DEasel]
     (val tileRenderer: LwjglAtom2DIntRenderer[Tile],
      val renderOptions: E#MDrawOptions,
      buildTDrawOps: BuildTDrawOpsParams[Map, Tile, E] => NicolLike2DEasel#TDrawOptions

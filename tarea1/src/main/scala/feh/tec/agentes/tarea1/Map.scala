@@ -415,7 +415,7 @@ object MapJsonSerializer{
   case class Tile(coordinate: (Int, Int), contents: Option[MapObj])
   case class MapSerialized(tilesMap: Set[((Int, Int), Tile)], xRange: Range, yRange: Range)
 
-  implicit class SquareTileWrapprt(tile: SqTile){
+  implicit class SquareTileWrapper(tile: SqTile){
     def serialize = Tile(tile.coordinate, tile.contents)
   }
 

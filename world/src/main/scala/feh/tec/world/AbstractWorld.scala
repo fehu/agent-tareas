@@ -10,6 +10,16 @@ trait AbstractWorld[Atom <: WorldAtom[Atom, Coordinate], Coordinate] {
 }
 
 
+trait AbstractWorldOps[Atom <: WorldAtom[Atom, Coordinate], Coordinate, Direction <: SimpleDirection]{
+  self: AbstractWorld[Atom, Coordinate] =>
+  /**
+    *   todo: description!!
+    */
+  def relativePosition(of: Coordinate, relativelyTo: Coordinate): Set[Direction]
+
+  def relativeNeighboursPosition(of:  Coordinate, relativelyTo:  Coordinate): Direction
+}
+
 /**
  * Continuous, enclosed, toroidal map. Is has no border and therefore every tile has exactly the same number of neighbours
  */

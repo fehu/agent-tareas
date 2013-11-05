@@ -9,9 +9,9 @@ import feh.tec.agentes.tarea1.Tarea1.Agents.MyDummyAgent
 import feh.tec.visual.api.BasicDrawEnvironmentSettings
 import feh.tec.visual.api.Layout
 import feh.tec.visual.api.LayoutElem
-import feh.tec.visual.render.{LwjglSquare2DTileRenderer, CriteriaReasonedDecisionRenderer}
+import feh.tec.visual.render.{LwjglSquareMapRenderer, CriteriaReasonedDecisionRenderer}
 import java.awt.Color
-import LwjglSquare2DTileRenderer.BuildTDrawOpsParams
+import LwjglSquareMapRenderer.BuildTDrawOpsParams
 
 case class AgentRef(ag: MyDummyAgent[Nothing])
 object AgentRef{
@@ -70,7 +70,7 @@ class NicolBasedTarea1Game(val env: Environment, val agRef: AgentRef) extends Ni
 
 object NicolBasedTarea1Game{
   def mapRenderer(mapDrawConfig: NicolLike2DEasel#MDrawOptions = Tarea1App.visual.mapDrawConfig) =
-    new LwjglSquare2DTileRenderer[Map, SqTile, NicolLike2DEasel](
+    new LwjglSquareMapRenderer[Map, SqTile, NicolLike2DEasel](
       LwjglTileRenderer.create,
       mapDrawConfig,
       ops => BasicSquareTileDrawOptions[NicolLike2DEasel](mapDrawConfig.tileSideSize, selectColor(ops), None)

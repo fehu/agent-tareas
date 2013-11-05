@@ -1,6 +1,10 @@
 package feh.tec.world
 
-trait AbstractSquareMap[Tile <: SquareTile[Tile, (Int, Int)]] extends AbstractWorld[Tile, (Int, Int)]{
+import feh.tec.world.Simple2dDirection.Simple2dDirection
+
+trait AbstractSquareMap[Tile <: SquareTile[Tile, (Int, Int)]]
+  extends AbstractWorld[Tile, (Int, Int)] with AbstractWorldOps[Tile, (Int, Int), Simple2dDirection]
+{
 
   implicit class TileCoordinatesWrapper(t: Tile){
     def x = t.coordinate._1
@@ -14,6 +18,9 @@ trait AbstractSquareMap[Tile <: SquareTile[Tile, (Int, Int)]] extends AbstractWo
     def xRange: Range
     def yRange: Range
   }
+}
+
+trait EnclosedSquareMap[Tile <: SquareTile[Tile, (Int, Int)]] extends AbstractSquareMap[Tile] with EnclosedWorld[Tile, (Int, Int)]{
 
   /**         todo: description!!
     * @return A relative position of `of` relatively to `relativelyTo` as a set of directions.
@@ -23,13 +30,7 @@ trait AbstractSquareMap[Tile <: SquareTile[Tile, (Int, Int)]] extends AbstractWo
     *         two directions are returned in the rest of cases, e.g. A is up and left of B
     *         Set() is returned if `of` == `relativelyTo`
     */
-  def relativePosition(of: (Int, Int), relativelyTo: (Int, Int)): Set[SimpleDirection]
-
-  def relativeNeighboursPosition(of:  (Int, Int), relativelyTo:  (Int, Int)): SimpleDirection
-}
-
-trait EnclosedSquareMap[Tile <: SquareTile[Tile, (Int, Int)]] extends AbstractSquareMap[Tile] with EnclosedWorld[Tile, (Int, Int)]{
-  def relativePosition(of: (Int, Int), relativelyTo: (Int, Int)): Set[SimpleDirection] = {
+  def relativePosition(of: (Int, Int), relativelyTo: (Int, Int)): Set[Simple2dDirection] = {
     import coordinates._
     import Simple2dDirection._
 
@@ -45,7 +46,7 @@ trait EnclosedSquareMap[Tile <: SquareTile[Tile, (Int, Int)]] extends AbstractSq
     def upDist = leftUpDist(of._2, relativelyTo._2, yRange.length)
     def downDist = rightDownDist(of._2, relativelyTo._2, yRange.length)
 
-    def selectDirection(dir1: SimpleDirection, dir2: SimpleDirection)(dist1: Int, dist2: Int) =
+    def selectDirection(dir1: Simple2dDirection, dir2: Simple2dDirection)(dist1: Int, dist2: Int) =
       if(dist1 == dist2) dir1 :: dir2 :: Nil
       else if(dist1 < dist2) dir1 :: Nil
       else dir2 :: Nil
@@ -56,7 +57,7 @@ trait EnclosedSquareMap[Tile <: SquareTile[Tile, (Int, Int)]] extends AbstractSq
     horDir.toSet ++ vertDir.toSet
   }
 
-  def relativeNeighboursPosition(of: (Int, Int), relativelyTo: (Int, Int)): SimpleDirection = {
+  def relativeNeighboursPosition(of: (Int, Int), relativelyTo: (Int, Int)): Simple2dDirection = {
     import coordinates._
     import Simple2dDirection._
 

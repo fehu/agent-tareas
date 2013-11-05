@@ -28,7 +28,7 @@ trait NicolBasedGameBasicControl extends Game with NicolBasedGame with GameBasic
   def stop(): Unit = game.stop
 }
 
-class NicolLikeBasicScene(render: () => Unit, finishedScene: Lifted[Scene], terminatedScene: Lifted[Scene], terminated_? : () => Boolean, pauseScene: Scene => Scene)
+class NicolLikeBasicScene(render: () => Unit, exitScene: Lifted[Scene], terminatedScene: Lifted[Scene], terminated_? : () => Boolean, pauseScene: Scene => Scene)
                           (implicit easel: NicolLike2DEasel)
   extends LoopScene with SyncableScene with ShowFPS
 {
@@ -45,7 +45,7 @@ class NicolLikeBasicScene(render: () => Unit, finishedScene: Lifted[Scene], term
           case _ =>
         }
         e pressed {
-          case "escape" => finishedScene()
+          case "escape" => exitScene()
           case "space" => pauseScene(this)
         }
     }
