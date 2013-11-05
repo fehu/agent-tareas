@@ -1,16 +1,6 @@
-package feh.tec.map
+package feh.tec.world
 
-import feh.tec.map.tile.{SquareTile, AbstractTile}
-import feh.tec.agent.AgentId
-
-
-trait AbstractMap[Tile <: AbstractTile[Tile, Coordinate], Coordinate] {
-  def tiles: Seq[Tile]
-
-  def get: PartialFunction[Coordinate, Tile]
-}
-
-trait AbstractSquareMap[Tile <: SquareTile[Tile, (Int, Int)]] extends AbstractMap[Tile, (Int, Int)]{
+trait AbstractSquareMap[Tile <: SquareTile[Tile, (Int, Int)]] extends AbstractWorld[Tile, (Int, Int)]{
 
   implicit class TileCoordinatesWrapper(t: Tile){
     def x = t.coordinate._1
@@ -26,26 +16,19 @@ trait AbstractSquareMap[Tile <: SquareTile[Tile, (Int, Int)]] extends AbstractMa
   }
 
   /**         todo: description!!
-   * @return A relative position of `of` relatively to `relativelyTo` as a set of directions.
-   *         one direction in set means that coordinates have the same vert/horiz position;
-   *         three directions can be returned by Enclosed maps,
-   *           case of 3 means that the distances between two coordinates are equal for both possible vertical or horizontal routes
-   *         two directions are returned in the rest of cases, e.g. A is up and left of B
-   *         Set() is returned if `of` == `relativelyTo`
-   */
+    * @return A relative position of `of` relatively to `relativelyTo` as a set of directions.
+    *         one direction in set means that coordinates have the same vert/horiz position;
+    *         three directions can be returned by Enclosed maps,
+    *           case of 3 means that the distances between two coordinates are equal for both possible vertical or horizontal routes
+    *         two directions are returned in the rest of cases, e.g. A is up and left of B
+    *         Set() is returned if `of` == `relativelyTo`
+    */
   def relativePosition(of: (Int, Int), relativelyTo: (Int, Int)): Set[SimpleDirection]
 
   def relativeNeighboursPosition(of:  (Int, Int), relativelyTo:  (Int, Int)): SimpleDirection
 }
 
-/**
- * Continuous, enclosed, toroidal map. Is has no border and therefore every tile has exactly the same number of neighbours
- */
-trait EnclosedMap[Tile <: AbstractTile[Tile, Coordinate], Coordinate] extends AbstractMap[Tile, Coordinate]{
-  def nNeighbours: Int
-}
-
-trait EnclosedSquareMap[Tile <: SquareTile[Tile, (Int, Int)]] extends AbstractSquareMap[Tile] with EnclosedMap[Tile, (Int, Int)]{
+trait EnclosedSquareMap[Tile <: SquareTile[Tile, (Int, Int)]] extends AbstractSquareMap[Tile] with EnclosedWorld[Tile, (Int, Int)]{
   def relativePosition(of: (Int, Int), relativelyTo: (Int, Int)): Set[SimpleDirection] = {
     import coordinates._
     import Simple2dDirection._
@@ -87,8 +70,4 @@ trait EnclosedSquareMap[Tile <: SquareTile[Tile, (Int, Int)]] extends AbstractSq
   }
 }
 
-trait AgentsPositionsProvidingMap[Tile <: AbstractTile[Tile, Coordinate], Coordinate]{
-  self: AbstractMap[Tile, Coordinate] =>
-
-  def agentsPositions: Predef.Map[AgentId, Tile]
-}
+trait SquareTile[Tile <: SquareTile[Tile, Coordinate], Coordinate] extends WorldAtom[Tile, Coordinate]

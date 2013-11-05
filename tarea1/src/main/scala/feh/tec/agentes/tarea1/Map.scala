@@ -1,7 +1,6 @@
 package feh.tec.agentes.tarea1
 
-import feh.tec.map._
-import feh.tec.map.tile.{SquareTile, OptionalMabObjectContainerTile, MapObject}
+import feh.tec.world._
 import java.util.UUID
 import feh.tec.util.RangeWrapper._
 import scala.{Predef, collection, Some}
@@ -14,7 +13,7 @@ import spray.json._
   todo: move
  */
   class Map protected[tarea1] (xRange: Range, yRange: Range, buildTilesMap: Map => Predef.Map[(Int, Int), SqTile])
-    extends AbstractSquareMap[SqTile] with EnclosedSquareMap[SqTile] with AgentsPositionsProvidingMap[SqTile, (Int, Int)]
+    extends AbstractSquareMap[SqTile] with EnclosedSquareMap[SqTile] with AgentsPositionsProvidingWorld[SqTile, (Int, Int)]
 { map =>
 
   type Tile = SqTile
@@ -25,7 +24,7 @@ import spray.json._
   def tilesToMap = tilesInitMap
 
   def nNeighbours = 4
-  def tiles: Seq[Tile] = tilesInitMap.values.toSeq
+  def atoms: Seq[Tile] = tilesInitMap.values.toSeq
   def get: PartialFunction[Map#Coordinate, Tile] = tilesInitMap
 
   lazy val coordinates = new CoordinatesMeta {
@@ -95,23 +94,23 @@ object Map{
   class SnapshotBuilder extends MapSnapshotBuilder[Map, SqTile, (Int, Int)]{
     lazy val tilesSnapshotBuilder = new SqTile.SnapshotBuilder
 
-    def snapshot(m: Map): MapSnapshot[Map, SqTile, (Int, Int)] = new Map(m.coordinates.xRange, m.coordinates.yRange, null) with MapSnapshot[Map, SqTile, (Int, Int)]{
-      lazy val tilesSnapshots: Seq[TileSnapshot[SqTile, (Int, Int)]] = tilesSnapshotsMap.values.toSeq
+    def snapshot(m: Map): WorldSnapshot[Map, SqTile, (Int, Int)] = new Map(m.coordinates.xRange, m.coordinates.yRange, null) with WorldSnapshot[Map, SqTile, (Int, Int)]{
+      lazy val tilesSnapshots: Seq[AtomSnapshot[SqTile, (Int, Int)]] = tilesSnapshotsMap.values.toSeq
 
       override lazy val tilesInitMap: Predef.Map[(Int, Int), SqTile] = ???
-      val tilesSnapshotsMap: Predef.Map[(Int, Int), TileSnapshot[SqTile, Coordinate]] =
+      val tilesSnapshotsMap: Predef.Map[(Int, Int), AtomSnapshot[SqTile, Coordinate]] =
         m.tilesToMap.mapValues(tilesSnapshotBuilder.snapshot)
 
-      def getSnapshot: PartialFunction[Coordinate, TileSnapshot[SqTile, Coordinate]] = tilesSnapshotsMap
+      def getSnapshot: PartialFunction[Coordinate, AtomSnapshot[SqTile, Coordinate]] = tilesSnapshotsMap
 
       override def getNeighbors(tile: Tile): Seq[Tile] = ???
-      def getNeighborsSnapshots(tile: Tile): Seq[TileSnapshot[SqTile, Coordinate]] = super.getNeighbors(tile).map(tilesSnapshotBuilder.snapshot)
+      def getNeighborsSnapshots(tile: Tile): Seq[AtomSnapshot[SqTile, Coordinate]] = super.getNeighbors(tile).map(tilesSnapshotBuilder.snapshot)
 
       override protected def findNeighbors(tile: Tile): Seq[Tile] = ???
-      def findNeighborsSnapshots(tile: Tile): Seq[TileSnapshot[SqTile, Coordinate]] = super.findNeighbors(tile).map(tilesSnapshotBuilder.snapshot)
+      def findNeighborsSnapshots(tile: Tile): Seq[AtomSnapshot[SqTile, Coordinate]] = super.findNeighbors(tile).map(tilesSnapshotBuilder.snapshot)
 
-      override def tiles: Seq[SqTile] = super[MapSnapshot].tiles
-      override def get: PartialFunction[(Int, Int), SqTile] = super[MapSnapshot].get
+      override def atoms: Seq[SqTile] = super[WorldSnapshot].atoms
+      override def get: PartialFunction[(Int, Int), SqTile] = super[WorldSnapshot].get
     }
   }
 
@@ -119,7 +118,7 @@ object Map{
 
   implicit class DirectionOps(map: Map){
     def tileTo(from: (Int, Int), direction: SimpleDirection): SqTile = map match{
-      case snap: Map with MapSnapshot[Map, SqTile, (Int, Int)] => snap.getSnapshot(positionTo(from, direction)).asTile
+      case snap: Map with WorldSnapshot[Map, SqTile, (Int, Int)] => snap.getSnapshot(positionTo(from, direction)).asAtom
       case _ => map.get(positionTo(from, direction))
     }
 
@@ -160,20 +159,20 @@ object MapHelper{
 }
 
 case class SqTile(map: Map, coordinate: (Int, Int), contents: Option[MapObj])
-  extends OptionalMabObjectContainerTile[SqTile, MapObj, (Int, Int)] with SquareTile[SqTile, (Int, Int)]
+  extends OptionalWorldObjectContainingAtom[SqTile, MapObj, (Int, Int)] with SquareTile[SqTile, (Int, Int)]
 {
   def neighbours = map.getNeighbors(this)
 }
 
 object SqTile{
-  class SnapshotBuilder extends TileSnapshotBuilder[SqTile, (Int, Int)]{
-    def snapshot(t: SqTile): TileSnapshot[SqTile, (Int, Int)] = new SqTile(t.map, t.coordinate, t.contents) with TileSnapshot[SqTile, (Int, Int)]{
-      def neighboursSnapshots: Seq[TileSnapshot[SqTile, (Int, Int)]] = super[SqTile].neighbours.map(snapshot)
+  class SnapshotBuilder extends AtomSnapshotBuilder[SqTile, (Int, Int)]{
+    def snapshot(t: SqTile): AtomSnapshot[SqTile, (Int, Int)] = new SqTile(t.map, t.coordinate, t.contents) with AtomSnapshot[SqTile, (Int, Int)]{
+      def neighboursSnapshots: Seq[AtomSnapshot[SqTile, (Int, Int)]] = super[SqTile].neighbours.map(snapshot)
     }
   }
 }
 
-trait MapObj extends MapObject{
+trait MapObj extends WorldObject{
   def isAgent: Boolean = false
   def isPlug: Boolean = false
   def isHole: Boolean = false
@@ -244,42 +243,42 @@ class MapShortestRouteFinder extends ShortestRouteFinder[Map, SqTile, (Int, Int)
 
   private def getMinDistMap(gr: Graph) = scopedDistMap.get getOrElse findMinimalDistances(gr)
 
-  private def getGraph(snapshot: MapSnapshot[Map, SqTile, (Int, Int)]) =
+  private def getGraph(snapshot: WorldSnapshot[Map, SqTile, (Int, Int)]) =
     scopedGraph.get getOrElse Graph.mapAsGraph(snapshot)
 
-  def shortestRoutes(snapshot: MapSnapshot[Map, SqTile, (Int, Int)])
+  def shortestRoutes(snapshot: WorldSnapshot[Map, SqTile, (Int, Int)])
                     (from: (Int, Int), to: Set[(Int, Int)]): Predef.Map[(Int, Int), Route[(Int, Int)]] = {
     val graph = getGraph(snapshot)
     floydWarshall.findShortestRoutes(graph, from, to)(getMinDistMap(graph))
   }
 
 
-  def findClosest(map: Map)(relativelyTo: (Int, Int), what: (Int, Int) => Boolean): Predef.Map[(Int, Int), Int] =
-    findClosest(Map.snapshotBuilder.snapshot(map))(relativelyTo, what)
-  def findClosest(snapshot: MapSnapshot[Map, SqTile, (Int, Int)])(relativelyTo: (Int, Int), what: (Int, Int) => Boolean): Predef.Map[(Int, Int), Int] = {
-    val gr = getGraph(snapshot)
-    val minDist = getMinDistMap(gr)
-    val acceptablePairs =  minDist.withFilter(_._1._1 == relativelyTo).withFilter(what.tupled apply _._1._2).map{case ((_, c), d) => c -> d}
-
-    if(acceptablePairs.nonEmpty) acceptablePairs.filterMin(_._2).toMap
-    else Predef.Map.empty
-  }
+//  def findClosest(map: Map)(relativelyTo: (Int, Int), what: (Int, Int) => Boolean): Predef.Map[(Int, Int), Int] =
+//    findClosest(Map.snapshotBuilder.snapshot(map))(relativelyTo, what)
+//  def findClosest(snapshot: WorldSnapshot[Map, SqTile, (Int, Int)])(relativelyTo: (Int, Int), what: (Int, Int) => Boolean): Predef.Map[(Int, Int), Int] = {
+//    val gr = getGraph(snapshot)
+//    val minDist = getMinDistMap(gr)
+//    val acceptablePairs =  minDist.withFilter(_._1._1 == relativelyTo).withFilter(what.tupled apply _._1._2).map{case ((_, c), d) => c -> d}
+//
+//    if(acceptablePairs.nonEmpty) acceptablePairs.filterMin(_._2).toMap
+//    else Predef.Map.empty
+//  }
 
 }
 
 object Graph{
-  def mapAsGraph(snapshot: MapSnapshot[Map, SqTile, (Int, Int)]): Graph = {
-    def findConnections(tile: TileSnapshot[SqTile, (Int, Int)]): Seq[((Int, Int), (Int, Int))] =
-      tile.neighboursSnapshots.filterNot(_.asTile.contents.exists(_.isHole)).map(tile.coordinate -> _.coordinate)
+  def mapAsGraph(snapshot: WorldSnapshot[Map, SqTile, (Int, Int)]): Graph = {
+    def findConnections(tile: AtomSnapshot[SqTile, (Int, Int)]): Seq[((Int, Int), (Int, Int))] =
+      tile.neighboursSnapshots.filterNot(_.asAtom.contents.exists(_.isHole)).map(tile.coordinate -> _.coordinate)
 
-    val filteredSnapshots = snapshot.tilesSnapshots.filterNot(_.asTile.contents.exists(_.isHole))
+    val filteredSnapshots = snapshot.tilesSnapshots.filterNot(_.asAtom.contents.exists(_.isHole))
     val nodesConnections: Seq[((Int, Int), (Int, Int))] = filteredSnapshots.flatMap(findConnections)
 
     def connections(coordinate: (Int, Int)) = nodesConnections.filter(_._1 == coordinate)
       .map(_._1).map(snapshot.getSnapshot andThen buildGraphNode).toList
 
-    def buildGraphNode(ts: TileSnapshot[SqTile, (Int, Int)]): GraphNode =
-      GraphNode(ts.asTile.contents, ts.coordinate)(connections(ts.coordinate))
+    def buildGraphNode(ts: AtomSnapshot[SqTile, (Int, Int)]): GraphNode =
+      GraphNode(ts.asAtom.contents, ts.coordinate)(connections(ts.coordinate))
 
     val nodesMap = filteredSnapshots.map(ts => ts.coordinate -> buildGraphNode(ts)).toMap
 
@@ -297,7 +296,7 @@ case class GraphNode(contents: Option[MapObj], coord: (Int, Int))(getConnections
 
 /**
  *  http://en.wikipedia.org/wiki/Floyd%E2%80%93Warshall_algorithm
- *  todo: move to [[feh.tec.map]] package
+ *  todo: move to [[feh.tec.world]] package
  */
 class FloydWarshall{
   type Coord = (Int, Int)
@@ -397,7 +396,7 @@ class FloydWarshall{
   }
 }
 
-class MapJsonSerializer extends AbstractMapSerializer[Map, SqTile, (Int, Int)]{
+class MapJsonSerializer extends AbstractWorldSerializer[Map, SqTile, (Int, Int)]{
   import MapJsonSerializer._
   import MapSerialized._
 
@@ -405,7 +404,7 @@ class MapJsonSerializer extends AbstractMapSerializer[Map, SqTile, (Int, Int)]{
 
   def toJson(map: Map): JsValue = MapSerialized(map.tilesToMap.mapValues(_.serialize).toSet, map.coordinates.xRange, map.coordinates.yRange).toJson(mapSerializedFormat)
 
-  def toMap(jsVal: JsValue): Map = jsVal.convertTo[MapSerialized] match {
+  def world(jsVal: JsValue): Map = jsVal.convertTo[MapSerialized] match {
     case MapSerialized(set, x, y) => new Map(x, y, m => set.toMap.mapValues{case Tile(coord, cont) => SqTile(m, coord, cont)})
   }
 

@@ -4,11 +4,11 @@ import scala.language.postfixOps
 import feh.tec.agentes.tarea1.DummyMapGenerator.DummyMapGeneratorRandomPositionSelectHelper
 import feh.tec.agent._
 import java.util.{Calendar, UUID}
-import feh.tec.map._
+import feh.tec.world._
 import akka.actor.ActorSystem
 import scala.concurrent.duration._
 import feh.tec.agentes.tarea1.Tarea1.Agents.{ConditionalExec, MyDummyAgent}
-import feh.tec.visual.api.{SquareMapDrawOptions, StringAlignment, MapRenderer, BasicStringDrawOps}
+import feh.tec.visual.api.{SquareMapDrawOptions, StringAlignment, WorldRenderer, BasicStringDrawOps}
 import feh.tec.visual.{PauseScene, NicolLike2DEasel}
 import nicol._
 import Map._
@@ -112,7 +112,7 @@ object Tarea1 {
       }
 
       def perceiveFromSnapshot(sn: EnvironmentSnapshot[Position, EnvState, EnvGlobal, Action, Env]): Perception =
-        sense(sn.asInstanceOf[MapEnvironmentSnapshot[Map, Tile, Position, EnvState, EnvGlobal, Action, Env]]) // todo: casting
+        sense(sn.asInstanceOf[WorldEnvironmentSnapshot[Map, Tile, Position, EnvState, EnvGlobal, Action, Env]]) // todo: casting
 
       protected def setup: DebuggingSetup = Tarea1.Debug
 
@@ -161,10 +161,10 @@ object Tarea1 {
       else {
         val contents = env.get(currPosition).contents
         contents -> moved match{
-          case (Some(Hole()), Some(Plug())) => env.transformTile(currPosition)(_.copy(contents = None)) // hole plugged
+          case (Some(Hole()), Some(Plug())) => env.transformAtom(currPosition)(_.copy(contents = None)) // hole plugged
           case (Some(AgentAvatar(_)), _) if !firstPass => env // if there is only one agent on map, it would mean that we've just moved a whole row/column of plugs
           case  _ =>
-            env.transformTile(currPosition)(_.copy(contents = moved))
+            env.transformAtom(currPosition)(_.copy(contents = moved))
             moveRecursively(env, env.positionTo(currPosition, direction), direction, contents, firstPass = false)
         }
       }
@@ -186,7 +186,7 @@ object Tarea1 {
 
     val initGlobal = NoGlobal
 
-    val mapStateBuilder: MapStateBuilder[Agent.Position, Agent.Tile, Map, Agent.EnvState] = new MStateBuilder(Agents.Id.dummy) // todo: id
+    val mapStateBuilder: WorldStateBuilder[Agent.Position, Agent.Tile, Map, Agent.EnvState] = new MStateBuilder(Agents.Id.dummy) // todo: id
   }
 
   val timeouts = OverseerTimeouts(
@@ -199,7 +199,7 @@ object Tarea1 {
 
   def overseer(env: Environment,
                timeouts: OverseerTimeouts,
-               mapRenderer: MapRenderer[Map, Agent.Tile, Agent.Position, Agent.Easel],
+               mapRenderer: WorldRenderer[Map, Agent.Tile, Agent.Position, Agent.Easel],
                easel: Agent.Easel,
                mapDrawConfig: Agent.Easel#MDrawOptions)
               (implicit actorSystem: ActorSystem) =
@@ -249,9 +249,9 @@ object Tarea1App extends App{
   val setup: Tarea1AppSetup = new Tarea1AppSetup {
     def findPossibleActions[Exec <: ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, MyDummyAgent[Exec]]]
       (ag: MyDummyAgent[Exec], perc: MyDummyAgent[Exec]#Perception): Set[Action] =
-        perc.mapSnapshot.getSnapshot(perc.position).neighboursSnapshots
-          .filterNot(_.asTile.contents.exists(_.isHole))
-          .map(tile => perc.mapSnapshot.asMap.relativeNeighboursPosition(tile.coordinate, perc.position))
+        perc.worldSnapshot.getSnapshot(perc.position).neighboursSnapshots
+          .filterNot(_.asAtom.contents.exists(_.isHole))
+          .map(tile => perc.worldSnapshot.asWorld.relativeNeighboursPosition(tile.coordinate, perc.position))
           .map(Move(_)).toSet
 
     def criteria: Seq[Criterion[Position, EnvState, EnvGlobal, Action, Env, Measure]] =
@@ -277,13 +277,13 @@ object Tarea1App extends App{
 
       val minDistsMapCache = mutable.HashMap.empty[Set[Position], FloydWarshall#MinDistMap]
 
-      def getHolesCoordinates(s: Measure.Snapshot) = s.asEnv.mapSnapshot.tilesSnapshots.withFilter(_.asTile.exists(_.isHole)).map(_.coordinate).toSet
+      def getHolesCoordinates(s: Measure.Snapshot) = s.asEnv.worldSnapshot.tilesSnapshots.withFilter(_.asAtom.exists(_.isHole)).map(_.coordinate).toSet
 
       def minDists(s: Measure.Snapshot) = {
         val holesCoords = getHolesCoordinates(s)
         minDistsMapCache.getOrElse(holesCoords, {
           val t1 = Calendar.getInstance.getTimeInMillis
-          val gr = Graph.mapAsGraph(s.asEnv.mapSnapshot)
+          val gr = Graph.mapAsGraph(s.asEnv.worldSnapshot)
           val t2 = Calendar.getInstance.getTimeInMillis
           val d = floydWarshall.findMinimalDistances(gr)
           val t3 = Calendar.getInstance.getTimeInMillis
@@ -296,9 +296,9 @@ object Tarea1App extends App{
       }
 
       def findClosetRespectingHoles(relativelyTo: Position, cond: (Tile#Snapshot) => Boolean, sn: Measure.Snapshot): Seq[Tile#Snapshot] =
-        minDists(sn).withFilter{case ((c1, c2), d) => c1 == relativelyTo && cond(sn.asEnv.mapSnapshot.getSnapshot(c2))}.map(p => sn.asEnv.mapSnapshot.getSnapshot(p._1._2)).toSeq
+        minDists(sn).withFilter{case ((c1, c2), d) => c1 == relativelyTo && cond(sn.asEnv.worldSnapshot.getSnapshot(c2))}.map(p => sn.asEnv.worldSnapshot.getSnapshot(p._1._2)).toSeq
       def findClosetDisregardingHoles(relativelyTo: Position, cond: Tile#Snapshot => Boolean, sn: Measure.Snapshot): Seq[Tile#Snapshot] =
-        sn.asEnv.mapSnapshot.tilesSnapshots.filter(cond).filterMin(distanceDisregardingHoles(relativelyTo, _, sn)) // might be slow; can search recursively, increasing search distance
+        sn.asEnv.worldSnapshot.tilesSnapshots.filter(cond).filterMin(distanceDisregardingHoles(relativelyTo, _, sn)) // might be slow; can search recursively, increasing search distance
 
       def distanceRespectingHoles(p1: Position, p2: Position, sn: Measure.Snapshot): Int =
         minDists(sn).collectFirst{
@@ -337,7 +337,7 @@ object Tarea1App extends App{
 
   implicit val pauseBetweenExecs = PauseBetweenExecs(processArgsForTimeSpan getOrElse defaultPauseBetweenExecs)
 
-  val mapRenderer = NicolLikeTarea1Game.mapRenderer()
+  val mapRenderer = NicolBasedTarea1Game.mapRenderer()
 //  val env = environment(Option(Agents.Id.dummy), Maps.failExample1(Agents.Id.dummy))
   val env = environment(Option(Agents.Id.dummy))
 //  val env = TestEnvironment.test1(Option(Agents.Id.dummy))
@@ -359,7 +359,7 @@ object Tarea1App extends App{
 
   lazy val finishedScene = new FinishedScene(renderMap.lifted)
 
-  val game = new NicolLikeTarea1Game(env, AgentRef.create(ag))
+  val game = new NicolBasedTarea1Game(env, AgentRef.create(ag))
 
   def renderMap(implicit easel: NicolLike2DEasel) = mapRenderer.render(env, visual.mapDrawConfig)
 

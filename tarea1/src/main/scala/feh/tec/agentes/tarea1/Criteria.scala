@@ -29,7 +29,7 @@ object Criteria {
 
     def numberOfHoles = criterion("number of holes", {
       s =>
-        val n = s.asEnv.tiles.count(_.contents.exists(_.isHole))
+        val n = s.asEnv.atoms.count(_.contents.exists(_.isHole))
         n * numberOfHolesWeight debugLog "weighted number of holes"
     })
 
@@ -74,11 +74,11 @@ object Criteria {
      */
     def distanceToClosestPlugHolePair = criterion("distance from agent to the closest plug\n and the plug to the closet hole",
       sn => {
-        val pseudoMap = sn.asEnv.mapSnapshot.asMap
+        val pseudoMap = sn.asEnv.worldSnapshot.asWorld
         def relativePosition = pseudoMap.relativePosition _
         val agPos = sn.asEnv.agentsPositions(agentId)
-        val closetPlugs = findClosetRespectingHoles(agPos, _.asTile.exists(_.isPlug), sn)
-        val closetPlugHoles = closetPlugs.map(plSn => plSn -> findClosetDisregardingHoles(plSn.coordinate, _.asTile.exists(_.isHole), sn)).toMap
+        val closetPlugs = findClosetRespectingHoles(agPos, _.asAtom.exists(_.isPlug), sn)
+        val closetPlugHoles = closetPlugs.map(plSn => plSn -> findClosetDisregardingHoles(plSn.coordinate, _.asAtom.exists(_.isHole), sn)).toMap
         val bestPlugHoles = closetPlugHoles.flatMap{
           case (plugTile, holeTiles) =>
             holeTiles.flatMap{
@@ -86,7 +86,7 @@ object Criteria {
                 relativePosition(plugTile, holeTile)
                   .map(pseudoMap.tileTo(plugTile, _))
                   .filter(_.notExists(_.isHole))
-                  .pipe(oppositeTiles => if(oppositeTiles.isEmpty) plugTile.asTile :: Nil else oppositeTiles)
+                  .pipe(oppositeTiles => if(oppositeTiles.isEmpty) plugTile.asAtom :: Nil else oppositeTiles)
                   .map(_ -> holeTile)
             }
             .filterMin{

@@ -1,4 +1,4 @@
-package feh.tec.map
+package feh.tec.world
 
 trait SimpleDirection{
   def opposite: SimpleDirection

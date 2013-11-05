@@ -2,9 +2,9 @@ package feh.tec.agentes.tarea1
 
 import feh.tec.visual._
 import feh.tec.visual.api._
-import feh.tec.map.tile.MapObject
 import java.awt.Color
-import feh.tec.visual.render.{MapObjectLwjglTileDrawer, Generic2DLwjglContainerTileDrawer, BasicLwjglSquareTileDrawer, LwjglTile2DIntRenderer}
+import feh.tec.visual.render.{WorldObjectLwjglAtomDrawer, Generic2DLwjglContainerAtomDrawer, BasicLwjglSquareTileDrawer, LwjglAtom2DIntRenderer}
+import feh.tec.world.WorldObject
 
 object LwjglTileRenderer {
   type Tile = SqTile
@@ -12,16 +12,16 @@ object LwjglTileRenderer {
   type Easel = Easel2DFloat with OpenGLEasel
   type MObj = MapObj
 
-  def create = new LwjglTile2DIntRenderer[Tile](renderers)
+  def create = new LwjglAtom2DIntRenderer[Tile](renderers)
 
   def renderers =
-    new Generic2DLwjglContainerTileDrawer[Tile, TCoord, Easel, MObj](mapObjectDrawers) ::
+    new Generic2DLwjglContainerAtomDrawer[Tile, TCoord, Easel, MObj](mapObjectDrawers) ::
     new BasicLwjglSquareTileDrawer[Tile, TCoord, Easel]  :: Nil
 
   def mapObjectDrawers = new MapObjDrawer :: Nil
 
-  class MapObjDrawer extends MapObjectLwjglTileDrawer[Tile, TCoord, MObj]{
-    def draw(obj: MapObject, where: Easel2D#Coordinate, how: Easel2D#TDrawOptions)(implicit easel: Easel2D) = {
+  class MapObjDrawer extends WorldObjectLwjglAtomDrawer[Tile, TCoord, MObj]{
+    def draw(obj: WorldObject, where: Easel2D#Coordinate, how: Easel2D#TDrawOptions)(implicit easel: Easel2D) = {
       def drawIt(txt: String, c: Color) = drawStringInTileWithOffset(txt, where, how, stringDrawOps(c))
 
       obj match{
