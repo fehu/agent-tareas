@@ -1,6 +1,6 @@
 * pause hides map
 * fix artifacts on text rendering
 * string render markup for easel
-* analyse criteria failures in fail-example-02.png, fail-example-03.png
+* analyse criteria failures in fail-example-02.png, fail-example-03.png, fail-example-04-*.png
 * ? maybe build Floyd-Warshall distances map only for a piece of map, that participates in criteria in order of performance enhancement
 * repair showLabels
