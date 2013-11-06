@@ -4,6 +4,7 @@ import nicol.{Game => NGame, _}
 import feh.tec.visual.api.{GameBasicControlApi, Game}
 import feh.tec.util._
 import nicol.input.Key._
+import org.lwjgl.opengl.Display
 
 trait NicolBasedGame {
   def game: NGame
@@ -39,6 +40,7 @@ class NicolLikeBasicScene(render: () => Unit, exitScene: Lifted[Scene], terminat
     render()
 
     if(terminated_?()) terminatedScene()
+    else if(Display.isCloseRequested) exitScene()
     else keyEvent {
       e =>
         e released {
