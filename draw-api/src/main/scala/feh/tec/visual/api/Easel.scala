@@ -66,52 +66,21 @@ trait Easel2DFloat extends Easel2D{
   protected def coordinateSum(c1: Coordinate, c2: Coordinate): Coordinate = (c1._1 + c2._1, c1._2 + c2._2)
 }
 
-trait TileDrawOptions[+E <: Easel]
-
-trait SquareTileDrawOptions[E <: Easel] extends TileDrawOptions[E]{
-  def sideSize: E#CoordinateUnit
-  def lineColor: Color
-  def fillColor: Option[Color] // todo
+trait Easel3D extends Easel{
+  def drawCube(/*todo: bottomLeft: Easel3D#Coordinate, width: Easel3D#CoordinateUnit, height: Easel3D#CoordinateUnit*/): DrawOp
 }
 
-case class BasicSquareTileDrawOptions[E <: Easel](sideSize: E#CoordinateUnit, lineColor: Color, fillColor: Option[Color])
-  extends SquareTileDrawOptions[E]
+trait Easel3DFloat extends Easel3D{
+  type Coordinate = (Float, Float, Float)
+  type CoordinateUnit = Float
 
-trait StringDrawOptions[+E <: Easel]
-{
-  def font: String
-  def size: E#CoordinateUnit
-  def color: Color
-  def alignment: StringAlignment
-  def vSpacing: E#CoordinateUnit
+  implicit def unitNumeric: Numeric[Easel3DFloat#CoordinateUnit] = Numeric.FloatIsFractional
+
+  def zeroCoordinate: Easel3DFloat#Coordinate = (0F, 0F, 0F)
+
+  protected def coordinateSum(c1: Coordinate, c2: Coordinate, c3: Coordinate): Coordinate =  (c1._1 + c2._1, c1._2 + c2._2, c1._3 + c2._3)
 }
 
-trait StringAlignment
-object StringAlignment{
-  case object Left extends StringAlignment
-  case object Center extends StringAlignment
-  case object Right extends StringAlignment
-}
-
-case class BasicStringDrawOps[+E <: Easel]( alignment: StringAlignment,
-                                            color: Color,
-                                            font: String,
-                                            size: E#CoordinateUnit,
-                                            vSpacing: E#CoordinateUnit
-                                           ) extends StringDrawOptions[E]
-
-trait MapDrawOptions[+E <: Easel]
-
-trait SquareMapDrawOptions[E <: Easel] extends MapDrawOptions[E]{
-  def tileSideSize: E#CoordinateUnit
-  def showLabels: Boolean
-}
-
-case class BasicSquareMapDrawOptions[E <: Easel](tileSideSize: E#CoordinateUnit, showLabels: Boolean) extends SquareMapDrawOptions[E]
-
-object BasicSquareMapDrawOptions{
-  def apply[E <: Easel](n: Int, showLabels: Boolean)(implicit easel: E): BasicSquareMapDrawOptions[E] = BasicSquareMapDrawOptions(easel.unitNumeric.fromInt(n), showLabels)
-}
 
 trait EaselCoordinateOps[E <: Easel]{
   def zeroCoordinate: E#Coordinate

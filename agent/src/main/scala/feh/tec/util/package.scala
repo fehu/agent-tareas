@@ -32,9 +32,9 @@ package object util {
   }
 
   def elapsed[R](f: => R): (R, Duration) = {
-    val time1 = Calendar.getInstance().getTimeInMillis
+    val time1 = System.nanoTime()
     val res = f
-    val time2 = Calendar.getInstance().getTimeInMillis
+    val time2 = System.nanoTime()
     val dur = Duration(time2 - time1, MILLISECONDS)
     res -> dur
   }

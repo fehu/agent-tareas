@@ -53,12 +53,12 @@ case class Init(title: String, width: Int = 800, height: Int = 600, vSync: Boole
     glEnable(GL_TEXTURE_2D)
 
     glDisable(GL_LIGHTING)
-    glDisable(GL_DEPTH_TEST)
+    glDisable(GL_DEPTH_TEST) // this is for 2d games
 
     glShadeModel(GL_SMOOTH)
     glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_FASTEST)
 
-    glEnable(GL_BLEND)
+    glEnable(GL_BLEND) // Without this enabled, transparent sprites may not render as expected.
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
     glViewport(0, 0, width, height)

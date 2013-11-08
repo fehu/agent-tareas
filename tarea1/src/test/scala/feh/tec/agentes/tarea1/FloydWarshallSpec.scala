@@ -2,7 +2,7 @@ package feh.tec.agentes.tarea1
 
 import org.specs2.mutable.Specification
 import org.specs2.ScalaCheck
-import feh.tec.map.MapSnapshot
+import feh.tec.world.WorldSnapshot
 
 class FloydWarshallSpec extends Specification with ScalaCheck with Arbitraries{
 
@@ -65,6 +65,6 @@ class FloydWarshallSpec extends Specification with ScalaCheck with Arbitraries{
 
   lazy val mapSnapshotBuilder = Map.snapshotBuilder
   def mapAsGraph(m: Map): Graph = mapAsGraph(mapSnapshotBuilder.snapshot(m))
-  def mapAsGraph(snapshot: MapSnapshot[Map, SqTile, (Int, Int)]): Graph = Graph.mapAsGraph(snapshot)
+  def mapAsGraph(snapshot: WorldSnapshot[Map, SqTile, (Int, Int)]): Graph = Graph.mapAsGraph(snapshot)
 
 }
