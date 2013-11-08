@@ -5,3 +5,5 @@
 * ? maybe build Floyd-Warshall distances map only for a piece of map, that participates in criteria in order of performance enhancement
 * repair showLabels
 * try 3D map
+* In older versions of OpenGL, we could have used one square (GL_QUADS) per side instead of two triangles, but GL_QUADS have been removed from modern versions of OpenGL.
+* draw selected action sequence for foreseeing agents

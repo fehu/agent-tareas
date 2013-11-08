@@ -2,7 +2,7 @@ package feh.tec.visual.render
 
 import feh.tec.visual.api._
 import feh.tec.world._
-import feh.tec.visual.NicolLike2DEasel
+import feh.tec.visual.{NicolLike3DEasel, NicolLike2DEasel}
 
 trait LwjglAtomDrawer[Atom <: WorldAtom[Atom, Coordinate], Coordinate, E <: Easel]{
   def doTheDrawing(atom: Atom, where: E#Coordinate, how: E#TDrawOptions)(implicit easel: E)
