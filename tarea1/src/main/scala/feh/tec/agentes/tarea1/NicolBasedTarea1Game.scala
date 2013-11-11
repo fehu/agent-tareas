@@ -9,7 +9,7 @@ import feh.tec.agentes.tarea1.Tarea1.Agents.MyDummyAgent
 import feh.tec.visual.api.BasicDrawEnvironmentSettings
 import feh.tec.visual.api.Layout
 import feh.tec.visual.api.LayoutElem
-import feh.tec.visual.render.{LwjglSquareMapRenderer, CriteriaReasonedDecisionRenderer}
+import feh.tec.visual.render.{LwjglSquareMapRoutesRenderer, LwjglSquareMapOnMouseHighlightRenderer, LwjglSquareMapRenderer, CriteriaReasonedDecisionRenderer}
 import java.awt.Color
 import LwjglSquareMapRenderer.BuildTDrawOpsParams
 import feh.tec.agent.AgentId
@@ -60,6 +60,7 @@ class NicolBasedTarea1Game(val env: Environment, val agentId: AgentId)(implicit 
   lazy val agRef = agResolver.byId(agentId).get
 
   implicit val mapRenderer: Renderer[Map, NicolLike2DEasel] with WorldVisualisationCalls[SqTile, (Int, Int)] = NicolBasedTarea1Game.mapRenderer()
+
   implicit def criteriaValueRenderer: Renderer[agRef.ag.ActionExplanation, NicolLike2DEasel] = new CriteriaReasonedDecisionRenderer(criteriaRendererScheme)
 
   val gameLayout: Layout[NicolLike2DEasel] = Layout(List[LiftedOptionLayoutElem[_, NicolLike2DEasel]](
@@ -80,9 +81,12 @@ object NicolBasedTarea1Game{
   def mapRenderer(mapDrawConfig: NicolLike2DEasel#MDrawOptions = Tarea1App.visual.mapDrawConfig) =
     new LwjglSquareMapRenderer[Map, SqTile, NicolLike2DEasel](
       LwjglTileRenderer.create,
-      mapDrawConfig,
-      ops => BasicSquareTileDrawOptions[NicolLike2DEasel](mapDrawConfig.tileSideSize, selectColor(ops), None, delayRendering(ops))
-    )
+      mapDrawConfig
+    ) with LwjglSquareMapOnMouseHighlightRenderer[Map, SqTile, NicolLike2DEasel]
+            with LwjglSquareMapRoutesRenderer[Map, SqTile, NicolLike2DEasel]
+    {
+      def buildTDrawOps = ops => BasicSquareTileDrawOptions[NicolLike2DEasel](mapDrawConfig.tileSideSize, selectColor(ops), None, delayRendering(ops))
+    }
 
   private def delayRendering(ops: BuildTDrawOpsParams[Map, SqTile, NicolLike2DEasel]) = ops.highlightedX && ops.highlightedY
 

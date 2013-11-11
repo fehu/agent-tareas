@@ -48,34 +48,37 @@ trait Lwjgl2DSquareGridRenderer[E <: Easel2D with OpenGLEasel]{
 
 class LwjglSquareMapRenderer[Map <: AbstractSquareMap[Tile], Tile <: SquareTile[Tile, (Int, Int)], E <: NicolLike2DEasel]
     (val tileRenderer: LwjglCompositeAtom2DIntRenderer[Tile],
-     val renderOptions: E#MDrawOptions,
-     buildTDrawOps: BuildTDrawOpsParams[Map, Tile, E] => NicolLike2DEasel#TDrawOptions
+     val renderOptions: E#MDrawOptions
       )
   extends Lwjgl2DWorldRenderer[Map, Tile, (Int, Int), E] with Lwjgl2DSquareGridRenderer[E] with WorldVisualisationCalls[Tile, (Int, Int)]
 {
   def render(map: Map, how: E#MDrawOptions)(implicit easel: E) {
-    positionHighlight(how, map)
-
     how match {
       case ops: E#MDrawOptions with SquareMapDrawOptions[E] =>
-        renderGrid(map.coordinates.xRange.length, map.coordinates.yRange.length, ops.tileSideSize, Color.white)
-
-        val atomsDrawOps = map.atoms.map(a => a -> buildTDrawOptions(a, ops))
-        val (delayedRender, atoms) = atomsDrawOps.partition(_._2.delayedRendering)
-        for ((tile, ops) <- atoms ++ delayedRender) tileRenderer.draw(tile, adjustCoords(tile.coordinate, how), ops)
-
-        if(!markedRoute.isEmpty) doTheRouteDrawing(markedRoute, map, ops)
-
-        if(ops.showLabels) renderLabels(map, how)
+        renderStages.foreach(_(map, ops, easel))
     }
   }
 
-  protected var highlightedByMouse: Option[(Int, Int)] = None
-
-  def buildTDrawOptions(tile: Tile, ops: E#MDrawOptions with SquareMapDrawOptions[E]) = {
-    val (hX, hY) = highlightedByMouse.map{case (x, y) => (tile.coordinate._1 == x) -> (tile.coordinate._2 == y)}.getOrElse(false -> false)
-    buildTDrawOps(BuildTDrawOpsParams(tile, ops, hX, hY)).asInstanceOf[LwjglCompositeAtom2DIntRenderer[Tile]#E#TDrawOptions]
+  protected def renderTheGrid(map: Map, ops: E#MDrawOptions with SquareMapDrawOptions[E], easel: E){
+    implicit def e = easel
+    renderGrid(map.coordinates.xRange.length, map.coordinates.yRange.length, ops.tileSideSize, Color.white)
   }
+
+  protected def renderTiles(map: Map, ops: E#MDrawOptions with SquareMapDrawOptions[E], easel: E){
+    implicit def e = easel
+    val atomsDrawOps = map.atoms.map(a => a -> buildTDrawOptions(a, ops))
+    val (delayedRender, atoms) = atomsDrawOps.partition(_._2.delayedRendering)
+    for ((tile, tops) <- atoms ++ delayedRender) tileRenderer.draw(tile, adjustCoords(tile.coordinate, ops), tops)
+  }
+
+  protected def renderStages: List[(Map, E#MDrawOptions with SquareMapDrawOptions[E], E) => Unit] =
+    renderLabels _ ::
+    renderTheGrid _ ::
+    renderTiles _  :: Nil
+
+
+  def buildTDrawOptions(tile: Tile, ops: E#MDrawOptions with SquareMapDrawOptions[E]) =
+    BasicSquareTileDrawOptions[E](ops.tileSideSize, None, None).asInstanceOf[LwjglCompositeAtom2DIntRenderer[Tile]#E#TDrawOptions]
 
 
   def adjustCoords(mc: (Int, Int), how: E#MDrawOptions): (Float, Float) =
@@ -93,24 +96,67 @@ class LwjglSquareMapRenderer[Map <: AbstractSquareMap[Tile], Tile <: SquareTile[
     }
   }
 
-  def renderLabels(map: Map, how: E#MDrawOptions)(implicit easel: E) = {
-    val offset = how.tileSideSize / 2
-    val strOps = BasicStringDrawOps[E](Center, Color.white, "arial", 10, 2)
+  def renderLabels(map: Map, how: E#MDrawOptions with SquareMapDrawOptions[E], easel: E) =
+    if(how.showLabels){
+      implicit def e = easel
 
-    for(x <- map.coordinates.xRange) easel.drawString(x.toString, x*how.tileSideSize + offset -> how.tileSideSize/2, strOps)
-    for(y <- map.coordinates.yRange) easel.drawString(y.toString, how.tileSideSize/2 -> (y*how.tileSideSize + offset), strOps)
-  }
+      val offset = how.tileSideSize / 2
+      val strOps = BasicStringDrawOps[E](Center, Color.white, "arial", 10, 2)
 
-  def positionHighlight(how: E#MDrawOptions, map: Map)(implicit easel: E) = easel.onMouseMove{
+      for(x <- map.coordinates.xRange) easel.drawString(x.toString, x*how.tileSideSize + offset -> how.tileSideSize/2, strOps)
+      for(y <- map.coordinates.yRange) easel.drawString(y.toString, how.tileSideSize/2 -> (y*how.tileSideSize + offset), strOps)
+    }
+
+
+  def drawRoute(atoms: CoordinatesChain[(Int, Int)]) { /* stub */}
+
+  def highlightAtoms(atoms: Set[Tile]) { /* stub */ }
+
+  def showMessage(msg: String) {/* stub */}
+
+  def clearMessage() {/* stub */}
+}
+
+trait LwjglSquareMapOnMouseHighlightRenderer[Map <: AbstractSquareMap[Tile], Tile <: SquareTile[Tile, (Int, Int)], E <: NicolLike2DEasel]
+  extends LwjglSquareMapRenderer[Map, Tile, E]
+{
+
+  def buildTDrawOps: BuildTDrawOpsParams[Map, Tile, E] => NicolLike2DEasel#TDrawOptions
+
+  protected var highlightedByMouse: Option[(Int, Int)] = None
+
+
+  override protected def renderStages = positionHighlight _ :: super.renderStages
+
+  def positionHighlight(map: Map, how: E#MDrawOptions, easel: E) = easel.onMouseMove{
     case c => highlightedByMouse = tileAt(c, how, map)
   }
+
+  override def buildTDrawOptions(tile: Tile, ops: E#MDrawOptions with SquareMapDrawOptions[E]) = {
+    val (hX, hY) = highlightedByMouse.map{case (x, y) => (tile.coordinate._1 == x) -> (tile.coordinate._2 == y)}.getOrElse(false -> false)
+    buildTDrawOps(BuildTDrawOpsParams(tile, ops, hX, hY)).asInstanceOf[LwjglCompositeAtom2DIntRenderer[Tile]#E#TDrawOptions]
+  }
+
+}
+
+trait LwjglSquareMapRoutesRenderer[Map <: AbstractSquareMap[Tile], Tile <: SquareTile[Tile, (Int, Int)], E <: NicolLike2DEasel]
+  extends LwjglSquareMapRenderer[Map, Tile, E]
+{
 
   def markedRoute = _markedRoute
   private var _markedRoute: CoordinatesChain[(Int, Int)] = {
     new EmptyCoordinatesChain[(Int, Int)]
   }
 
-  def drawRoute(atoms: CoordinatesChain[(Int, Int)]){
+  protected def renderRoute(map: Map, ops: E#MDrawOptions with SquareMapDrawOptions[E], easel: E){
+    implicit def e = easel
+    if(!markedRoute.isEmpty) doTheRouteDrawing(markedRoute, map, ops)
+  }
+
+  override protected def renderStages = super.renderStages :+ renderRoute _
+
+
+  override def drawRoute(atoms: CoordinatesChain[(Int, Int)]) {
     _markedRoute = atoms
   }
 
@@ -185,15 +231,10 @@ class LwjglSquareMapRenderer[Map <: AbstractSquareMap[Tile], Tile <: SquareTile[
   }
 
   private def tileCenter(tile: Tile, ops: SquareMapDrawOptions[E]) = {
-    def calcCoord(c: Int) = ops.tileSideSize * c + ops.tileSideSize/2 
+    def calcCoord(c: Int) = ops.tileSideSize * c + ops.tileSideSize/2
     calcCoord(tile.coordinate._1) -> calcCoord(tile.coordinate._2)
   }
 
-  def highlightAtoms(atoms: Set[Tile]) { /* todo */ }
-
-  def showMessage(msg: String) {}
-
-  def clearMessage() {}
 }
 
 class BasicLwjglSquareTileDrawer[Tile <: SquareTile[Tile, TCoord], TCoord, E <: Easel2D with OpenGLEasel]
