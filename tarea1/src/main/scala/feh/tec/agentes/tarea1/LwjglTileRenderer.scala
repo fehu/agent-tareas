@@ -3,7 +3,7 @@ package feh.tec.agentes.tarea1
 import feh.tec.visual._
 import feh.tec.visual.api._
 import java.awt.Color
-import feh.tec.visual.render.{WorldObjectLwjglAtomDrawer, Generic2DLwjglContainerAtomDrawer, BasicLwjglSquareTileDrawer, LwjglAtom2DIntRenderer}
+import feh.tec.visual.render.{WorldObjectLwjglAtomDrawer, Generic2DLwjglContainerAtomDrawer, BasicLwjglSquareTileDrawer, LwjglCompositeAtom2DIntRenderer}
 import feh.tec.world.WorldObject
 
 object LwjglTileRenderer {
@@ -12,7 +12,7 @@ object LwjglTileRenderer {
   type Easel = Easel2DFloat with OpenGLEasel
   type MObj = MapObj
 
-  def create = new LwjglAtom2DIntRenderer[Tile](renderers)
+  def create = new LwjglCompositeAtom2DIntRenderer[Tile](renderers)
 
   def renderers =
     new Generic2DLwjglContainerAtomDrawer[Tile, TCoord, Easel, MObj](mapObjectDrawers) ::

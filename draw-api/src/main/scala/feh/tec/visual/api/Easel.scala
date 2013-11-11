@@ -53,6 +53,7 @@ trait Easel{ easel =>
 
 trait Easel2D extends Easel{
   def drawRect(bottomLeft: Easel2D#Coordinate, width: Easel2D#CoordinateUnit, height: Easel2D#CoordinateUnit): DrawOp
+  def coordinate(c1: CoordinateUnit, c2: CoordinateUnit): Coordinate
 }
 
 trait Easel2DFloat extends Easel2D{
@@ -64,6 +65,7 @@ trait Easel2DFloat extends Easel2D{
   def zeroCoordinate: Easel2DFloat#Coordinate = (0F, 0F)
 
   protected def coordinateSum(c1: Coordinate, c2: Coordinate): Coordinate = (c1._1 + c2._1, c1._2 + c2._2)
+  def coordinate(c1: CoordinateUnit, c2: CoordinateUnit): Coordinate = c1 -> c2
 }
 
 trait Easel3D extends Easel{

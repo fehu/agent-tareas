@@ -45,12 +45,12 @@ trait Lwjgl2DWorldRenderer[World <: AbstractWorld[Atom, Coordinate], Atom <: Wor
 trait Lwjgl3DWorldRenderer[World <: AbstractWorld[Atom, Coordinate], Atom <: WorldAtom[Atom, Coordinate], Coordinate, E <: NicolLike3DEasel]
   extends WorldRenderer[World, Atom , Coordinate, E]
 
-trait LwjglAtom2DRenderer[Atom <: WorldAtom[Atom, Coordinate], Coordinate] extends CompositeLwjglWorldRenderer[Atom, Coordinate]{
+trait LwjglCompositeAtom2DRenderer[Atom <: WorldAtom[Atom, Coordinate], Coordinate] extends CompositeLwjglWorldRenderer[Atom, Coordinate]{
   override type E <: Easel2D with OpenGLEasel
 }
 
-class LwjglAtom2DIntRenderer[Atom <: WorldAtom[Atom, (Int, Int)]](val renderers: Seq[LwjglAtomDrawer[Atom, (Int, Int), Easel2DFloat with OpenGLEasel]])
-  extends LwjglAtom2DRenderer[Atom, (Int, Int)]
+class LwjglCompositeAtom2DIntRenderer[Atom <: WorldAtom[Atom, (Int, Int)]](val renderers: Seq[LwjglAtomDrawer[Atom, (Int, Int), Easel2DFloat with OpenGLEasel]])
+  extends LwjglCompositeAtom2DRenderer[Atom, (Int, Int)]
 {
 
   type E = Easel2DFloat with OpenGLEasel

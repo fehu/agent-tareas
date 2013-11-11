@@ -29,16 +29,25 @@ case class BasicStringDrawOps[+E <: Easel]( alignment: StringAlignment,
 
 // // // // // // // // // // // // // // // // //  Tile Draw Options  // // // // // // // // // // // // // // // // //
 
-trait TileDrawOptions[+E <: Easel]
+trait TileDrawOptions[+E <: Easel]{
+  def drawBorder: Boolean
+  def borderColor: Color
+  def fillColor: Option[Color]
+  // tiles with this flag are rendered after the rendering is done for the rest of tiles
+  def delayedRendering: Boolean
+}
 
 trait SquareTileDrawOptions[E <: Easel] extends TileDrawOptions[E]{
   def sideSize: E#CoordinateUnit
-  def lineColor: Color
-  def fillColor: Option[Color] // todo
 }
 
 
-case class BasicSquareTileDrawOptions[E <: Easel](sideSize: E#CoordinateUnit, lineColor: Color, fillColor: Option[Color]) extends SquareTileDrawOptions[E]
+case class BasicSquareTileDrawOptions[E <: Easel](sideSize: E#CoordinateUnit, borderColorOpt: Option[Color], fillColor: Option[Color], delayedRendering: Boolean = false)
+  extends SquareTileDrawOptions[E]
+{
+  def drawBorder: Boolean = borderColorOpt.isDefined
+  def borderColor: Color = borderColorOpt.orNull
+}
 
 
 // // // // // // // // // // // // // // // // //  Map Draw Options  // // // // // // // // // // // // // // // // //

@@ -73,13 +73,14 @@ object NicolBasedTarea1Game{
     new LwjglSquareMapRenderer[Map, SqTile, NicolLike2DEasel](
       LwjglTileRenderer.create,
       mapDrawConfig,
-      ops => BasicSquareTileDrawOptions[NicolLike2DEasel](mapDrawConfig.tileSideSize, selectColor(ops), None)
+      ops => BasicSquareTileDrawOptions[NicolLike2DEasel](mapDrawConfig.tileSideSize, selectColor(ops), None, delayRendering(ops))
     )
 
-  private def selectColor(ops: BuildTDrawOpsParams[Map, SqTile, NicolLike2DEasel]) = ops match {
+  private def delayRendering(ops: BuildTDrawOpsParams[Map, SqTile, NicolLike2DEasel]) = ops.highlightedX && ops.highlightedY
+
+  private def selectColor(ops: BuildTDrawOpsParams[Map, SqTile, NicolLike2DEasel]) = PartialFunction.condOpt(ops){
     case BuildTDrawOpsParams(_, _, true, true)    => Color.red
     case BuildTDrawOpsParams(_, _, true, false)   => Color.green
     case BuildTDrawOpsParams(_, _, false, true)   => Color.blue
-    case _ => Color.white
   }
 }
