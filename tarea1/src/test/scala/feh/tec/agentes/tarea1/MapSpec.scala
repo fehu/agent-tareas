@@ -3,7 +3,7 @@ package feh.tec.agentes.tarea1
 import org.specs2.mutable.Specification
 import org.specs2.ScalaCheck
 import scala.concurrent.duration._
-import feh.tec.map.SimpleDirection
+import feh.tec.world.Simple2dDirection
 
 class MapSpec extends Specification with ScalaCheck with Arbitraries{
   import Conf._
@@ -15,7 +15,7 @@ class MapSpec extends Specification with ScalaCheck with Arbitraries{
         val env = overseer.env
         val ag = Agents.MyDummyAgent.randomlyMoving(ref, 1 milli)
         val stopFunc = ag.execution()
-        val res = for(tile <- env.tiles) yield
+        val res = for(tile <- env.atoms) yield
           "provide all neighbours" >> { tile.neighbours.distinct.size mustEqual 4 } &&
           (for(neighbour <- tile.neighbours) yield
             "must not contain self" >> { neighbour.coordinate mustNotEqual tile.coordinate } &&
@@ -32,7 +32,7 @@ class MapSpec extends Specification with ScalaCheck with Arbitraries{
     }
 
     "provide correct relative tile positions" in {
-      import SimpleDirection._
+      import Simple2dDirection._
       val map = Maps.randomMap(0 until 10, 0 until 10, Some(agentId))
 
       Seq(

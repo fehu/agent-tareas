@@ -1,7 +1,7 @@
 package feh.tec.agentes.tarea1
 
 import feh.tec.agent._
-import feh.tec.map._
+import feh.tec.world._
 import scala.concurrent.duration.FiniteDuration
 import akka.actor.{ActorRef, Props, ActorSystem, Actor}
 import akka.event.Logging
@@ -29,13 +29,13 @@ import Agent._
 abstract class AbstractAgent[Exec <: ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, AbstractAgent[Exec]]]
                 (val env: AbstractAgent[Exec]#EnvRef,
                  val mainPerformanceCriteria: Seq[Criterion[Position, EnvState, EnvGlobal, Action, Env, Measure]],
-                 val mapStateBuilder: MapStateBuilder[Position, Tile, Map, EnvState],
+                 val worldStateBuilder: WorldStateBuilder[Position, Tile, Map, EnvState],
                  val shortestRouteFinder: ShortestRouteFinder[Map, Tile, Position],
                  val measure: Measure)
                 (implicit val execLoopBuilder: ExecLoopBuilder[AbstractAgent[Exec], Exec])
   extends Agent[Position, EnvState, EnvGlobal, Action, Env, Exec] with AgentWithActor[Position, EnvState, EnvGlobal, Action, Env, Exec]
     with IdealRationalAgent[Position, EnvState, EnvGlobal, Action, Env, Exec, Measure]
-    with InAbstractMapEnvironment[Position, EnvState, EnvGlobal, Action, Env, Tile, Map]
+    with InAbstractWorldEnvironment[Position, EnvState, EnvGlobal, Action, Env, Tile, Map]
 {
   agent: DecisiveAgent[Position, EnvState, EnvGlobal, Action, Env, Exec] =>
 

@@ -12,7 +12,7 @@ class EnvironmentSpec extends Specification with ScalaCheck with Arbitraries{
 
   "The Environment" should{
     "be accessible at all coordinates defined" in prop{ env: Environment => env.definedAt forall env.get.isDefinedAt }
-    "contain agent's avatar" in prop{ref: Environment#Ref => ref.position(agentId) must beSome}
+    "contain agent's avatar" in prop{ref: Environment#Ref => ref.blocking.agentPosition(agentId) must beSome}
     "provide sense information correctly" in prop{
       (overseer: Overseer) =>
         val ref = overseer.ref
@@ -21,7 +21,7 @@ class EnvironmentSpec extends Specification with ScalaCheck with Arbitraries{
         "about visible coordinates" >> { ref.blocking.visibleStates.keySet mustEqual env.definedAt.toSet } &&
         "about states at given coordinates" >> {
           val bulked = ref.blocking.visibleStates
-          val resSeq = for(c <- bulked.keys; state = env.stateByTile(env.tilesAsMap(c))) yield
+          val resSeq = for(c <- bulked.keys; state = env.stateByAtom(env.atomsMap(c))) yield
             ref.blocking.stateOf(c) must beSome(state) and bulked(c).mustEqual(state)
           resSeq.all
         }
@@ -32,7 +32,7 @@ class EnvironmentSpec extends Specification with ScalaCheck with Arbitraries{
         val ref = overseer.ref
         val env = overseer.env
 
-        def pos = ref.position(agentId).get
+        def pos = ref.blocking.agentPosition(agentId).get
         def passOpt(pos: (Int, Int)) = if(ref.blocking.stateOf(pos).exists(_.hole)) None else Some(pos)
         val iPos = pos
         val northPos = passOpt(iPos._1 -> (if(iPos._2  == env.coordinates.yRange.min) env.coordinates.yRange.max else iPos._2 - 1)) getOrElse iPos
@@ -45,7 +45,7 @@ class EnvironmentSpec extends Specification with ScalaCheck with Arbitraries{
         val pref = "tests" + File.separator
 
         s"positions: init=$iPos, north=$northPos, east=$eastPos, south=$southPos, west=$westPos".getBytes.toFile(pref + "positions")
-        env.tiles.toSeq.mkString("\n").getBytes.toFile(pref + "init-map")
+        env.atoms.toSeq.mkString("\n").getBytes.toFile(pref + "init-map")
 
         def screenshot(file: String) = serializer.serialize(env).prettyPrint.getBytes.toFile(file)
 
@@ -63,16 +63,16 @@ class EnvironmentSpec extends Specification with ScalaCheck with Arbitraries{
       prop{ s: Environment#Snapshot =>  s.definedAt forall s.asEnv.get.isDefinedAt }
     "be correctly compared" in prop{
       ref: Environment#Ref =>
-        val pos = ref.position(agentId).get
-        val mapSnap = ref.getMap
-        val moveTiles = mapSnap.getSnapshot(pos).neighboursSnapshots.filterNot(_.asTile.exists(_.isHole))
+        val pos = ref.blocking.agentPosition(agentId).get
+        val mapSnap = ref.worldSnapshot
+        val moveTiles = mapSnap.getSnapshot(pos).neighboursSnapshots.filterNot(_.asAtom.exists(_.isHole))
 
         moveTiles.map{
           tile =>
             val moveCoord = tile.coordinate
-            val isPlug = tile.asTile.exists(_.isPlug)
+            val isPlug = tile.asAtom.exists(_.isPlug)
             val snapshot0 = ref.blocking.snapshot
-            val movement = mapSnap.asMap.relativeNeighboursPosition(moveCoord, pos)
+            val movement = mapSnap.asWorld.relativeNeighboursPosition(moveCoord, pos)
             val m1 = Move(movement)
             ref.blocking.affect(m1)
             val snapshot1 = ref.blocking.snapshot
@@ -86,7 +86,7 @@ class EnvironmentSpec extends Specification with ScalaCheck with Arbitraries{
               (snapshot2 mustEqual snapshot2)
 
               mustEqualSelf and
-                (ref.position(agentId).get mustEqual pos) and (
+                (ref.blocking.agentPosition(agentId).get mustEqual pos) and (
                 if(isPlug)
                   (snapshot0 mustNotEqual snapshot2) and
                   (snapshot1 mustNotEqual snapshot0) and

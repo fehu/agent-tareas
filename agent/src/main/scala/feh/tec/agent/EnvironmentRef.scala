@@ -21,6 +21,7 @@ trait EnvironmentRef[Coordinate, State, Global, Action <: AbstractAction, Env <:
     def stateOf(c: Coordinate): Option[State]
     def affect(act: Action): SideEffect[Env#Ref]
     def visibleStates: Map[Coordinate, State]
+    def agentPosition(id: AgentId): Option[Coordinate]
 
     /**
      * makes a snapshot (a static image) of current environment state
@@ -40,6 +41,7 @@ trait EnvironmentRef[Coordinate, State, Global, Action <: AbstractAction, Env <:
     def stateOf(c: Coordinate): Future[Option[State]]
     def affect(act: Action): Future[SideEffect[Env#Ref]]
     def visibleStates: Future[Map[Coordinate, State]]
+    def agentPosition(id: AgentId): Future[Option[Coordinate]]
 
     /**
      * makes a snapshot (a static image) of current environment state

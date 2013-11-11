@@ -1,6 +1,6 @@
-* pause hides map
-* fix artifacts on text rendering
 * string render markup for easel
-* agent-plug-hole distance criteria needs to consider agent movements specifics, see fail-example-01.png, fail-example-02.png
-* maybe build Floyd-Warshall distances map only for a piece of map, that participates in criteria in order of performance enhancement
+* analyse criteria failures in fail-example-02.png, fail-example-03.png, fail-example-04-*.png
+* ? maybe build Floyd-Warshall distances map only for a piece of map, that participates in criteria in order of performance enhancement
 * repair showLabels
+* see https://github.com/mattdesl/lwjgl-basics for tips on 2d rendering
+* criteria fail condition is too strong, some effective decisions are ignored

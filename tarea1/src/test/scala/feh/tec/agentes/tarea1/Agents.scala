@@ -17,7 +17,7 @@ object Agents {
     def randomlyMoving(ref: Environment#Ref, freq: FiniteDuration) ={
       implicit def pauseBetweenExecs = PauseBetweenExecs(freq)
 
-      new MyDummyAgent[InfExec](ref, Nil, Nil, _ => _ => Set(), agentId, -1) { agent =>
+      new MyDummyAgent[InfExec](ref, Nil, Nil, _ => _ => Set(), agentId, -1, null) { agent =>
 
         override def decide(currentPerception: Perception): ActionExplanation =
           CriteriaReasonedDecision[Position, EnvState, EnvGlobal, Action, Env, InfExec, Measure](Move.all.toSeq.randomChoose, Set(RandomlyChosenCriteriaValue), 0)

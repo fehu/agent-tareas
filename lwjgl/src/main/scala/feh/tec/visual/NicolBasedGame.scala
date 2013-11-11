@@ -1,24 +1,25 @@
 package feh.tec.visual
 
-import nicol._
-import feh.tec.visual.api.TileGame
+import nicol.{Game => NGame, _}
+import feh.tec.visual.api.{GameBasicControlApi, Game}
 import feh.tec.util._
 import nicol.input.Key._
+import org.lwjgl.opengl.Display
 
-trait NicolLikeGame {
-  def game: Game
+trait NicolBasedGame {
+  def game: NGame
 }
 
-trait NicolLikeTileGame extends NicolLikeGame with TileGame{
+trait NicolBasedGameBasicControl extends Game with NicolBasedGame with GameBasicControlApi{
   def prepareDrawEnvironment(ops: DrawSettings): Unit = ???
 
   protected def pauseEndApi: PauseEndGameInnerApi
 
-  protected def newGame(scene: => Scene/*, pauseScene: Scene, endScene: Scene*/): Game
+  protected def newGame(scene: => Scene/*, pauseScene: Scene, endScene: Scene*/): NGame
 
   def gameExecutionFinished(): Boolean
 
-  lazy val game: Game = newGame(initScene >> baseScene)
+  lazy val game: NGame = newGame(initScene >> baseScene)
 
   protected def initScene: Scene
   protected def render(): Unit = render(gameLayout)
@@ -28,7 +29,7 @@ trait NicolLikeTileGame extends NicolLikeGame with TileGame{
   def stop(): Unit = game.stop
 }
 
-class NicolLikeBasicScene(render: () => Unit, finishedScene: Lifted[Scene], terminatedScene: Lifted[Scene], terminated_? : () => Boolean, pauseScene: Scene => Scene)
+class NicolLikeBasicScene(render: () => Unit, exitScene: Lifted[Scene], terminatedScene: Lifted[Scene], terminated_? : () => Boolean, pauseScene: Scene => Scene)
                           (implicit easel: NicolLike2DEasel)
   extends LoopScene with SyncableScene with ShowFPS
 {
@@ -39,13 +40,14 @@ class NicolLikeBasicScene(render: () => Unit, finishedScene: Lifted[Scene], term
     render()
 
     if(terminated_?()) terminatedScene()
+    else if(Display.isCloseRequested) exitScene()
     else keyEvent {
       e =>
         e released {
           case _ =>
         }
         e pressed {
-          case "escape" => finishedScene()
+          case "escape" => exitScene()
           case "space" => pauseScene(this)
         }
     }

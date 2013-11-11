@@ -2,10 +2,9 @@ package feh.tec.agent
 
 import feh.tec.agent.AgentDecision._
 import feh.tec.agent.AgentDecision.CriteriaReasonedDecision
-import feh.tec.util.{GlobalDebugging, RandomWrappers, FilteringHelpingWrapper}
+import feh.tec.util.RandomWrappers
 import RandomWrappers._
 import scala.collection.mutable
-import java.util.Calendar
 import feh.tec.util._
 
 object IdealRationalAgentDecisionStrategies {
@@ -14,6 +13,7 @@ object IdealRationalAgentDecisionStrategies {
                                      Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env],
                                      M <: AgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action, Env, M],
                                      Ag <: IdealRationalAgent[Position, EnvState, EnvGlobal, Action, Env, Exec, M] with AgentExecution[Position, EnvState, EnvGlobal, Action, Env, Exec]]
+  (agentPosition: Env#Prediction => Position)
     extends DecisionStrategy[Action, Ag#DecisionArg, ExtendedCriteriaBasedDecision[Ag#ActionExplanation, Position, EnvState, EnvGlobal, Action, Env, Exec, M]]
   {
     outer =>
@@ -47,8 +47,8 @@ object IdealForeseeingAgentDecisionStrategies{
                                                Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env],
                                                M <: AgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action, Env, M],
                                                Ag <: IdealForeseeingDummyAgent[Position, EnvState, EnvGlobal, Action, Env, Exec, M] with AgentExecution[Position, EnvState, EnvGlobal, Action, Env, Exec]]
-      (val foreseeingDepth: Int, val debug: Boolean)
-    extends IdealRationalAgentDecisionStrategies.MeasureBasedDecisionStrategy[Position, EnvState, EnvGlobal, Action, Env, Exec, M, Ag] with Debugging
+      (val foreseeingDepth: Int, val debug: Boolean, notifyRouteChosen: Option[Seq[Action]] => Unit)
+    extends IdealRationalAgentDecisionStrategies.MeasureBasedDecisionStrategy[Position, EnvState, EnvGlobal, Action, Env, Exec, M, Ag](null) with Debugging
   {
     override def name: String = "Foreseeing Measure Based Decision Strategy"
 
@@ -59,7 +59,12 @@ object IdealForeseeingAgentDecisionStrategies{
     type Decisions = ExtendedCriteriaBasedDecision[ReasonedDecisions, Position, EnvState, EnvGlobal, Action, Env, Exec, M]
     type Decision = ExtendedCriteriaBasedDecision[Ag#ActionExplanation, Position, EnvState, EnvGlobal, Action, Env, Exec, M]
 
-    protected var currentDecisions: Option[Decisions] = None
+    private var _currentDecisions: Option[Decisions] = None
+    def currentDecisions = _currentDecisions
+    protected def currentDecisions_=(opt: Option[Decisions])(implicit ag: Ag) {
+      _currentDecisions = opt
+      notifyRouteChosen(opt.map(_.decision.toSeq.map(_.action)))
+    } 
     protected val executeQueue = mutable.Queue.empty[Decision]
 
     def tacticalOptionsIncludeShorter = true
@@ -72,7 +77,7 @@ object IdealForeseeingAgentDecisionStrategies{
       case (ag, possibleActions) =>
         implicit val num = ag.measure.measureNumeric.asInstanceOf[Numeric[M#Measure]]
         def behavioursFunc = ag.perceiveFromSnapshot _ andThen ag.possibleBehaviors
-        def filterTacticalOptions(ops: Map[scala.Seq[Action], Env#Prediction]) =
+        def filterTacticalOptions(ops: Map[Seq[Action], Env#Prediction]) =
           if(!tacticalOptionsFilterLeadingToSameState) ops
           else ops.groupBy(_._2).map{
             case (prediction, map) => map.keys.toSeq.randomChoose -> prediction
@@ -103,6 +108,7 @@ object IdealForeseeingAgentDecisionStrategies{
     override def decide: (Ag#DecisionArg) => Decision = {
       arg =>
         if(executeQueue.isEmpty) {
+          implicit def ag = arg._1
           currentDecisions = Option(makeDecisions(arg))
           executeQueue.enqueue(currentDecisions.get.flatMap(_.toSeq): _*)
         }
