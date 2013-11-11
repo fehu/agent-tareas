@@ -5,4 +5,4 @@
 * ? maybe build Floyd-Warshall distances map only for a piece of map, that participates in criteria in order of performance enhancement
 * repair showLabels
 * see https://github.com/mattdesl/lwjgl-basics for tips on 2d rendering
-* draw selected action sequence for foreseeing agents
+* criteria fail condition is too strong, effective decisions are ignored

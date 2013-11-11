@@ -1,28 +1,30 @@
 package feh.tec.agentes.tarea1
 
 import scala.language.postfixOps
-import feh.tec.agentes.tarea1.DummyMapGenerator.DummyMapGeneratorRandomPositionSelectHelper
 import feh.tec.agent._
 import java.util.{Calendar, UUID}
 import feh.tec.world._
 import akka.actor.ActorSystem
 import scala.concurrent.duration._
-import feh.tec.agentes.tarea1.Tarea1.Agents.{ConditionalExec, MyDummyAgent}
-import feh.tec.visual.api.{SquareMapDrawOptions, StringAlignment, WorldRenderer, BasicStringDrawOps}
+import feh.tec.agentes.tarea1.Tarea1.Agents.MyDummyAgent
+import feh.tec.visual.api._
 import feh.tec.visual.{PauseScene, NicolLike2DEasel}
 import nicol._
 import Map._
 import feh.tec.util._
 import feh.tec.agentes.tarea1.Criteria.{DistanceToClosestPlugAndHoleCriterion, NumberOfHolesCriterion, PlugsMovingAgentCriteria}
-import scala.Predef
+import scala.{math, Predef, Some}
 import scala.concurrent.Await
 import java.awt.Color
-import feh.tec.agent.StatelessAgentPerformanceMeasure.Criterion
-import scala.Some
-import feh.tec.agent.AgentId
 import scala.collection.mutable
-import feh.tec.agent.AgentDecision.{FailsafeDecisionStrategy, ExtendedCriteriaBasedDecision, DecisionStrategy}
+import feh.tec.agent.AgentDecision.{FailsafeDecisionStrategy, DecisionStrategy}
+import feh.tec.agent.StatelessAgentPerformanceMeasure.Criterion
+import feh.tec.agentes.tarea1.Tarea1.Agents.ConditionalExec
+import feh.tec.agent.AgentDecision.ExtendedCriteriaBasedDecision
 import feh.tec.agentes.tarea1.Tarea1.Agents.ExecLoopBuilders.PauseBetweenExecs
+import feh.tec.agent.AgentId
+import feh.tec.visual.api.BasicStringDrawOps
+import feh.tec.map.visual.WorldVisualisationCalls
 
 object Tarea1 {
   object Debug extends GlobalDebuggingSetup
@@ -95,16 +97,15 @@ object Tarea1 {
                        criteria: Measure#Criteria,
                        backupCriteria: Measure#Criteria,
                        findPossibleActions: MyDummyAgent[Exec] => MyDummyAgent[Exec]#Perception => Set[Action],
-                       _id: AgentId,
-                       val foreseeingDepth: Int)
+                       override val id: AgentId,
+                       val foreseeingDepth: Int,
+                       worldVisualisationCalls: WorldVisualisationCalls[Tile, Position])
                       (implicit val actorSystem: ActorSystem, exBuilder: ExecLoopBuilder[AbstractAgent[Exec], Exec])
       extends AbstractAgent[Exec](e, criteria, Environment.mapStateBuilder, shortestRouteFinder, Measure)
         with IdealForeseeingDummyAgent[Position, EnvState, EnvGlobal, Action, Env, Exec, Measure]
         with GlobalDebugging
     {
       agent =>
-
-      override val id: AgentId = _id
 
       def possibleBehaviors(currentPerception: Perception): Set[Action] = {
         currentPerception.debugLog("searching for possible behaviors. position = " + _.position)
@@ -130,7 +131,7 @@ object Tarea1 {
       }
 
       private class BackupMeasureBasedForeseeingDecisionStrategy
-        extends IdealForeseeingAgentDecisionStrategies.MeasureBasedForeseeingDecisionStrategy[Position, EnvState, EnvGlobal, Action, Env, Exec, Measure, agent.type](foreseeingDepth, debug)
+        extends IdealForeseeingAgentDecisionStrategies.MeasureBasedForeseeingDecisionStrategy[Position, EnvState, EnvGlobal, Action, Env, Exec, Measure, agent.type](foreseeingDepth, debug, notifyRouteChosen)
       {
         override lazy val rewriteCriteria: Option[Measure#Criteria] = Some(backupCriteria)
       }
@@ -145,6 +146,38 @@ object Tarea1 {
             )
             .build()
         }
+
+      protected def agentPredictedPosition(p: Env#Prediction) = p.asEnv.agentsPositions(id).coordinate
+
+      private lazy val (xRange, yRange) = env.worldSnapshot.asWorld.coordinates |> {
+        c => c.xRange -> c.yRange
+      }
+
+      private def isNeighbour(c1: Position, c2: Position) = c1 -> c2 match{
+        case ((x1, y1), (x2, y2)) =>
+          val diffX = math.abs(x1 - x2)
+          val diffY = math.abs(y1 - y2)
+
+          ((diffX == 1 || diffX == xRange.length - 1) && diffY == 0) ||
+          ((diffY == 1 || diffY == yRange.length - 1) && diffX == 0)
+      }
+
+      protected def notifyRouteChosen: (Option[Seq[Action]]) => Unit = {
+        def agentPos = e.blocking.agentPosition(id).get
+        val pseudoMap = e.worldSnapshot.asWorld
+        def positionTo(from: (Int, Int), direction: SimpleDirection) = pseudoMap.positionTo(from, direction)
+        def positions(a: Seq[Action]) = Y[(Seq[Action], Position), Seq[Position]](
+          rec => {
+            case (Nil, _) => Nil
+            case (h :: t, pos) =>
+              val np = positionTo(pos, Move.direction(h))
+              np +: rec(t -> np)
+          }
+        )(a -> agentPos)
+        _
+          .map(acts => NonEmptyCoordinatesChain[Position](positions(acts))(isNeighbour)).getOrElse(new EmptyCoordinatesChain[Position])
+          .pipe(seq => Option(worldVisualisationCalls).foreach(_.drawRoute(seq)))
+      }
     }
   }
 
@@ -198,12 +231,9 @@ object Tarea1 {
     positionMaxDelay =  30 millis)
 
   def overseer(env: Environment,
-               timeouts: OverseerTimeouts,
-               mapRenderer: WorldRenderer[Map, Agent.Tile, Agent.Position, Agent.Easel],
-               easel: Agent.Easel,
-               mapDrawConfig: Agent.Easel#MDrawOptions)
+               timeouts: OverseerTimeouts)
               (implicit actorSystem: ActorSystem) =
-    new Overseer(actorSystem, env, mapRenderer, easel, mapDrawConfig, Environment.mapStateBuilder, timeouts)
+    new Overseer(actorSystem, env, Environment.mapStateBuilder, timeouts)
 
   def environment(ag: Option[AgentId]): Environment = environment(ag, Maps.randomMap(Environment.xRange, Environment.yRange, ag))
 
@@ -320,10 +350,7 @@ object Tarea1App extends App{
     val showLabels = false
 
     implicit val easel = new NicolLike2DEasel
-    val mapDrawConfig = new SquareMapDrawOptions[NicolLike2DEasel]{
-      def tileSideSize: NicolLike2DEasel#CoordinateUnit = visual.tileSideSize
-      def showLabels: Boolean = visual.showLabels
-    }
+    val mapDrawConfig = BasicSquareMapDrawOptions(visual.tileSideSize, showLabels, Color.yellow)
   }
 
 //  Tarea1.Debug() = true
@@ -337,11 +364,19 @@ object Tarea1App extends App{
 
   implicit val pauseBetweenExecs = PauseBetweenExecs(processArgsForTimeSpan getOrElse defaultPauseBetweenExecs)
 
-  val mapRenderer = NicolBasedTarea1Game.mapRenderer()
 //  val env = environment(Option(Agents.Id.dummy), Maps.failExample1(Agents.Id.dummy))
   val env = environment(Option(Agents.Id.dummy))
 //  val env = TestEnvironment.test1(Option(Agents.Id.dummy))
-  val overseer = Tarea1.overseer(env, timeouts, mapRenderer, visual.easel, visual.mapDrawConfig)
+  val overseer = Tarea1.overseer(env, timeouts)
+
+  implicit def agResolver = new AgentResolver{
+    def byId(id: AgentId): Option[AgentRef] = PartialFunction.condOpt(id){
+      case Agents.Id.dummy => AgentRef.create(ag)
+    }
+  }
+
+  lazy val game = new NicolBasedTarea1Game(env, Agents.Id.dummy)
+
 
   val foreseeingDepth = 5
 
@@ -349,19 +384,18 @@ object Tarea1App extends App{
   import Tarea1.Agents.ExecLoopBuilders._
 
   type Exec = ConditionalExec
-  val ag = new MyDummyAgent[Exec](
+  val ag: MyDummyAgent[Exec] = new MyDummyAgent[Exec](
     overseer.ref,
     setup.criteria,
     setup.backupCriteria,
     (setup.findPossibleActions[Exec] _).curried,
     Agents.Id.dummy,
-    foreseeingDepth)
+    foreseeingDepth,
+    game.mapRenderer)
 
   lazy val finishedScene = new FinishedScene(renderMap.lifted)
 
-  val game = new NicolBasedTarea1Game(env, AgentRef.create(ag))
-
-  def renderMap(implicit easel: NicolLike2DEasel) = mapRenderer.render(env, visual.mapDrawConfig)
+  def renderMap(implicit easel: NicolLike2DEasel) = game.mapRenderer.render(env)
 
   val agStop = ag.execution()
 

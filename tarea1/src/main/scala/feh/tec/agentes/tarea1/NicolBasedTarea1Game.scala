@@ -12,6 +12,8 @@ import feh.tec.visual.api.LayoutElem
 import feh.tec.visual.render.{LwjglSquareMapRenderer, CriteriaReasonedDecisionRenderer}
 import java.awt.Color
 import LwjglSquareMapRenderer.BuildTDrawOpsParams
+import feh.tec.agent.AgentId
+import feh.tec.map.visual.WorldVisualisationCalls
 
 case class AgentRef(ag: MyDummyAgent[Nothing])
 object AgentRef{
@@ -19,7 +21,11 @@ object AgentRef{
   implicit def AgentRefToRef(ref: AgentRef) = ref.ag
 }
 
-class NicolBasedTarea1Game(val env: Environment, val agRef: AgentRef) extends NicolBasedGameBasicControl{
+trait AgentResolver{
+  def byId(id: AgentId): Option[AgentRef]
+}
+
+class NicolBasedTarea1Game(val env: Environment, val agentId: AgentId)(implicit agResolver: AgentResolver) extends NicolBasedGameBasicControl{
   type EaselTpe = NicolLike2DEasel
   type DrawSettings = BasicDrawEnvironmentSettings
 
@@ -51,7 +57,9 @@ class NicolBasedTarea1Game(val env: Environment, val agRef: AgentRef) extends Ni
     frameColor = Some(Color.blue), sepLineColor = Some(Color.white)
   )
 
-  implicit def mapRenderer: Renderer[Map, NicolLike2DEasel] = NicolBasedTarea1Game.mapRenderer()
+  lazy val agRef = agResolver.byId(agentId).get
+
+  implicit val mapRenderer: Renderer[Map, NicolLike2DEasel] with WorldVisualisationCalls[SqTile, (Int, Int)] = NicolBasedTarea1Game.mapRenderer()
   implicit def criteriaValueRenderer: Renderer[agRef.ag.ActionExplanation, NicolLike2DEasel] = new CriteriaReasonedDecisionRenderer(criteriaRendererScheme)
 
   val gameLayout: Layout[NicolLike2DEasel] = Layout(List[LiftedOptionLayoutElem[_, NicolLike2DEasel]](

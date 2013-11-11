@@ -24,7 +24,7 @@ class NicolLikeMapsVisualizer(val maps: Seq[Map])
   extends Visualizer[NicolLike2DEasel, Map]
 {
   implicit val easel = new NicolLike2DEasel
-  val howToDraw: NicolLike2DEasel#MDrawOptions = BasicSquareMapDrawOptions(50, showLabels = true)
+  val howToDraw: NicolLike2DEasel#MDrawOptions = BasicSquareMapDrawOptions(50, showLabels = true, Color.yellow)
 
   protected var _visualisation: Map = maps.head
   def visualisation: Map = _visualisation

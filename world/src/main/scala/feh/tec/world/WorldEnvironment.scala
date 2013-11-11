@@ -93,6 +93,8 @@ trait MutableWorldEnvironment[World <: AbstractWorld[Atom, Coordinate],
   protected def agentAtAtom(atom: Atom): Option[AgentId]
 
   def agentsPositions = _agentsPositions.toMap
+
+  def agentPosition(id: AgentId): Option[Coordinate] = agentsPositions.get(id).map(_.coordinate)
 }
 
 trait WorldEnvironmentRef[Coordinate, State <: AtomState[Coordinate, Atom, World], Global <: WorldState[Coordinate, Atom, World],
@@ -102,12 +104,9 @@ trait WorldEnvironmentRef[Coordinate, State <: AtomState[Coordinate, Atom, World
 {
   def worldSnapshot: WorldSnapshot[World, Atom, Coordinate]
   def worldSnapshot(s: EnvironmentSnapshot[Coordinate, State, Global, Action, Env]): WorldSnapshot[World, Atom, Coordinate]
-  def position(a: AbstractAgent[Coordinate, State, Global, Action, Env] with InAbstractWorldEnvironment[Coordinate, State, Global, Action, Env, Atom, World]): Coordinate
-  def position(id: AgentId): Option[Coordinate]
 
   def asyncWorldSnapshot(e: Env#Ref): Future[WorldSnapshot[World, Atom, Coordinate]]
   def asyncWorldSnapshot(s: EnvironmentSnapshot[Coordinate, State, Global, Action, Env]): Future[WorldSnapshot[World, Atom, Coordinate]]
-  def asyncPosition(a: AbstractAgent[Coordinate, State, Global, Action, Env] with InAbstractWorldEnvironment[Coordinate, State, Global, Action, Env, Atom, World]): Future[Coordinate]
 }
 
 trait InAbstractWorldEnvironment[Position,
@@ -150,7 +149,7 @@ trait InAbstractWorldEnvironment[Position,
 
       val perceived: Seq[Position] = env.blocking.visibleStates.keys.toSeq
 
-      val position: Position = env.position(agent)
+      val position: Position = env.blocking.agentPosition(agent.id).get
     }
 
   def detailed(env: EnvRef, c: Position): Option[DetailedPerception] =     {
@@ -185,8 +184,6 @@ trait WorldEnvironmentOverseer[World <: AbstractWorld[Atom, Coordinate],
 
   def worldSnapshot(): WorldSnapshot[World, Atom, Coordinate]
   def worldSnapshot(s: EnvironmentSnapshot[Coordinate, State, Global, Action, Env]): WorldSnapshot[World, Atom, Coordinate]
-  def position(a: AbstractAgent[Coordinate, State, Global, Action, Env] with InAbstractWorldEnvironment[Coordinate, State, Global, Action, Env, Atom, World]): Coordinate
-  def position(id: AgentId): Option[Coordinate]
 
 }
 
@@ -209,8 +206,7 @@ trait WorldEnvironmentOverseerWithActor[World <: AbstractWorld[Atom, Coordinate]
   case class GetWorldBySnapshot(s: EnvironmentSnapshot[Coordinate, State, Global, Action, Env]) extends UUIDed
   case class WorldBySnapshot(uuid: UUID, snapshot: WorldSnapshot[World, Atom, Coordinate]) extends HasUUID
 
-  case class GetPosition(a: Ag) extends UUIDed
-  case class Position(uuid: UUID, position: Coordinate) extends HasUUID
+
 
   def getWorldMaxDelay: FiniteDuration
   def positionMaxDelay: FiniteDuration
@@ -219,21 +215,16 @@ trait WorldEnvironmentOverseerWithActor[World <: AbstractWorld[Atom, Coordinate]
     case msg@GetWorldByEnvRef(e) =>
       WorldByEnvRef(msg.uuid, worldSnapshot()).liftUnit
     case msg@GetWorldBySnapshot(s) => WorldBySnapshot(msg.uuid, worldSnapshot(s)).liftUnit
-    case msg@GetPosition(a) => Position(msg.uuid, position(a)).liftUnit
   }
 
   trait WorldEnvironmentRefImpl extends WorldEnvironmentRef[Coordinate, State, Global, Action, Env, Atom, World]{
     def worldSnapshot: WorldSnapshot[World, Atom, Coordinate] = overseer.worldSnapshot()
     def worldSnapshot(s: EnvironmentSnapshot[Coordinate, State, Global, Action, Env]): WorldSnapshot[World, Atom, Coordinate] = overseer.worldSnapshot(s)
-    def position(a: Ag): Coordinate = overseer.position(a)
-    def position(id: AgentId): Option[Coordinate] = overseer.position(id)
 
     def asyncWorldSnapshot(e: Env#Ref): Future[WorldSnapshot[World, Atom, Coordinate]] =
       overseer.actorRef.send(GetWorldByEnvRef(e)).awaitingResponse[WorldBySnapshot](positionMaxDelay).map(_.snapshot)
     def asyncWorldSnapshot(s: EnvironmentSnapshot[Coordinate, State, Global, Action, Env]): Future[WorldSnapshot[World, Atom, Coordinate]] =
       overseer.actorRef.send(GetWorldBySnapshot(s)).awaitingResponse[WorldBySnapshot](positionMaxDelay).map(_.snapshot)
-    def asyncPosition(a: Ag): Future[Coordinate] =
-      overseer.actorRef.send(GetPosition(a)).awaitingResponse[Position](positionMaxDelay).map(_.position)
   }
 
 }

@@ -38,6 +38,7 @@ protected[agent] object EnvironmentOverseerWithActor{
     case class StateOf[Coordinate](c: Coordinate)(implicit val ttag: TypeTag[Coordinate]) extends Message
     case object VisibleStates extends Message
     case object Snapshot extends Message
+    case class Position(a: AgentId) extends UUIDed
   }
 
   case class Act[Action <: AbstractAction](act: Action)(implicit val ttag: TypeTag[Action]) extends Message
@@ -54,6 +55,7 @@ protected[agent] object EnvironmentOverseerWithActor{
     case class Snapshot[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]]
       (snapshot: EnvironmentSnapshot[Coordinate, State, Global, Action, Env], time: Long)
       (implicit ttag: TypeTag[Env]) extends MessageResponse(snapshot -> time, ttag :: Nil)
+    case class Position[Coordinate](uuid: UUID, position: Option[Coordinate]) extends HasUUID
   }
 }
 
@@ -80,6 +82,7 @@ trait EnvironmentOverseerWithActor[Coordinate, State, Global, Action <: Abstract
     case a@Act(act) if a.ttag.tpe <:< typeOf[Action] =>
       affect(act.asInstanceOf[Action]).execute
       Response.ActionApplied(act).liftUnit
+    case msg@Get.Position(id) => Response.Position(msg.uuid, env.agentPosition(id)).liftUnit
   }
 
   protected implicit def executionContext: ExecutionContext
@@ -113,6 +116,7 @@ trait EnvironmentOverseerWithActor[Coordinate, State, Global, Action <: Abstract
       def stateOf(c: Coordinate): Option[State] = overseer.env.stateOf(c)
       def globalState: Global = overseer.env.globalState
       def affect(act: Action): SideEffect[Env#Ref] = overseer.affect(act).more(overseer.ref).flatExec
+      def agentPosition(id: AgentId): Option[Coordinate] = overseer.env.agentPosition(id)
     }
 
     lazy val async: AsyncApi = new AsyncApi{
@@ -146,7 +150,11 @@ trait EnvironmentOverseerWithActor[Coordinate, State, Global, Action <: Abstract
           .mapTo[Response.Snapshot[_, _, _, _, _]]
           .withFilter(_.ttag match { case _ :: _ :: _ :: _ :: envTag :: Nil => envTag.tpe =:= typeOf[Env] })
           .map(_.snapshot.asInstanceOf[Env with EnvironmentSnapshot[Coordinate, State, Global, Action, Env]])
-      }
+
+      def agentPosition(id: AgentId): Future[Option[Coordinate]] = Get.Position(id) |> (msg =>
+        (overseer.actorRef ? msg).mapTo[Response.Position[Coordinate]].havingSameUUID(msg).map(_.position)
+        )
+    }
   }
 }
 
@@ -303,10 +311,6 @@ trait ForeseeingMutableDeterministicEnvironmentOverseer[Coordinate, State, Globa
   extends ForeseeingEnvironmentOverseer[Coordinate, State, Global, Action, Env] with Debugging
 {
   self: PredictingMutableDeterministicEnvironmentOverseer[Coordinate, State, Global, Action, Env] =>
-
-  @deprecated
-  def foresee(maxDepth: Int, possibleActions: EnvironmentSnapshot[Coordinate, State, Global, Action, Env] => Set[Action]): Map[Seq[Action], Env#Prediction] =
-    foresee(maxDepth, _ => possibleActions, includeShorter = false, excludeTurningBack = false)
 
   def foresee(maxDepth: Int, possibleActions: (Seq[Action]) => (EnvironmentSnapshot[Coordinate, State, Global, Action, Env]) => Set[Action], includeShorter: Boolean, excludeTurningBack: Boolean): Map[Seq[Action], Env#Prediction] = {
     debugLog(s"foreseeing for $maxDepth possible actions ahead")

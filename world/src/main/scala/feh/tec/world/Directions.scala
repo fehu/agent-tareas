@@ -5,7 +5,9 @@ trait SimpleDirection{
 }
 
 object Simple2dDirection{
-  trait Simple2dDirection extends SimpleDirection
+  trait Simple2dDirection extends SimpleDirection{
+    override def opposite: Simple2dDirection
+  }
 
   object Left extends Simple2dDirection{
     def opposite: Simple2dDirection = Right

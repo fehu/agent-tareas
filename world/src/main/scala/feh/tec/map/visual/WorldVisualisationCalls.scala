@@ -1,11 +1,10 @@
 package feh.tec.map.visual
 
-import feh.tec.world.{AbstractWorld, WorldAtom}
+import feh.tec.world.{CoordinatesChain, WorldAtom}
 
 trait WorldVisualisationCalls[Atom <: WorldAtom[Atom, Coordinate], Coordinate] {
-  self: AbstractWorld[Atom, Coordinate] =>
-
-  def highlightAtoms(tiles: Set[Atom])
+  def drawRoute(atoms: CoordinatesChain[Coordinate])
+  def highlightAtoms(atoms: Set[Atom])
   def showMessage(msg: String)
   def clearMessage()
 }

@@ -1,11 +1,7 @@
 package feh.tec.agentes.tarea1
 
 import org.scalacheck.{Properties, Prop, Gen, Arbitrary}
-import feh.tec.agentes.tarea1.DummyMapGenerator.DummyMapGeneratorRandomPositionSelectHelper
-import scala.util.Random
 import akka.actor.ActorSystem
-import feh.tec.visual.api.SquareMapDrawOptions
-import feh.tec.visual.NicolLike2DEasel
 import feh.tec.agent.AgentId
 import org.specs2.specification.Example
 import scala.concurrent.duration._
@@ -31,7 +27,7 @@ trait Arbitraries{ self: Specification with ScalaCheck =>
   }
 
   implicit def overseer: Arbitrary[Overseer] = Arbitrary{
-    for(env <- arbitrary[Environment]) yield Tarea1.overseer(env, timeouts, mapRenderer, easel, mapDrawConfig)
+    for(env <- arbitrary[Environment]) yield Tarea1.overseer(env, timeouts)
   }
 
   implicit def envRef: Arbitrary[Environment#Ref] = Arbitrary{ for(ov <- arbitrary[Overseer]) yield ov.ref }
@@ -66,12 +62,6 @@ trait Arbitraries{ self: Specification with ScalaCheck =>
 
 object Conf{
   implicit def actorSystem = ActorSystem()
-  def mapRenderer = NicolBasedTarea1Game.mapRenderer()
-  val easel = new NicolLike2DEasel
-  def mapDrawConfig = new SquareMapDrawOptions[NicolLike2DEasel]{
-    def tileSideSize: NicolLike2DEasel#CoordinateUnit = 50
-    def showLabels: Boolean = true
-  }
   def timeouts = OverseerTimeouts(
     defaultBlockingTimeout = 10,
     defaultFutureTimeout = 10,

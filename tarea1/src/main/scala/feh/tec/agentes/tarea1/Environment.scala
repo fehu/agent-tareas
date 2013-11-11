@@ -81,9 +81,6 @@ class Environment(buildTilesMap: Map => Seq[Tile],
 
 class Overseer(actorSystem: ActorSystem,
                initEnvironment: Environment,
-               val mapRenderer: WorldRenderer[Map, Tile, Coordinate, Easel],
-               implicit val easel: Easel,
-               val mapDrawConfig: Easel#MDrawOptions,
                val mapStateBuilder: WorldStateBuilder[Coordinate, Tile, Map, State],
                timeouts: OverseerTimeouts)
   extends EnvironmentOverseerWithActor[Coordinate, State, Global, Action, Environment]

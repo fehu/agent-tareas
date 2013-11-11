@@ -14,6 +14,7 @@ trait Environment[Coordinate, State, Global, Action <: AbstractAction, Env <: En
   def globalState: Global
   def stateOf(c: Coordinate): Option[State]
   def visibleStates: Map[Coordinate, State]
+  def agentPosition(ag: AgentId): Option[Coordinate]
 
   def affected(act: Action): SideEffect[Env] //Environment[Coordinate, State, Global, Action]
 

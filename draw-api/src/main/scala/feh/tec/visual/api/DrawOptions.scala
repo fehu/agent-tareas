@@ -57,10 +57,12 @@ trait MapDrawOptions[+E <: Easel]
 trait SquareMapDrawOptions[E <: Easel] extends MapDrawOptions[E]{
   def tileSideSize: E#CoordinateUnit
   def showLabels: Boolean
+  def routeHighlightColor: Color
 }
 
-case class BasicSquareMapDrawOptions[E <: Easel](tileSideSize: E#CoordinateUnit, showLabels: Boolean) extends SquareMapDrawOptions[E]
+case class BasicSquareMapDrawOptions[E <: Easel](tileSideSize: E#CoordinateUnit, showLabels: Boolean, routeHighlightColor: Color) extends SquareMapDrawOptions[E]
 
 object BasicSquareMapDrawOptions{
-  def apply[E <: Easel](n: Int, showLabels: Boolean)(implicit easel: E): BasicSquareMapDrawOptions[E] = BasicSquareMapDrawOptions(easel.unitNumeric.fromInt(n), showLabels)
+  def apply[E <: Easel](n: Int, showLabels: Boolean, routeHighlightColor: Color)(implicit easel: E): BasicSquareMapDrawOptions[E] =
+    BasicSquareMapDrawOptions(easel.unitNumeric.fromInt(n), showLabels, routeHighlightColor)
 }

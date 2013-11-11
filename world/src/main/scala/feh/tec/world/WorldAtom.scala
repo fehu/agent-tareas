@@ -1,5 +1,7 @@
 package feh.tec.world
 
+import feh.tec.util
+
 trait WorldAtom[Atom <: WorldAtom[Atom, Coordinate], Coordinate] {
   def coordinate: Coordinate
 
@@ -57,4 +59,30 @@ trait WorldObjectListContainingAtom[Atom <: WorldAtom[Atom, Coordinate], Content
   def isOptionalContainer: Boolean = false
   def isSequenceContainer: Boolean = true
   def containerObjectsToList: List[Contents] = contents
+}
+
+sealed trait CoordinatesChain[Coordinate]{
+  def seq: Seq[Coordinate]
+
+  def isEmpty: Boolean
+}
+
+class EmptyCoordinatesChain[Coordinate] extends CoordinatesChain[Coordinate]{
+  final def isEmpty = true
+  def seq: Seq[Coordinate] = Nil
+}
+
+case class NonEmptyCoordinatesChain[Coordinate](seq: Seq[Coordinate])
+                                               (isNeighbour: (Coordinate, Coordinate) => Boolean)
+  extends CoordinatesChain[Coordinate]
+{
+  final def isEmpty = false
+  util.Y[Seq[Coordinate], Unit](
+    rec => {
+      case _ :: Nil =>
+      case l1 :: l2 :: tail =>
+        assert(isNeighbour(l1, l2), s"$l1 and $l2 are not neighbouring")
+        rec(l2 :: tail)
+    }
+  )(seq)
 }

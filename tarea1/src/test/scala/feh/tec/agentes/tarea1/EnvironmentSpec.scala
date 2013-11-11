@@ -12,7 +12,7 @@ class EnvironmentSpec extends Specification with ScalaCheck with Arbitraries{
 
   "The Environment" should{
     "be accessible at all coordinates defined" in prop{ env: Environment => env.definedAt forall env.get.isDefinedAt }
-    "contain agent's avatar" in prop{ref: Environment#Ref => ref.position(agentId) must beSome}
+    "contain agent's avatar" in prop{ref: Environment#Ref => ref.blocking.agentPosition(agentId) must beSome}
     "provide sense information correctly" in prop{
       (overseer: Overseer) =>
         val ref = overseer.ref
@@ -32,7 +32,7 @@ class EnvironmentSpec extends Specification with ScalaCheck with Arbitraries{
         val ref = overseer.ref
         val env = overseer.env
 
-        def pos = ref.position(agentId).get
+        def pos = ref.blocking.agentPosition(agentId).get
         def passOpt(pos: (Int, Int)) = if(ref.blocking.stateOf(pos).exists(_.hole)) None else Some(pos)
         val iPos = pos
         val northPos = passOpt(iPos._1 -> (if(iPos._2  == env.coordinates.yRange.min) env.coordinates.yRange.max else iPos._2 - 1)) getOrElse iPos
@@ -63,7 +63,7 @@ class EnvironmentSpec extends Specification with ScalaCheck with Arbitraries{
       prop{ s: Environment#Snapshot =>  s.definedAt forall s.asEnv.get.isDefinedAt }
     "be correctly compared" in prop{
       ref: Environment#Ref =>
-        val pos = ref.position(agentId).get
+        val pos = ref.blocking.agentPosition(agentId).get
         val mapSnap = ref.worldSnapshot
         val moveTiles = mapSnap.getSnapshot(pos).neighboursSnapshots.filterNot(_.asAtom.exists(_.isHole))
 
@@ -86,7 +86,7 @@ class EnvironmentSpec extends Specification with ScalaCheck with Arbitraries{
               (snapshot2 mustEqual snapshot2)
 
               mustEqualSelf and
-                (ref.position(agentId).get mustEqual pos) and (
+                (ref.blocking.agentPosition(agentId).get mustEqual pos) and (
                 if(isPlug)
                   (snapshot0 mustNotEqual snapshot2) and
                   (snapshot1 mustNotEqual snapshot0) and
