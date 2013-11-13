@@ -1,0 +1,1 @@
+# enable lwjgl debug mode                         -Dorg.lwjgl.util.Debug=true

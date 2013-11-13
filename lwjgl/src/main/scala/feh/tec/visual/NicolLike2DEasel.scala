@@ -22,74 +22,23 @@ trait NicolLikeTileRenderer[Tile <: AbstractTile[Tile, Coordinate], Coordinate] 
  * some parts are taken from Tom Streller's (scan) Nicol-0.1.2 project (https://github.com/scan/Nicol)
  * due to a lack of scala 2.10 compatible version
  */
-class NicolLike2DEasel extends Easel with Easel2DFloat with EaselAffineTransforms with OpenGLEasel{
+class NicolLike2DEasel extends Easel with Easel2DFloat with EaselAffineTransforms with NicolLikeOpenGLEasel{
   easel =>
 
   type TDrawOptions = SquareTileDrawOptions[NicolLike2DEasel]
   type StrDrawOptions = StringDrawOptions[NicolLike2DEasel]
   type MDrawOptions = SquareMapDrawOptions[NicolLike2DEasel]
 
-  type Repr = GLUtils.type
-  def repr: Repr = GLUtils 
-
-  protected val colorHolder = new ThreadLocal[Color]{
-    override def initialValue(): Color = Color.black
-  }
-  
-  protected def setColor(c: Color) = colour(c.getRed, c.getGreen, c.getBlue, c.getAlpha)
-
-
   def size: Coordinate = Display.getWidth.toFloat -> Display.getHeight.toFloat
   def center: Coordinate = size._1/2 -> size._2/2
 
-  def withColor[R](color: Color)(f: => R): R = {
-    val old = colorHolder.get()
-    if(old != color) {
-      colorHolder.set(color)
-      setColor(color)  
-    }
-    val res = f
-    if(old != color){
-      colorHolder.set(old)
-      setColor(old)  
-    }
-    res
-  }
 
-  def withoutTextures[R](r: => R): R = {
-    import GL11._
-    glDisable(GL_TEXTURE_2D)
-    val x = r
-    glEnable(GL_TEXTURE_2D)
-    x
-  }
-
-  implicit class WithoutTextures[R](r: => R) {
-    def withoutTextures = easel.withoutTextures(r)
-  }
-
-  def withTransform[R](tr: Transform*)(f: => R): R = {
-    withAffineTransform(tr.flatMap(_.tryAs[AffineTransform]): _*)(f)
-  }
 
   def withAffineTransform[R](tr: AffineTransform*)(f: => R): R = tr map {
     case Offset((x, y)) => () => translate(x, y)
     case Rotate(angle) => () => rotate(angle)
     case Scale(factor) => () => scale(factor)
-  } pipe {
-    transforms =>
-      var x: R = null.asInstanceOf[R] // que horror
-      preserve(/*GLUtils.withoutTextures*/ {
-        transforms.foreach(_())
-        x = f
-      })
-      x
-  }
-
-
-  private implicit class AnyToDrawOp(a: Any) {
-    def toDrawOp = new DrawOp{}
-  }
+  } pipe applyTransforms(f)
 
   def drawLine(start: Coordinate, end: Coordinate): DrawOp = GLUtils.draw(Lines) {
     vertex(start)
@@ -118,14 +67,6 @@ class NicolLike2DEasel extends Easel with Easel2DFloat with EaselAffineTransform
       }
   }.toDrawOp
 
-  protected val Fonts = mutable.Map.empty[(String, Int), nicol.font.Font]
-
-  def getFont(fontName: String, size: Int) = Fonts get fontName -> size getOrElse {
-    val nfont = nicol.font.Font(fontName, size)
-    Fonts += fontName -> size -> nfont
-    nfont
-  }
-
   def drawString(what: String, where: Coordinate, how: StrDrawOptions): DrawOp = {
         val font = getFont(how.font, how.size.toInt)
         val splitted = what split '\n'
@@ -141,9 +82,6 @@ class NicolLike2DEasel extends Easel with Easel2DFloat with EaselAffineTransform
 //      }
     }.toDrawOp
 
-  protected def mapCoordinate[R](c: Easel#Coordinate)(f: Coordinate => R): R = c match {
-    case x: Coordinate => f(x)
-  }
 
   protected def mapCoordinates[R](c1: Coordinate, c2: Coordinate)(f: (Coordinate, Coordinate) => R): R = c1 -> c2 match {
     case (x: Coordinate, y: Coordinate) => f(x, y)
@@ -162,11 +100,6 @@ class NicolLike2DEasel extends Easel with Easel2DFloat with EaselAffineTransform
     val d = implicitly[Numeric[N]].toFloat(n)
     (x._1 + d, x._2 + d)
   }
-
-//  /**
-//   * http://www.lwjgl.org/wiki/index.php?title=Taking_Screen_Shots
-//   */
-//  def screenshot: Array[Byte] =
   
   def onMouseMove(f: PartialFunction[Coordinate, Unit]) = f(Mouse.apply)
 

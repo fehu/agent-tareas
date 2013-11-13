@@ -45,8 +45,8 @@ case class Init3D (title: String, width: Int = 800, height: Int = 600, vSync: Bo
     glEnable(GL_DEPTH_TEST)
 
     // Enable client states
-    glEnableClientState(GL_VERTEX_ARRAY)
-    glEnableClientState(GL_COLOR_ARRAY)
+//    glEnableClientState(GL_VERTEX_ARRAY)
+//    glEnableClientState(GL_COLOR_ARRAY)
 
 //    glMatrixMode(GL_PROJECTION);
 //    glOrtho(-1, 1, -1, 1, 1, -1);

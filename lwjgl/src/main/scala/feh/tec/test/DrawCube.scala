@@ -9,17 +9,18 @@ package feh.tec.test
 import nicol._
 import nicol.input.Key._
 import feh.tec.util.Lifted
-import org.lwjgl.opengl.{GL11, GL15}
+import org.lwjgl.opengl.{Display, GL11, GL15}
 import org.lwjgl.util.vector.Vector3f
 import org.lwjgl.BufferUtils
-import java.nio.FloatBuffer
-import feh.tec.test.VertexType.GL_FLOAT
+import java.nio.{IntBuffer, FloatBuffer}
+import feh.tec.test.GLType.GL_FLOAT
 import feh.tec.test.ClientState._
 import feh.tec.test.DrawMode.{GL_QUAD_STRIP, GL_TRIANGLE_STRIP, GL_TRIANGLES, GL_QUADS}
 import feh.tec.test.BindBufferTarget.GL_ARRAY_BUFFER
 import feh.tec.test.DataStoreUsagePattern.GL_STATIC_DRAW
 import nicol.opengl.GLUtils
 import nicol.opengl.GLUtils.Quads
+import scala.io.Source
 
 class DrawCube(exitScene: Lifted[Scene], pauseScene: Scene => Scene) extends LoopScene3D with SyncableScene with ShowFPS{
 
@@ -60,7 +61,7 @@ class DrawCube(exitScene: Lifted[Scene], pauseScene: Scene => Scene) extends Loo
     //      ((maxX, maxY, maxZ), (minX, maxY, maxZ), (minX, maxY, minZ), (maxX, maxY, minZ)) ::
     //      ((minX, minY, minZ), (maxX, minY, minZ), (maxX, minY, maxZ), (minX, minY, maxZ)) :: Nil
 
-    lazy val textureCoords: Seq[(Coord, Coord, Coord, Coord)] =
+    lazy val colors: Seq[(Coord, Coord, Coord, Coord)] =
 
       ((1f, 0f, 0f), (1f, 0f, 0f), (1f, 0f, 0f), (1f, 0f, 0f)) ::
       ((0f, 1f, 0f), (0f, 1f, 0f), (0f, 1f, 0f), (0f, 1f, 0f)) ::
@@ -91,7 +92,7 @@ class DrawCube(exitScene: Lifted[Scene], pauseScene: Scene => Scene) extends Loo
 
   def vbo = VBO(GL_ARRAY_BUFFER, GL_STATIC_DRAW) _
 
-  lazy val cubeVbo2 = vbo(cube.asVectors(_.sides), cube.asVectors(_.textureCoords))
+  lazy val cubeVbo2 = vbo(cube.asVectors(_.sides), cube.asVectors(_.colors))
   cube.sides.foreach(println)
   lazy val cubeVbo = ObjVertices.Cube.vbo
 
@@ -101,12 +102,42 @@ class DrawCube(exitScene: Lifted[Scene], pauseScene: Scene => Scene) extends Loo
     cubeVbo2.render
   }
 
+  lazy val camera = new Camera3DFloat(new Vector3f(0, 0, 0), new Vector3f(0, 0, 0), 71 /*45*/, Display.getWidth / Display.getHeight, 0.1f, 100)
+
+  lazy val shaderProgram = new ShaderProgram(
+    Source.fromURL(ClassLoader.getSystemResource("lwjgl/test/shader.vert")),
+    Source.fromURL(ClassLoader.getSystemResource("lwjgl/test/shader.frag"))
+  ).linked()
+
 
   def update: Option[Scene] = {
     sync
     showFPS
 
-    render()
+//    render()
+
+    camera.apply()
+
+    shaderProgram.bind()
+
+    shaderProgram.setUniform("projection", camera.projection)
+    shaderProgram.setUniform("view", camera.view)
+
+    GL11.glClear(GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT);
+
+    // Bind the vertex VBO
+    cubeVbo.vertexBuffer.bind
+    GL11.glVertexPointer(3, GL_FLOAT, 0, 0)
+
+    // Bind the color VBO
+    cubeVbo.colorBuffer.bind
+    GL11.glColorPointer(3, GL_FLOAT, 0, 0)
+
+    // Draw the cube with triangle strip
+    GL11.glDrawArrays(GL_TRIANGLE_STRIP, 0, 24);
+
+    // Unbind the shaders
+    shaderProgram.unbind();
 
     keyEvent {
       e =>
@@ -115,6 +146,7 @@ class DrawCube(exitScene: Lifted[Scene], pauseScene: Scene => Scene) extends Loo
         }
         e pressed {
           case "escape" =>
+            shaderProgram.dispose()
             cubeVbo.dispose()
             exitScene()
           case "space" => pauseScene(this)
@@ -124,11 +156,18 @@ class DrawCube(exitScene: Lifted[Scene], pauseScene: Scene => Scene) extends Loo
 
 }
 
+class DrawCubeGame extends Game(Init3D("Draw Cube Test") >> new DrawCube(() => null, _ => null))
+
+object DrawCubeApp extends App{
+  val game = new DrawCubeGame
+  game.start
+}
+
 //object DrawCube{
 //  def drawCube()
 //}
 
-case class VBO(vertexBuffer: BoundBuffer, textureBuffer: BoundBuffer){
+case class VBO(vertexBuffer: BoundFloat3DBuffer, colorBuffer: BoundFloat3DBuffer){
   def render(){
 
     // Clean both color and depth buffers
@@ -141,11 +180,13 @@ case class VBO(vertexBuffer: BoundBuffer, textureBuffer: BoundBuffer){
     GL11.glRotatef(1, 1, 1, 0);
 
     // Bind the vertex VBO
+    GL11.glEnableClientState(GL_VERTEX_ARRAY)
     vertexBuffer.bind()
-    GL11.glVertexPointer(3, GL_FLOAT, 0, 0);
+    GL11.glVertexPointer(3, GL_FLOAT, 12, 0);
 
     // Bind the color VBO
-    textureBuffer.bind()
+    GL11.glEnableClientState(GL_COLOR_ARRAY)
+    colorBuffer.bind()
     GL11.glColorPointer(3, GL_FLOAT, 0, 0);
 
     // Draw the cube with triangle strip
@@ -170,7 +211,7 @@ case class VBO(vertexBuffer: BoundBuffer, textureBuffer: BoundBuffer){
 //    GL11.glVertexPointer(3, GL_FLOAT.int, 0, 0)
 //
 //    // Bind the texture buffer
-//    textureBuffer.bind()
+//    colorBuffer.bind()
 ////    GL11.glTexCoordPointer(3, GL_FLOAT.int, 0, 0)
 //    GL11.glColorPointer(3, GL_FLOAT.int, 0, 0)
 //
@@ -188,25 +229,18 @@ case class VBO(vertexBuffer: BoundBuffer, textureBuffer: BoundBuffer){
 
   def dispose(){
     GL15.glDeleteBuffers(vertexBuffer.id)
-    GL15.glDeleteBuffers(textureBuffer.id)
+    GL15.glDeleteBuffers(colorBuffer.id)
   }
 }
 
 object VBO{
   def apply(target: BindBufferTarget, storage: DataStoreUsagePattern, id: BufferId = BufferId())
            (vertices: Seq[Vector3f], textureCoords: Seq[Vector3f]): VBO = {
-    val verticesBuffer = FloatBuff(vertices: _*).bind(target, storage)
-    val texturesBuffer = FloatBuff(textureCoords: _*).bind(target, storage)
-    VBO(verticesBuffer, texturesBuffer)
+    val verticesBuffer = Float3DBuff(vertices: _*).bind(target, storage)
+    val texturesBuffer = Float3DBuff(textureCoords: _*).bind(target, storage)
+    new VBO(verticesBuffer, texturesBuffer)
   }
 
-}
-
-class DrawCubeGame extends Game(Init3D("Draw Cube Test") >> new DrawCube(() => null, _ => null))
-
-object DrawCubeApp extends App{
-  val game = new DrawCubeGame
-  game.start
 }
 
 case class BufferId(id: Int = GL15.glGenBuffers)
@@ -214,31 +248,66 @@ object BufferId{
   implicit def bufferIdToInt: BufferId => Int = _.id
 }
 
-class FloatBuff(val vertices: Seq[Vector3f]){
+class Float3DBuff(val data: Seq[Vector3f]){
   lazy val buffer = {
-    val buff = BufferUtils.createFloatBuffer(vertices.length * 3)
-    vertices.foreach(_.store(buff))
-    buff.rewind()
+    val buff = BufferUtils.createFloatBuffer(data.length * 3)
+    data.foreach(_.store(buff))
+//    buff.rewind()
+    buff.flip
     buff
   }
 
+  def size = data.length * 3
+
   def bind(target: BindBufferTarget, storage: DataStoreUsagePattern, id: BufferId = BufferId()) =
-    BoundBuffer(vertices, id, target, storage)
+    BoundFloat3DBuffer(data, id, target, storage)
 }
 
-object FloatBuff{
-  def apply(vertices: Vector3f*): FloatBuff = new FloatBuff(vertices)
-  def unapply(buf: FloatBuff): Option[(Seq[Vector3f], FloatBuffer)] = Some(buf.vertices -> buf.buffer)
+object Float3DBuff{
+  def apply(vertices: Vector3f*): Float3DBuff = new Float3DBuff(vertices)
+  def apply(vertices: Array[(Float, Float, Float)]): Float3DBuff = new Float3DBuff(vertices.map(c => new Vector3f(c._1, c._2, c._3)))
+  def unapply(buf: Float3DBuff): Option[(Seq[Vector3f], FloatBuffer)] = Some(buf.data -> buf.buffer)
 
-  implicit def vertexBufferToFloatBuffer = (_: FloatBuff).buffer
+  implicit def vertexBufferToFloatBuffer = (_: Float3DBuff).buffer
+}
+
+class IntBuff(val data: Seq[Int]){
+  lazy val buffer = {
+    val buff = BufferUtils.createIntBuffer(data.length * 3)
+    data.foreach(buff.put)
+    buff.flip
+    buff
+  }
+
+  def size = data.size
+
+  def bind(target: BindBufferTarget, storage: DataStoreUsagePattern, id: BufferId = BufferId()) =
+    BoundIntBuffer(data, id, target, storage)
+}
+
+object IntBuff{
+  def apply(data: Seq[Int]): IntBuff = new IntBuff(data)
+  def unapply(buf: IntBuff): Option[(Seq[Int], IntBuffer)] = Some(buf.data -> buf.buffer)
 }
 
 abstract class BindBufferTarget(val int: Int)
 object BindBufferTarget{
   object GL_ARRAY_BUFFER extends BindBufferTarget(GL15.GL_ARRAY_BUFFER)
+  object GL_ELEMENT_ARRAY_BUFFER extends BindBufferTarget(GL15.GL_ELEMENT_ARRAY_BUFFER)
 
   implicit def targetToInt: BindBufferTarget => Int = _.int
 }
+
+/**
+ * GL_(STATIC | STREAM | DYNAMIC)_(DRAW | READ | COPY)
+ *
+ * STATIC - The data store contents will be modified once and used many times.
+ * STREAM - The data store contents will be modified once and used at most a few times.
+ * DYNAMIC - The data store contents will be modified repeatedly and used many times.
+ * DRAW - The data store contents are modified by the application, and used as the source for GL drawing and image specification commands.
+ * READ - The data store contents are modified by reading data from the GL, and used to return that data when queried by the application.
+ * COPY - The data store contents are modified by reading data from the GL, and used as the source for GL drawing and image specification commands.
+ */
 
 abstract class DataStoreUsagePattern(val int: Int)
 object DataStoreUsagePattern{
@@ -247,11 +316,13 @@ object DataStoreUsagePattern{
   implicit def dataStoreUsagePatternToInt: DataStoreUsagePattern => Int = _.int
 }
 
-abstract class VertexType(val int: Int)
-object VertexType{
-  object GL_FLOAT extends VertexType(GL11.GL_FLOAT)
+abstract class GLType(val int: Int)
+object GLType{
+  object GL_FLOAT extends GLType(GL11.GL_FLOAT)
+  object GL_UNSIGNED_INT extends GLType(GL11.GL_UNSIGNED_INT)
 
-  implicit def vertexTypeToInt: VertexType => Int = _.int
+
+  implicit def vertexTypeToInt: GLType => Int = _.int
 }
 
 abstract class DrawMode(val int: Int )
@@ -260,6 +331,8 @@ object DrawMode{
   object GL_QUAD_STRIP extends DrawMode(GL11.GL_QUAD_STRIP)
   object GL_TRIANGLES extends DrawMode(GL11.GL_TRIANGLES)
   object GL_TRIANGLE_STRIP extends DrawMode(GL11.GL_TRIANGLE_STRIP)
+  object GL_LINE extends DrawMode(GL11.GL_LINE)
+  object GL_LINE_LOOP extends DrawMode(GL11.GL_LINE_LOOP)
 
   implicit def clientStateToInt: DrawMode => Int = _.int
 }
@@ -273,14 +346,25 @@ object ClientState{
   implicit def clientStateToInt: ClientState => Int = _.int
 }
 
-case class BoundBuffer(override val vertices: Seq[Vector3f], id: BufferId, target: BindBufferTarget, storage: DataStoreUsagePattern) extends FloatBuff(vertices){
-  // init
-  bind()
-  GL15.glBufferData(target, buffer, storage)
-  unbind()
+trait BoundBuffer{
+  def id: BufferId
+  def target: BindBufferTarget
+  def storage: DataStoreUsagePattern
 
   def bind(){ GL15.glBindBuffer(target, id) }
   def unbind(){ GL15.glBindBuffer(target, 0) }
 
+  def init(f: => Unit){
+    bind()
+    f
+    unbind()
+  }
 }
 
+case class BoundFloat3DBuffer(override val data: Seq[Vector3f], id: BufferId, target: BindBufferTarget, storage: DataStoreUsagePattern) extends Float3DBuff(null) with BoundBuffer{
+  init(GL15.glBufferData(target, buffer, storage))
+}
+
+case class BoundIntBuffer(override val data: Seq[Int], id: BufferId, target: BindBufferTarget, storage: DataStoreUsagePattern) extends IntBuff(null) with BoundBuffer{
+  init(GL15.glBufferData(target, buffer, storage))
+}

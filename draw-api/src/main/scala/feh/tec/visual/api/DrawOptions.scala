@@ -27,11 +27,11 @@ case class BasicStringDrawOps[+E <: Easel]( alignment: StringAlignment,
                                             vSpacing: E#CoordinateUnit
                                             ) extends StringDrawOptions[E]
 
-// // // // // // // // // // // // // // // // //  Tile Draw Options  // // // // // // // // // // // // // // // // //
+// // // // // // // // // // // // // // // // //  Atom Draw Options  // // // // // // // // // // // // // // // // //
 
-trait TileDrawOptions[+E <: Easel]
+trait AtomDrawOptions[+E <: Easel]
 
-trait SquareTileDrawOptions[E <: Easel] extends TileDrawOptions[E]{
+trait SquareTileDrawOptions[E <: Easel] extends AtomDrawOptions[E]{
   def sideSize: E#CoordinateUnit
   def lineColor: Color
   def fillColor: Option[Color] // todo
@@ -40,12 +40,13 @@ trait SquareTileDrawOptions[E <: Easel] extends TileDrawOptions[E]{
 
 case class BasicSquareTileDrawOptions[E <: Easel](sideSize: E#CoordinateUnit, lineColor: Color, fillColor: Option[Color]) extends SquareTileDrawOptions[E]
 
+case class CubeDrawOptions[E <: Easel](sideSize: E#CoordinateUnit, lineColor: Color, fillColor: Option[Color]) extends AtomDrawOptions[E]
 
-// // // // // // // // // // // // // // // // //  Map Draw Options  // // // // // // // // // // // // // // // // //
+// // // // // // // // // // // // // // // // //  World Draw Options  // // // // // // // // // // // // // // // // //
 
-trait MapDrawOptions[+E <: Easel]
+trait WorldDrawOptions[+E <: Easel]
 
-trait SquareMapDrawOptions[E <: Easel] extends MapDrawOptions[E]{
+trait SquareMapDrawOptions[E <: Easel] extends WorldDrawOptions[E]{
   def tileSideSize: E#CoordinateUnit
   def showLabels: Boolean
 }
@@ -55,3 +56,5 @@ case class BasicSquareMapDrawOptions[E <: Easel](tileSideSize: E#CoordinateUnit,
 object BasicSquareMapDrawOptions{
   def apply[E <: Easel](n: Int, showLabels: Boolean)(implicit easel: E): BasicSquareMapDrawOptions[E] = BasicSquareMapDrawOptions(easel.unitNumeric.fromInt(n), showLabels)
 }
+
+case class CubicWorldDrawOptions[E <: Easel](cubeSideSize: E#CoordinateUnit, showLabels: Boolean) extends WorldDrawOptions[E]

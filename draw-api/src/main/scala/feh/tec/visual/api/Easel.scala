@@ -5,14 +5,11 @@ import java.awt.Color
 trait Easel{ easel =>
   type Coordinate <: Product
   type CoordinateUnit
-  type TDrawOptions <: TileDrawOptions[Easel]
-  type MDrawOptions <: MapDrawOptions[Easel]
+  type TDrawOptions <: AtomDrawOptions[Easel]
+  type MDrawOptions <: WorldDrawOptions[Easel]
   type StrDrawOptions <: StringDrawOptions[Easel]
 
   implicit def unitNumeric: Numeric[CoordinateUnit]
-
-  type Repr
-  def repr: Repr
 
   def withColor[R](color: java.awt.Color)(f: => R): R
   def withTransform[R](tr: Transform*)(f: => R): R
@@ -21,7 +18,6 @@ trait Easel{ easel =>
   trait DrawOp
 
   def drawLine(start: easel.Coordinate, end: easel.Coordinate): DrawOp
-  def drawRect(bottomLeft: easel.Coordinate, topRight: easel.Coordinate): DrawOp
   def drawString(what: String, where: easel.Coordinate, how: easel.StrDrawOptions): DrawOp
   def drawString(what: String, how: StrDrawOptions): DrawOp = drawString(what, zeroCoordinate, how)
 
@@ -52,6 +48,7 @@ trait Easel{ easel =>
 }
 
 trait Easel2D extends Easel{
+  def drawRect(bottomLeft: Coordinate, topRight: Coordinate): DrawOp
   def drawRect(bottomLeft: Easel2D#Coordinate, width: Easel2D#CoordinateUnit, height: Easel2D#CoordinateUnit): DrawOp
 }
 
@@ -67,7 +64,7 @@ trait Easel2DFloat extends Easel2D{
 }
 
 trait Easel3D extends Easel{
-  def drawCube(/*todo: bottomLeft: Easel3D#Coordinate, width: Easel3D#CoordinateUnit, height: Easel3D#CoordinateUnit*/): DrawOp
+//  def drawCube(/*todo: bottomLeft: Easel3D#Coordinate, width: Easel3D#CoordinateUnit, height: Easel3D#CoordinateUnit*/): DrawOp
 }
 
 trait Easel3DFloat extends Easel3D{
