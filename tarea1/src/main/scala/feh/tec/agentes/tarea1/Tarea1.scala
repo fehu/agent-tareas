@@ -136,12 +136,18 @@ object Tarea1 {
         override lazy val rewriteCriteria: Option[Measure#Criteria] = Some(backupCriteria)
       }
 
+      def criteriaFailed: ExtendedCriteriaBasedDecision[ActionExplanation, Position, EnvState, EnvGlobal, Action, Env, Exec, Measure] => Boolean =
+        _.consideredOptionsCriteriaValues |> {
+          ops =>
+            ops.length != 1 && ops.distinct.length == 1
+        }
+
       override protected def createBehaviorSelectionStrategy: DecisionStrategy[Action, DecisionArg, ExtendedCriteriaBasedDecision[ActionExplanation, Position, EnvState, EnvGlobal, Action, Env, Exec, Measure]] =
         {
           val strategy = super.createBehaviorSelectionStrategy
           FailsafeDecisionStrategy.Builder(strategy)
             .append(
-              _.consideredOptionsCriteriaValues.flatten.distinct.size == 1,
+            criteriaFailed,
               new BackupMeasureBasedForeseeingDecisionStrategy
             )
             .build()
