@@ -24,4 +24,27 @@ object FileUtils {
       finally stream.close()
     }
   }
+
+  def workingDir = LazyFile(".")
+}
+
+object LazyFile{
+  protected [LazyFile] def filterPath(path: String) = path.split(File.separatorChar).filter(_.nonEmpty)
+
+  def apply(path: String): LazyFile =
+    new LazyFile(filterPath(path), path.head == File.separatorChar)
+
+  implicit def lazyFileToFile(f: LazyFile): File = f.file
+
+}
+
+class LazyFile(val path: Seq[String], absolute: Boolean){
+  private def separator = File.separator
+
+  lazy val stringPath = (if(absolute) separator else "") + path.mkString(separator)
+
+  lazy val file = new File(stringPath)
+
+  def append(next: String*) = new LazyFile(path ++ next.flatMap(LazyFile.filterPath), absolute)
+  def + = append _
 }

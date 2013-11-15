@@ -101,9 +101,9 @@ class DrawCubicGrid(exitScene: Lifted[Scene], pauseScene: Scene => Scene) extend
 
 
 //    indexBuffer.bind()
-//    GL11.glDrawElements(GL11.GL_TRIANGLES, indexBuffer.size, GL_UNSIGNED_INT, 0)
+    GL11.glDrawElements(GL11.GL_LINE_STRIP, indexBuffer.size, GL_UNSIGNED_INT, 0)
 
-    GL11.glDrawArrays(GL_LINE, 0, 0)
+//    GL11.glDrawArrays(GL_LINE, 0, 0)
 
     // Translate back
 //    GL11.glTranslatef(0, 50, 55)

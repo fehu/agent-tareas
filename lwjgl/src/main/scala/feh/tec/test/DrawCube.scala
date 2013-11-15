@@ -8,7 +8,7 @@ package feh.tec.test
 
 import nicol._
 import nicol.input.Key._
-import feh.tec.util.Lifted
+import feh.tec.util.{SideEffectWrapper, PipeWrapper, Lifted}
 import org.lwjgl.opengl.{Display, GL11, GL15}
 import org.lwjgl.util.vector.Vector3f
 import org.lwjgl.BufferUtils
@@ -102,7 +102,8 @@ class DrawCube(exitScene: Lifted[Scene], pauseScene: Scene => Scene) extends Loo
     cubeVbo2.render
   }
 
-  lazy val camera = new Camera3DFloat(new Vector3f(0, 0, 0), new Vector3f(0, 0, 0), 71 /*45*/, Display.getWidth / Display.getHeight, 0.1f, 100)
+  lazy val camera = new Camera3DFloat(new Vector3f(0, 0, -10), new Vector3f(0, 0, 0), /*71*/ 45, Display.getWidth / Display.getHeight, -0.1f, 100) $
+    (_.setPosition(0, 0, -3))
 
   lazy val shaderProgram = new ShaderProgram(
     Source.fromURL(ClassLoader.getSystemResource("lwjgl/test/shader.vert")),
@@ -115,6 +116,7 @@ class DrawCube(exitScene: Lifted[Scene], pauseScene: Scene => Scene) extends Loo
     showFPS
 
 //    render()
+    camera.rotate(0, 0, 1)
 
     camera.apply()
 
@@ -138,6 +140,11 @@ class DrawCube(exitScene: Lifted[Scene], pauseScene: Scene => Scene) extends Loo
 
     // Unbind the shaders
     shaderProgram.unbind();
+
+    if (up) camera.move(100, 0)
+    if (down) camera.move(100, 2)
+    if (left) camera.move(100, 1)
+    if (right) camera.move(100, -1)
 
     keyEvent {
       e =>

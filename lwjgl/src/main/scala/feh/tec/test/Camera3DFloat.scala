@@ -4,6 +4,7 @@ import org.lwjgl.util.vector.{Vector3f, Matrix4f}
 import org.lwjgl.opengl.GL11
 import org.lwjgl.util.glu.GLU
 import org.lwjgl.BufferUtils
+import feh.tec.test.math.VectorUtils
 
 /**
  * Taken from http://www.java-gaming.org/topics/lwjgl-tutorial-series-creating-a-3d-camera/30871/view.html
@@ -14,8 +15,9 @@ class Camera3DFloat(initPosition: Vector3f,
                     initFov: Float,
                     initAspect: Float,
                     initZNear: Float,
-                    initZFar: Float) {
-
+                    initZFar: Float)
+  extends VectorUtils
+{
   // Field Of View
   protected var fov = initFov
   // Aspect Ratio
@@ -42,6 +44,15 @@ class Camera3DFloat(initPosition: Vector3f,
 
   def createProjection = MatrixUtil.createPerspectiveProjection(fov, aspect, zNear, zFar)
   def createView = MatrixUtil.createIdentityMatrix
+
+  def setPosition(pos: (Float, Float, Float)){
+    updateVector(position, pos, _._2)
+  }
+
+  def rotate(angl: (Float, Float, Float)){
+    updateVector(rotation, angl)(_ + _)
+  }
+
 
   import scala.math._
 

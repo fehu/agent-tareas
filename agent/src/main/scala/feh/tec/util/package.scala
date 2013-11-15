@@ -54,4 +54,12 @@ package object util {
       opt
     }
   }
+
+  implicit class SideEffectWrapper[T](t: T){
+    def sideEffect(f: T => Unit): T = {
+      f(t)
+      t
+    }
+    def $ = sideEffect _
+  }
 }

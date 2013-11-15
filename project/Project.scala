@@ -18,11 +18,14 @@ object AgentosTarea1 extends Build {
     scalaVersion := ScalaVersion,
 //    scalacOptions ++= Seq("-explaintypes"),
     scalacOptions in (Compile, doc) ++= Seq("-diagrams", "-diagrams-debug"),
+    scalacOptions += "-Dorg.lwjgl.util.Debug=true",
+
     resolvers += Release.spray
   )
 
   lazy val lwjglSettings = buildSettings ++ LWJGLPlugin.lwjglSettings /*Nicol.nicolSettings*/ ++ Seq(
-    LWJGLPlugin.lwjgl.version := "2.9.0"
+    resolvers += mavenLocal,
+    LWJGLPlugin.lwjgl.version := "2.9.1"
   )
 
   lazy val testsSettings = buildSettings ++ Seq(
@@ -31,6 +34,8 @@ object AgentosTarea1 extends Build {
   )
 
   object Resolvers{
+    val mavenLocal = "Maven Local" at Path.userHome.asFile.toURI.toURL + ".m2/repository"
+
     object Release{
       val sonatype = "Sonatype Releases" at "http://oss.sonatype.org/content/repositories/releases"
       val spray = "spray" at "http://repo.spray.io/"
