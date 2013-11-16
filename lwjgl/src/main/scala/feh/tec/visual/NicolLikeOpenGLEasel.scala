@@ -7,8 +7,9 @@ import nicol.opengl.GLUtils._
 import feh.tec.util.TryAsWrapper
 import scala.collection.mutable
 import org.lwjgl.opengl.GL11._
+import feh.tec.test.math.VectorUtils
 
-trait NicolLikeOpenGLEasel extends OpenGLEasel with EaselAffineTransforms{
+trait NicolLikeOpenGLEasel extends OpenGLEasel with EaselAffineTransforms with VectorUtils{
   easel: Easel =>
 
   def withoutTextures[R](r: => R): R = {

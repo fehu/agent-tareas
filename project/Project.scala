@@ -5,7 +5,7 @@ import UnidocKeys._
 
 import org.sbtidea.SbtIdeaPlugin._
 
-object AgentosTarea1 extends Build {
+object AgentesTarea1 extends Build {
 
   val ScalaVersion = "2.10.2"
 
@@ -19,6 +19,7 @@ object AgentosTarea1 extends Build {
 //    scalacOptions ++= Seq("-explaintypes"),
     scalacOptions in (Compile, doc) ++= Seq("-diagrams", "-diagrams-debug"),
     scalacOptions += "-Dorg.lwjgl.util.Debug=true",
+    scalacOptions += "-Dorg.lwjgl.util.Debug=/home/fehu/dev/ScalaProjects/agentes-tarea-1/lwjgl/target/scala-2.10/resource_managed/main/lwjgl-resources/linux",
 
     resolvers += Release.spray
   )

@@ -33,9 +33,9 @@ class Camera3DFloat(initPosition: Vector3f,
   val view: Matrix4f = createView
 
   // Camera position
-  protected val position = initPosition
+  /*protected*/ val position = initPosition
   // Camera rotation
-  protected val rotation = initRotation
+  /*protected*/ val rotation = initRotation
 
   // Vectors for axes
   protected val xAxis = new Vector3f(1, 0, 0)
@@ -47,6 +47,10 @@ class Camera3DFloat(initPosition: Vector3f,
 
   def setPosition(pos: (Float, Float, Float)){
     updateVector(position, pos, _._2)
+  }
+
+  def setRotation(angl: (Float, Float, Float)){
+    updateVector(rotation, angl, _._2)
   }
 
   def rotate(angl: (Float, Float, Float)){

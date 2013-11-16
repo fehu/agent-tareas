@@ -6,8 +6,10 @@ import feh.tec.visual.api.CubeDrawOptions
 import feh.tec.visual.api.CubicWorldDrawOptions
 import org.lwjgl.opengl.GL11
 import nicol.opengl.GLUtils
+import org.lwjgl.util.vector.Vector3f
+import feh.tec.test.math.VectorUtils
 
-class NicolLike3DEasel extends Easel3DFloat with EaselAffineTransforms with NicolLikeOpenGLEasel{
+class NicolLike3DEasel extends Easel3DFloat with EaselAffineTransforms with NicolLikeOpenGLEasel with OpenGL3DFloatEasel{
   type TDrawOptions = CubeDrawOptions[NicolLike3DEasel]
   type MDrawOptions = CubicWorldDrawOptions[NicolLike3DEasel]
   type StrDrawOptions = StringDrawOptions[NicolLike3DEasel]
@@ -18,6 +20,8 @@ class NicolLike3DEasel extends Easel3DFloat with EaselAffineTransforms with Nico
     vertex(start)
     vertex(end)
   }.toDrawOp
+
+  def drawLine(start: GlVector, end: GlVector): DrawOp = drawLine(start.toTuple, end.toTuple)
 
   def drawString(what: String, where: Coordinate, how: StrDrawOptions): DrawOp = ???
 

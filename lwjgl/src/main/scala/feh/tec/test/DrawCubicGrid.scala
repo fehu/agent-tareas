@@ -5,17 +5,10 @@ import nicol.{Game, ShowFPS, SyncableScene, Scene}
 import java.awt.Color
 import feh.tec.visual.api.{OpenGLEasel, Easel3DFloat}
 import feh.tec.visual.NicolLike3DEasel
-import org.lwjgl.opengl.{Display, GL15, GL11}
-import feh.tec.test.GLType.{GL_UNSIGNED_INT, GL_FLOAT}
+import org.lwjgl.opengl.{Display, GL11}
 import nicol.input.Key._
-import feh.tec.test.DataStoreUsagePattern.GL_STATIC_DRAW
-import feh.tec.test.BindBufferTarget.{GL_ELEMENT_ARRAY_BUFFER, GL_ARRAY_BUFFER}
-import feh.tec.test.ClientState.GL_VERTEX_ARRAY
 import nicol.opengl.GLUtils
 import org.lwjgl.util.vector.Vector3f
-import org.lwjgl.util.glu.GLU
-import scala.io.Source
-import feh.tec.test.DrawMode.GL_LINE
 
 
 class DrawCubicGrid(exitScene: Lifted[Scene], pauseScene: Scene => Scene) extends LoopScene3D with SyncableScene with ShowFPS{
@@ -28,9 +21,9 @@ class DrawCubicGrid(exitScene: Lifted[Scene], pauseScene: Scene => Scene) extend
 
     easel.withoutTextures{
       easel.withColor(lineColor){
-        for{ i <- 0 to ny; j <- 0 to nz; cy = cubeSide*i; cz = cubeSide*j } easel.drawLine((0, cy, cz), (lenX, cy, cz))
-        for{ i <- 0 to nx; j <- 0 to nz; cx = cubeSide*i; cz = cubeSide*j } easel.drawLine((cx, 0, cz), (cx, lenY, cz))
-        for{ i <- 0 to nx; j <- 0 to ny; cx = cubeSide*i; cy = cubeSide*j } easel.drawLine((cx, cy, 0), (cx, cy, lenZ))
+        for{ i <- 0 to ny; j <- 0 to nz; cy = cubeSide*i; cz = cubeSide*j } easel.drawLine((0f, cy, cz), (lenX, cy, cz))
+        for{ i <- 0 to nx; j <- 0 to nz; cx = cubeSide*i; cz = cubeSide*j } easel.drawLine((cx, 0f, cz), (cx, lenY, cz))
+        for{ i <- 0 to nx; j <- 0 to ny; cx = cubeSide*i; cy = cubeSide*j } easel.drawLine((cx, cy, 0f), (cx, cy, lenZ))
       }
     }
 
@@ -47,70 +40,47 @@ class DrawCubicGrid(exitScene: Lifted[Scene], pauseScene: Scene => Scene) extend
     }.flatten.toArray
   }
 
-
-  lazy val vertexBuffer = Float3DBuff(gridVertices(5, 5, 5, 50, Color.gray))
-    .bind(GL_ARRAY_BUFFER, GL_STATIC_DRAW)
-
-  lazy val indexBuffer = IntBuff(0 until vertexBuffer.data.length)
-    .bind(GL_ELEMENT_ARRAY_BUFFER, GL_STATIC_DRAW)
-
-  def disposeBuffers() = {
-    GL15.glDeleteBuffers(vertexBuffer.id)
-    GL15.glDeleteBuffers(indexBuffer.id)
-  }
-
   lazy val camera = new Camera3DFloat(new Vector3f(0, 0, 0), new Vector3f(0, 0, 0), 71 /*45*/, Display.getWidth / Display.getHeight, 0.1f, 100)
-
-  lazy val shaderProgram = new ShaderProgram(
-      Source.fromURL(ClassLoader.getSystemResource("lwjgl/test/shader.vert")),
-      Source.fromURL(ClassLoader.getSystemResource("lwjgl/test/shader.frag"))
-    ).linked()
 
   def update: Option[Scene] = {
     sync
     showFPS
 
-    camera.apply()
 
-    shaderProgram.bind()
+    /*
 
-    shaderProgram.setUniform("projection", camera.projection)
-    shaderProgram.setUniform("view", camera.view)
+    sys.props += "org.lwjgl.librarypath" -> "/home/fehu/dev/ScalaProjects/agentes-tarea-1/lwjgl/target/scala-2.10/resource_managed/main/lwjgl-resources/linux"
+    import feh.tec.test._
+    val gg = new DrawCubicGrid(() => null, _ => null)
+    val game = new nicol.Game(Init3D("Draw Cubic Grid Test") >> gg) {}
+    import gg._
+    game.start
+
+    */
+
+//    camera.apply()
+
+    GL11.glLoadIdentity()
 
     // Clean both color and depth buffers
     GL11.glClear(GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT)
 
     // Translate into the view
-//    GL11.glTranslatef(0, -50, -55)
+    GL11.glTranslatef(0, -50, -150)
 
     // Rotate on both x and y axes
-//    GL11.glRotatef(1, 1, 1, 0)
+    GL11.glRotatef(1, 1, 1, 0)
 
-/*
     GLUtils.draw(GLUtils.LineStrip){
 //      easel.withAffineTransform(easel.Offset((-100, -100, -100))){
         drawGrid(5, 5, 5, 50, Color.gray)
 //      }
     }
-*/
-
-    // Bind the vertex VBO
-//    GL11.glEnableClientState(GL_VERTEX_ARRAY)
-    vertexBuffer.bind()
-    GL11.glVertexPointer(3, GL_FLOAT, 12, 0)
-
-
-//    indexBuffer.bind()
-    GL11.glDrawElements(GL11.GL_LINE_STRIP, indexBuffer.size, GL_UNSIGNED_INT, 0)
-
-//    GL11.glDrawArrays(GL_LINE, 0, 0)
 
     // Translate back
 //    GL11.glTranslatef(0, 50, 55)
 
 //    GL11.glDisableClientState(GL_VERTEX_ARRAY)
-
-    shaderProgram.unbind();
 
     if (up) camera.move(100, 0)
     if (down) camera.move(100, 2)
@@ -124,12 +94,8 @@ class DrawCubicGrid(exitScene: Lifted[Scene], pauseScene: Scene => Scene) extend
         }
         e pressed {
           case "escape" =>
-            shaderProgram.dispose()
-            disposeBuffers()
             exitScene()
           case "space" =>
-            shaderProgram.dispose()
-            disposeBuffers()
             pauseScene(this)
         }
     }

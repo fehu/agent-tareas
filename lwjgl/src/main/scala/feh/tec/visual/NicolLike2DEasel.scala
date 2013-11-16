@@ -1,13 +1,10 @@
 package feh.tec.visual
 
-import java.awt.Color
 import nicol.opengl.GLUtils
 import GLUtils._
 import feh.tec.visual.api._
-import scala.collection.mutable
 import feh.tec.visual.helpers.ColorHelpers._
-import org.lwjgl.opengl.{Display, GL11}
-import org.lwjgl.BufferUtils
+import org.lwjgl.opengl.Display
 import nicol.input.Mouse
 import feh.tec.util._
 import nicol.opengl.GLUtils
@@ -22,7 +19,7 @@ trait NicolLikeTileRenderer[Tile <: AbstractTile[Tile, Coordinate], Coordinate] 
  * some parts are taken from Tom Streller's (scan) Nicol-0.1.2 project (https://github.com/scan/Nicol)
  * due to a lack of scala 2.10 compatible version
  */
-class NicolLike2DEasel extends Easel with Easel2DFloat with EaselAffineTransforms with NicolLikeOpenGLEasel{
+class NicolLike2DEasel extends Easel with Easel2DFloat with EaselAffineTransforms with NicolLikeOpenGLEasel with OpenGL2DFloatEasel{
   easel =>
 
   type TDrawOptions = SquareTileDrawOptions[NicolLike2DEasel]
@@ -44,6 +41,8 @@ class NicolLike2DEasel extends Easel with Easel2DFloat with EaselAffineTransform
     vertex(start)
     vertex(end)
   }.toDrawOp
+
+  def drawLine(start: GlVector, end: GlVector): DrawOp = drawLine(start.toTuple, end.toTuple)
 
   def drawRect(_bottomLeft: Coordinate, _topRight: Coordinate): DrawOp = GLUtils.draw(LineLoop) {
     mapCoordinates(_bottomLeft, _topRight){ (bottomLeft, topRight) =>

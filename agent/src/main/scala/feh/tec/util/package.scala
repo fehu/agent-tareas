@@ -6,6 +6,11 @@ import java.util.Calendar
 import scala.reflect.runtime.universe._
 
 package object util {
+  /**
+   *  The fixed point combinator
+   */
+  def Y[A, B](rec: (A => B) => (A => B)): A => B = rec(Y(rec))(_: A)
+
   type Lifted[+T] = () => T
 
   implicit class PipeWrapper[T](t: => T){
