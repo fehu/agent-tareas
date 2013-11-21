@@ -2,7 +2,6 @@ import sbt._
 import Keys._
 import sbtunidoc.Plugin._
 import UnidocKeys._
-
 import org.sbtidea.SbtIdeaPlugin._
 
 object AgentosTarea1 extends Build {
@@ -45,6 +44,7 @@ object AgentosTarea1 extends Build {
   object Dependencies{
     lazy val akka = "com.typesafe.akka" %% "akka-actor" % "2.2.1"
     lazy val reflectApi = "org.scala-lang" % "scala-reflect" % ScalaVersion
+    lazy val scalaSwing = "org.scala-lang" % "scala-swing" % ScalaVersion
     lazy val shapeless = "com.chuusai" % "shapeless_2.10.2" % "2.0.0-M1"
 
     object spray{
@@ -65,7 +65,7 @@ object AgentosTarea1 extends Build {
     )
   ).settings(ideaExcludeFolders := ".idea" :: ".idea_modules" :: Nil)
    .dependsOn(agTarea1)
-   .aggregate(agent, world, drawApi, lwjglVisualization, agTarea1)
+   .aggregate(agent, world, drawApi, lwjglVisualization, swingVisualization, drawIntegration, agTarea1)
 
 
   lazy val agTarea1 =  Project(
@@ -75,7 +75,7 @@ object AgentosTarea1 extends Build {
       libraryDependencies += spray.json
     )
     ++ lwjglSettings
-  ) dependsOn (agent, world, drawApi, lwjglVisualization)
+  ) dependsOn (agent, world, drawApi, lwjglVisualization, swingVisualization)
 
 
   lazy val agent = Project(
@@ -104,9 +104,23 @@ object AgentosTarea1 extends Build {
     settings = buildSettings
   ) dependsOn world
 
+  lazy val drawIntegration = Project(
+    id = "draw-integration",
+    base = file("draw-integration"),
+    settings = buildSettings
+  ) dependsOn (drawApi, lwjglVisualization, swingVisualization)
+
   lazy val lwjglVisualization = Project(
     id = "lwjgl",
     base = file("lwjgl"),
     settings = lwjglSettings
+  ) dependsOn drawApi
+
+  lazy val swingVisualization = Project(
+    id = "swing",
+    base = file("swing"),
+    settings = buildSettings ++ Seq(
+      libraryDependencies += scalaSwing
+    )
   ) dependsOn drawApi
 }
