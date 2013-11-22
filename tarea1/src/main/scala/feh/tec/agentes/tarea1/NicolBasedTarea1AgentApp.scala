@@ -25,11 +25,11 @@ trait AgentResolver{
   def byId(id: AgentId): Option[AgentRef]
 }
 
-class NicolBasedTarea1Game(val env: Environment, val agentId: AgentId)(implicit agResolver: AgentResolver) extends NicolBasedGameBasicControl{
+class NicolBasedTarea1AgentApp(val env: Environment, val agentId: AgentId)(implicit agResolver: AgentResolver) extends NicolBasedAgentAppBasicControl{
   type EaselTpe = NicolLike2DEasel
   type DrawSettings = BasicDrawEnvironmentSettings
 
-  protected val pauseEndApi: PauseEndGameInnerApi = new PauseEndGameInnerApi{
+  protected val pauseEndApi: PauseEndAppInnerApi = new PauseEndAppInnerApi{
     lazy val pauseScene = new Tarea1PauseScene(render().lifted)
 
     def pauseScene(resume: Scene): Scene = {
@@ -43,12 +43,12 @@ class NicolBasedTarea1Game(val env: Environment, val agentId: AgentId)(implicit 
 
   protected def newGame(scene: => Scene): Game = new Game(scene) {}
 
-  def gameExecutionFinished(): Boolean = Tarea1App.isFinished
+  def appExecutionFinished(): Boolean = Tarea1App.isFinished
 
   def finishedScene = new FinishedScene(render)
 
   protected def initScene: Scene = Init("Agent Closing Hole With Plugs \t v. 0.2", 900, 600)
-  protected def baseScene: Scene = new NicolLikeBasicScene(render().lifted, pauseEndApi.endScene.lifted, finishedScene.lifted, gameExecutionFinished().lifted, pauseEndApi.pauseScene)
+  protected def baseScene: Scene = new NicolLikeBasicScene(render().lifted, pauseEndApi.endScene.lifted, finishedScene.lifted, appExecutionFinished().lifted, pauseEndApi.pauseScene)
 
   val criteriaRendererScheme = CriteriaReasonedDecisionRenderer.Scheme(
     criterionFont = "arial", criterionColor = Color.white,
@@ -59,11 +59,11 @@ class NicolBasedTarea1Game(val env: Environment, val agentId: AgentId)(implicit 
 
   lazy val agRef = agResolver.byId(agentId).get
 
-  implicit val mapRenderer: Renderer[Map, NicolLike2DEasel] with WorldVisualisationCalls[SqTile, (Int, Int)] = NicolBasedTarea1Game.mapRenderer()
+  implicit val mapRenderer: Renderer[Map, NicolLike2DEasel] with WorldVisualisationCalls[SqTile, (Int, Int)] = NicolBasedTarea1AgentApp.mapRenderer()
 
   implicit def criteriaValueRenderer: Renderer[agRef.ag.ActionExplanation, NicolLike2DEasel] = new CriteriaReasonedDecisionRenderer(criteriaRendererScheme)
 
-  val gameLayout: Layout[NicolLike2DEasel] = Layout(List[LiftedOptionLayoutElem[_, NicolLike2DEasel]](
+  val layout: Layout[NicolLike2DEasel] = Layout(List[LiftedOptionLayoutElem[_, NicolLike2DEasel]](
     LayoutElem[Map, NicolLike2DEasel](env, (0, 0)),
     LiftedOptionLayoutElem[agRef.ag.ActionExplanation, NicolLike2DEasel](
       () => agRef.currentDecisionExplanation,
@@ -77,7 +77,7 @@ class NicolBasedTarea1Game(val env: Environment, val agentId: AgentId)(implicit 
   def render(l: Layout[EaselTpe])(implicit easel: EaselTpe): Unit = l.render
 }
 
-object NicolBasedTarea1Game{
+object NicolBasedTarea1AgentApp{
   def mapRenderer(mapDrawConfig: NicolLike2DEasel#MDrawOptions = Tarea1App.visual.mapDrawConfig) =
     new LwjglSquareMapRenderer[Map, SqTile, NicolLike2DEasel](
       LwjglTileRenderer.create,

@@ -1,28 +1,28 @@
 package feh.tec.visual
 
 import nicol.{Game => NGame, _}
-import feh.tec.visual.api.{GameBasicControlApi, Game}
+import feh.tec.visual.api.{AppBasicControlApi, AgentApp}
 import feh.tec.util._
 import nicol.input.Key._
 import org.lwjgl.opengl.Display
 
-trait NicolBasedGame {
+trait NicolBasedApp {
   def game: NGame
 }
 
-trait NicolBasedGameBasicControl extends Game with NicolBasedGame with GameBasicControlApi{
+trait NicolBasedAgentAppBasicControl extends AgentApp with NicolBasedApp with AppBasicControlApi{
   def prepareDrawEnvironment(ops: DrawSettings): Unit = ???
 
-  protected def pauseEndApi: PauseEndGameInnerApi
+  protected def pauseEndApi: PauseEndAppInnerApi
 
   protected def newGame(scene: => Scene/*, pauseScene: Scene, endScene: Scene*/): NGame
 
-  def gameExecutionFinished(): Boolean
+  def appExecutionFinished(): Boolean
 
   lazy val game: NGame = newGame(initScene >> baseScene)
 
   protected def initScene: Scene
-  protected def render(): Unit = render(gameLayout)
+  protected def render(): Unit = render(layout)
   protected def baseScene: Scene
 
   def start(): Unit = game.start

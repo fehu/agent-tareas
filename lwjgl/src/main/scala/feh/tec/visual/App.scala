@@ -2,7 +2,7 @@ package feh.tec.visual
 
 import nicol.Scene
 
-trait PauseEndGameInnerApi{
+trait PauseEndAppInnerApi{
   def pauseScene(resume: Scene): Scene
   def endScene: Scene
 }

@@ -1,10 +1,10 @@
 package feh.tec.visual.api
 
-trait Game{
+trait AgentApp{
   type EaselTpe <: Easel with EaselAffineTransforms
   type DrawSettings <: DrawEnvironmentSettings
 
-  def gameLayout: Layout[EaselTpe]
+  def layout: Layout[EaselTpe]
 
   implicit def easelCoordinateOps: EaselCoordinateOps[EaselTpe]
 
@@ -26,7 +26,7 @@ case class BasicDrawEnvironmentSettings(title: String,
                                         height: Int,
                                         fullscreen: Boolean) extends DrawEnvironmentSettings
 
-trait GameBasicControlApi {
+trait AppBasicControlApi {
   def start()
   def run() = start()
   //  def pause()

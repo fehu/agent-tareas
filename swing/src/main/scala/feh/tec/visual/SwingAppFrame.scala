@@ -1,18 +1,18 @@
 package feh.tec.visual
 
-import feh.tec.visual.api.{GameBasicControlApi, WindowedGame}
+import feh.tec.visual.api.{AppBasicControlApi, AwtWindowedApp}
 import scala.swing._
-import feh.tec.visual.SwingGameFrame.{ComponentAccess, LayoutDSL}
+import feh.tec.visual.SwingAppFrame.{ComponentAccess, LayoutDSL}
 import scala.swing.ScrollPane.BarPolicy
 import java.awt.Color
 
-trait SwingGameFrame extends Frame with WindowedGame with GameBasicControlApi with LayoutDSL{
-  def gameWindow = peer
+trait SwingAppFrame extends Frame with AwtWindowedApp with AppBasicControlApi with LayoutDSL{
+  def appWindow = peer
 
   def componentAccess: ComponentAccess
 }
 
-object SwingGameFrame extends FormCreation{
+object SwingAppFrame extends FormCreation{
   trait LayoutDSL extends FormCreationDSL{
     def layout: List[AbstractLayoutSetting]
 

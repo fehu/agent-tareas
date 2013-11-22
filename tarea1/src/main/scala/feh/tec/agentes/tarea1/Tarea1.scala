@@ -381,7 +381,7 @@ object Tarea1App extends App{
     }
   }
 
-  lazy val game = new NicolBasedTarea1Game(env, Agents.Id.dummy)
+  lazy val app = new NicolBasedTarea1AgentApp(env, Agents.Id.dummy)
 
 
   val foreseeingDepth = 5
@@ -397,11 +397,11 @@ object Tarea1App extends App{
     (setup.findPossibleActions[Exec] _).curried,
     Agents.Id.dummy,
     foreseeingDepth,
-    game.mapRenderer)
+    app.mapRenderer)
 
   lazy val finishedScene = new FinishedScene(renderMap.lifted)
 
-  def renderMap(implicit easel: NicolLike2DEasel) = game.mapRenderer.render(env)
+  def renderMap(implicit easel: NicolLike2DEasel) = app.mapRenderer.render(env)
 
   val agStop = ag.execution()
 
@@ -409,13 +409,13 @@ object Tarea1App extends App{
     Await.ready(agStop(), 1 second)
     actorSystem.stop(ag.actorRef)
     actorSystem.stop(overseer.actorRef)
-    game.stop
+    app.stop
   }
 
   def setFinishedScene() = Finished.flag = true
   def isFinished = Finished.flag
 
-  game.start()
+  app.start()
 }
 
 object Tarea1EndScene extends End(Tarea1App.terminate())
