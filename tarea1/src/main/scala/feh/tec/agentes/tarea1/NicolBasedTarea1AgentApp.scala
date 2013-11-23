@@ -25,7 +25,7 @@ trait AgentResolver{
   def byId(id: AgentId): Option[AgentRef]
 }
 
-class NicolBasedTarea1AgentApp(val env: Environment, val agentId: AgentId)(implicit agResolver: AgentResolver) extends NicolBasedAgentAppBasicControl{
+class NicolBasedTarea1AgentApp(val env: Environment, val agentId: AgentId, xSize: Int = 900, ySize: Int = 600)(implicit agResolver: AgentResolver) extends NicolBasedAgentAppBasicControl{
   type EaselTpe = NicolLike2DEasel
   type DrawSettings = BasicDrawEnvironmentSettings
 
@@ -47,8 +47,19 @@ class NicolBasedTarea1AgentApp(val env: Environment, val agentId: AgentId)(impli
 
   def finishedScene = new FinishedScene(render)
 
-  protected def initScene: Scene = Init("Agent Closing Hole With Plugs \t v. 0.2", 900, 600)
-  protected def baseScene: Scene = new NicolLikeBasicScene(render().lifted, pauseEndApi.endScene.lifted, finishedScene.lifted, appExecutionFinished().lifted, pauseEndApi.pauseScene)
+  protected def defaultInitScene = new Init("Agent Closing Hole With Plugs \t v. 0.2", xSize, ySize)
+  private var _initScene: Scene = defaultInitScene
+  def overrideInitScene(scene: Scene => Scene){
+    _initScene = scene(initScene)
+  }
+  def initScene = _initScene
+
+  protected def defaultBaseScene = new NicolLikeBasicScene(render().lifted, pauseEndApi.endScene.lifted, finishedScene.lifted, appExecutionFinished().lifted, pauseEndApi.pauseScene)
+  private var _baseScene: Scene = defaultBaseScene
+  def overrideBaseScene(scene: Scene => Scene){
+    _baseScene = scene(baseScene)
+  }
+  def baseScene = _baseScene
 
   val criteriaRendererScheme = CriteriaReasonedDecisionRenderer.Scheme(
     criterionFont = "arial", criterionColor = Color.white,
@@ -66,7 +77,7 @@ class NicolBasedTarea1AgentApp(val env: Environment, val agentId: AgentId)(impli
   val layout: Layout[NicolLike2DEasel] = Layout(List[LiftedOptionLayoutElem[_, NicolLike2DEasel]](
     LayoutElem[Map, NicolLike2DEasel](env, (0, 0)),
     LiftedOptionLayoutElem[agRef.ag.ActionExplanation, NicolLike2DEasel](
-      () => agRef.currentDecisionExplanation,
+      () => Option(agRef).flatMap(_.currentDecisionExplanation),
       (530, 0)
     )
   )

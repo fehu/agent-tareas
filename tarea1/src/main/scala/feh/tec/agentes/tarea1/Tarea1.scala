@@ -272,7 +272,7 @@ trait Tarea1AppSetup{
 }
 
 
-object Tarea1App extends App{
+object Tarea1App {
   val CriteriaDebug = false
 
   import Tarea1._
@@ -361,19 +361,10 @@ object Tarea1App extends App{
 
 //  Tarea1.Debug() = true
 
-  def processArgsForTimeSpan(): Option[FiniteDuration] =
-    if(args.nonEmpty) {
-      val dur = Duration(args.mkString(" ")).ensuring(_.isFinite())
-      Some(FiniteDuration(dur.length, dur.unit))
-    }
-    else None
-
-  implicit val pauseBetweenExecs = PauseBetweenExecs(processArgsForTimeSpan getOrElse defaultPauseBetweenExecs)
-
 //  val env = environment(Option(Agents.Id.dummy), Maps.failExample1(Agents.Id.dummy))
-  val env = environment(Option(Agents.Id.dummy))
+  lazy val env = environment(Option(Agents.Id.dummy))
 //  val env = TestEnvironment.test1(Option(Agents.Id.dummy))
-  val overseer = Tarea1.overseer(env, timeouts)
+  lazy val overseer = Tarea1.overseer(env, timeouts)
 
   implicit def agResolver = new AgentResolver{
     def byId(id: AgentId): Option[AgentRef] = PartialFunction.condOpt(id){
@@ -389,8 +380,11 @@ object Tarea1App extends App{
   import visual.easel
   import Tarea1.Agents.ExecLoopBuilders._
 
+  var argsForTimeSpan: Option[FiniteDuration] = None
+  implicit val pauseBetweenExecs = PauseBetweenExecs(argsForTimeSpan getOrElse defaultPauseBetweenExecs)
+
   type Exec = ConditionalExec
-  val ag: MyDummyAgent[Exec] = new MyDummyAgent[Exec](
+  lazy val ag: MyDummyAgent[Exec] = new MyDummyAgent[Exec](
     overseer.ref,
     setup.criteria,
     setup.backupCriteria,
@@ -415,7 +409,19 @@ object Tarea1App extends App{
   def setFinishedScene() = Finished.flag = true
   def isFinished = Finished.flag
 
-  app.start()
+  def start() = app.start()
+}
+
+object Tarea1Application extends App{
+  def processArgsForTimeSpan(): Option[FiniteDuration] =
+    if(args.nonEmpty) {
+      val dur = Duration(args.mkString(" ")).ensuring(_.isFinite())
+      Some(FiniteDuration(dur.length, dur.unit))
+    }
+    else None
+
+  Tarea1App.argsForTimeSpan = processArgsForTimeSpan()
+  Tarea1App.start()
 }
 
 object Tarea1EndScene extends End(Tarea1App.terminate())

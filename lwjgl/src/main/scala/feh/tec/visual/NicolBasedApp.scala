@@ -21,9 +21,9 @@ trait NicolBasedAgentAppBasicControl extends AgentApp with NicolBasedApp with Ap
 
   lazy val game: NGame = newGame(initScene >> baseScene)
 
-  protected def initScene: Scene
+  def initScene: Scene
+  def baseScene: Scene
   protected def render(): Unit = render(layout)
-  protected def baseScene: Scene
 
   def start(): Unit = game.start
   def stop(): Unit = game.stop

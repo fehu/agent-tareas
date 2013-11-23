@@ -61,7 +61,7 @@ object AgentosTarea1 extends Build {
     id = "root",
     base = file("."),
     settings = buildSettings ++ unidocSettings ++ lwjglSettings ++ Seq(
-      mainClass in (Compile, run) := Some("feh.tec.agentes.tarea1.Tarea1App")
+      mainClass in (Compile, run) := Some("feh.tec.agentes.tarea1.Tarea1Application")
     )
   ).settings(ideaExcludeFolders := ".idea" :: ".idea_modules" :: Nil)
    .dependsOn(agTarea1)
@@ -75,7 +75,7 @@ object AgentosTarea1 extends Build {
       libraryDependencies += spray.json
     )
     ++ lwjglSettings
-  ) dependsOn (agent, world, drawApi, lwjglVisualization, swingVisualization)
+  ) dependsOn (agent, world, drawApi, lwjglVisualization, swingVisualization, drawIntegration)
 
 
   lazy val agent = Project(

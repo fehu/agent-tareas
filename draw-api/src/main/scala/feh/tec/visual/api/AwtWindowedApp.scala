@@ -8,5 +8,5 @@ import java.awt.{Window, Component}
 trait AwtWindowedApp {
   def appWindow: Window
   def drawComponent: Component
-  def app: AgentApp
+  def app: AgentApp with AppBasicControlApi
 }

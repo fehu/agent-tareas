@@ -179,7 +179,7 @@ class Overseer(actorSystem: ActorSystem,
 
   protected def environmentOverseerActorProps = Props(classOf[EnvironmentOverseerActor], actorResponseFuncs)
 
-  val actorRef: ActorRef = actorSystem.actorOf(environmentOverseerActorProps)
+  lazy val actorRef: ActorRef = actorSystem.actorOf(environmentOverseerActorProps)
 
   def debugMessagePrefix: String = "[Overseer]"
 

@@ -1,6 +1,6 @@
 package feh.tec
 
-import scala.collection.TraversableLike
+import scala.collection.{mutable, TraversableLike}
 import scala.concurrent.duration._
 import java.util.Calendar
 import scala.reflect.runtime.universe._
@@ -10,6 +10,19 @@ package object util {
    *  The fixed point combinator
    */
   def Y[A, B](rec: (A => B) => (A => B)): A => B = rec(Y(rec))(_: A)
+
+  case class CYResult[A, B](result: B, cache: Map[A, B])
+  def CY[A, B](rec: (A => B) => (A => B)): A => CYResult[A, B] = {
+    val cache = mutable.HashMap.empty[A, B]
+    def YY(f: (A => B) => (A => B)): A => B = {
+      a => cache.getOrElse(a, {
+        val b = rec(YY(rec))(a)
+        cache += a -> b
+        b
+      })
+    }
+    YY(rec) andThen (res => CYResult(res, cache.toMap))
+  }
 
   type Lifted[+T] = () => T
 
