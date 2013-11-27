@@ -6,3 +6,4 @@
 * repair showLabels
 * see https://github.com/mattdesl/lwjgl-basics for tips on 2d rendering
 * check floyd-warshall cache
+* check and rewrite all async environment ref calls

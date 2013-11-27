@@ -14,7 +14,7 @@ import Map._
 import feh.tec.util._
 import feh.tec.agentes.tarea1.Criteria.{DistanceToClosestPlugAndHoleCriterion, NumberOfHolesCriterion, PlugsMovingAgentCriteria}
 import scala.{math, Predef, Some}
-import scala.concurrent.Await
+import scala.concurrent.{ExecutionContext, Await}
 import java.awt.Color
 import scala.collection.mutable
 import feh.tec.agent.AgentDecision.{FailsafeDecisionStrategy, DecisionStrategy}
@@ -409,7 +409,16 @@ object Tarea1App {
   def setFinishedScene() = Finished.flag = true
   def isFinished = Finished.flag
 
-  def start() = app.start()
+  implicit def execContext: ExecutionContext = ExecutionContext.global
+
+  def start() = {
+    app.start()
+//    val f = overseer.ref.async.visibleStates
+//    println("!f + " +  f)
+//    f.map{
+//      case x => println("visibleStates: " + x)
+//    }
+  }
 }
 
 object Tarea1Application extends App{

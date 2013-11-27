@@ -76,4 +76,13 @@ package object util {
   implicit class TripleBuilder[T1, T2](tuple: (T1, T2)){
     def -->[T3](t: T3) = (tuple._1, tuple._2, t)
   }
+
+  implicit class MapZipperWrapper[A, B](map: Map[A, B]){
+    def zipByKey[C](m2: Map[A, C]): Map[A, (B, C)] = {
+      assert(map.keySet == m2.keySet, s"maps have different keys: ${m2.keySet &~ map.keySet }")
+      map.map{
+        case (k, v) => k -> (v, m2(k))
+      }.toMap
+    }
+  }
 }

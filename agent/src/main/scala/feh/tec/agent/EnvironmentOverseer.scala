@@ -1,15 +1,10 @@
 package feh.tec.agent
 
-import akka.actor.{ActorRef, Scheduler, ActorSystem, Actor}
-import scala.reflect.runtime.universe._
+import akka.actor.{ActorRef, Scheduler}
 import scala.concurrent.{ExecutionContext, Future}
 import java.util.{UUID, Calendar}
 import akka.pattern._
-import feh.tec.util.{HasUUID, UUIDed, SideEffect, ScopedState}
 import akka.util.Timeout
-import scala.reflect._
-import scala.concurrent.duration.FiniteDuration
-import feh.tec.util.PipeWrapper
 import scala.concurrent.duration._
 import feh.tec.util._
 
@@ -31,30 +26,25 @@ trait EnvironmentOverseer[Coordinate, State, Global, Action <: AbstractAction, E
 
 protected[agent] object EnvironmentOverseerWithActor{
   sealed trait Message
-  sealed class MessageResponse[R](val response: R, val ttag: List[TypeTag[_]]) extends Message
+  sealed class MessageResponse[R](val response: R) extends Message
 
   object Get{
     case object GlobalState extends Message
-    case class StateOf[Coordinate](c: Coordinate)(implicit val ttag: TypeTag[Coordinate]) extends Message
+    case class StateOf[Coordinate](c: Coordinate) extends Message
     case object VisibleStates extends Message
     case object Snapshot extends Message
     case class Position(a: AgentId) extends UUIDed
   }
 
-  case class Act[Action <: AbstractAction](act: Action)(implicit val ttag: TypeTag[Action]) extends Message
+  case class Act[Action <: AbstractAction](act: Action) extends Message
 
   object Response{
-    case class GlobalState[Global](global: Global)(implicit ttag: TypeTag[Global]) extends MessageResponse(global, ttag :: Nil)
-    case class StateOf[Coordinate, State](c: Coordinate, stateOpt: Option[State])
-                                         (implicit ttag1: TypeTag[Coordinate], ttag2: TypeTag[State])
-      extends MessageResponse(c -> stateOpt, ttag1 :: ttag2 :: Nil)
-    case class VisibleStates[Coordinate, State](states: Map[Coordinate, State])
-                                               (implicit ttag1: TypeTag[Coordinate], ttag2: TypeTag[State])
-      extends MessageResponse(states, typeTag[Map[_, _]] :: ttag1 :: ttag2 :: Nil)
-    case class ActionApplied[Action <: AbstractAction](a: Action)(implicit ttag: TypeTag[Action]) extends MessageResponse(a, ttag :: Nil)
+    case class GlobalState[Global](global: Global) extends MessageResponse(global)
+    case class StateOf[Coordinate, State](c: Coordinate, stateOpt: Option[State]) extends MessageResponse(c -> stateOpt)
+    case class VisibleStates[Coordinate, State](states: Map[Coordinate, State]) extends MessageResponse(states)
+    case class ActionApplied[Action <: AbstractAction](a: Action) extends MessageResponse(a)
     case class Snapshot[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]]
-      (snapshot: EnvironmentSnapshot[Coordinate, State, Global, Action, Env], time: Long)
-      (implicit ttag: TypeTag[Env]) extends MessageResponse(snapshot -> time, ttag :: Nil)
+      (snapshot: EnvironmentSnapshot[Coordinate, State, Global, Action, Env], time: Long) extends MessageResponse(snapshot -> time)
     case class Position[Coordinate](uuid: UUID, position: Option[Coordinate]) extends HasUUID
   }
 }
@@ -67,19 +57,16 @@ trait EnvironmentOverseerWithActor[Coordinate, State, Global, Action <: Abstract
   def actorRef: ActorRef
 
   import EnvironmentOverseerWithActor._
-  lazy val tags = env.tags
-  import tags._
-
 
   protected def affect(act: Action): SideEffect[Env] = updateEnvironment(_.affected(act).execute)
 
 
   protected def baseActorResponses: PartialFunction[Any, () => Unit] = {
     case Get.GlobalState => Response.GlobalState(env.globalState).liftUnit
-    case g@Get.StateOf(c) if g.ttag.tpe =:= typeOf[Coordinate] => Response.StateOf(c, env.stateOf(c.asInstanceOf[Coordinate])).liftUnit
+    case g@Get.StateOf(c) => Response.StateOf(c, env.stateOf(c.asInstanceOf[Coordinate])).liftUnit
     case Get.VisibleStates => Response.VisibleStates(env.visibleStates).liftUnit
     case Get.Snapshot => Response.Snapshot(snapshot, Calendar.getInstance().getTimeInMillis).liftUnit
-    case a@Act(act) if a.ttag.tpe <:< typeOf[Action] =>
+    case a@Act(act) =>
       affect(act.asInstanceOf[Action]).execute
       Response.ActionApplied(act).liftUnit
     case msg@Get.Position(id) => Response.Position(msg.uuid, env.agentPosition(id)).liftUnit
@@ -125,12 +112,11 @@ trait EnvironmentOverseerWithActor[Coordinate, State, Global, Action <: Abstract
         implicit def timeout = Timeout(futureTimeoutScope.get)
 
         def globalState: Future[Global] = (overseer.actorRef ? Get.GlobalState)
-          .mapTo[Response.GlobalState[_]].withFilter(_.ttag.head.tpe <:< typeOf[Global]).map(_.global.asInstanceOf[Global])
+          .mapTo[Response.GlobalState[_]].map(_.global.asInstanceOf[Global])
 
         def stateOf(c: Coordinate) = (overseer.actorRef ? Get.StateOf(c))
           .mapTo[Response.StateOf[_, _]]
           .withFilter(_.c == c)
-          .withFilter(_.ttag match { case _ :: tt2 :: Nil => tt2.tpe <:< typeOf[State] })
           .map(_.stateOpt.asInstanceOf[Option[State]])
 
         def affect(act: Action) = (overseer.actorRef ? Act(act))
@@ -140,15 +126,10 @@ trait EnvironmentOverseerWithActor[Coordinate, State, Global, Action <: Abstract
 
         def visibleStates = (overseer.actorRef ? Get.VisibleStates)
           .mapTo[Response.VisibleStates[_, _]]
-          .withFilter(_.ttag match { case tt0 :: tt1 :: tt2 :: Nil =>
-            tt1.tpe =:= typeOf[Coordinate] &&
-            tt2.tpe <:< typeOf[State]
-          })
           .map(_.states.asInstanceOf[Map[Coordinate, State]])
 
         def snapshot = (overseer.actorRef ? Get.Snapshot)
           .mapTo[Response.Snapshot[_, _, _, _, _]]
-          .withFilter(_.ttag match { case _ :: _ :: _ :: _ :: envTag :: Nil => envTag.tpe =:= typeOf[Env] })
           .map(_.snapshot.asInstanceOf[Env with EnvironmentSnapshot[Coordinate, State, Global, Action, Env]])
 
       def agentPosition(id: AgentId): Future[Option[Coordinate]] = Get.Position(id) |> (msg =>

@@ -18,7 +18,7 @@ trait WorldEnvironment[World <: AbstractWorld[Atom, Coordinate],
                        Env <: WorldEnvironment[World, Atom, Coordinate, State, Global, Action, Env]]
   extends Environment[Coordinate, State, Global, Action, Env] with AbstractWorld[Atom, Coordinate]
 {
-  self: World =>
+  self: World with Env =>
 
   override type Ref <: WorldEnvironmentRef[Coordinate, State, Global, Action, Env, Atom, World]
 

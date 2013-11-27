@@ -4,7 +4,7 @@ import scala.reflect.runtime.universe._
 import feh.tec.util.SideEffect
 import SideEffect._
 
-trait Environment[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]]{ self =>
+trait Environment[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]]{ self: Env =>
   type Ref <: EnvironmentRef[Coordinate, State, Global, Action, Env]
 
   def states: PartialFunction[Coordinate, State]
@@ -25,8 +25,6 @@ trait Environment[Coordinate, State, Global, Action <: AbstractAction, Env <: En
     implicit def action: TypeTag[Action]
     implicit def environment: TypeTag[Env]
   }
-
-  val tags: TypeTags
 }
 
 // it shouldn't be possible to mix in traits that have same method defined due to self type definition
@@ -191,15 +189,17 @@ trait PredictableNonDeterministicEnvironment[Coordinate, State, Global, Action <
    */
   type Prediction = Map[Double, EnvironmentSnapshot[Coordinate, State, Global, Action, Env]]
 }
-
-trait EnvironmentImplementation[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]] {
-  self: Environment[Coordinate, State, Global, Action, Env] =>
+// ?? does nothing
+trait EnvironmentImplementation[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]]
+  extends Environment[Coordinate, State, Global, Action, Env]
+{
+  self: Env =>
 }
 
-trait MutableEnvironment[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]]
+trait MutableEnvironment[Coordinate, State, Global, Action <: AbstractAction, Env <: MutableEnvironment[Coordinate, State, Global, Action, Env]]
   extends EnvironmentImplementation[Coordinate, State, Global, Action, Env]
 {
-  self: Environment[Coordinate, State, Global, Action, Env] =>
+  self: Env =>
 
   def initStates: PartialFunction[Coordinate, State]
   private var _states = initStates
@@ -215,7 +215,7 @@ trait MutableEnvironment[Coordinate, State, Global, Action <: AbstractAction, En
 trait ImmutableEnvironment[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]]
   extends EnvironmentImplementation[Coordinate, State, Global, Action, Env]
 {
-  self: Environment[Coordinate, State, Global, Action, Env] =>
+  self: Env =>
 
   override val states: PartialFunction[Coordinate, State]
   override val globalState: Global

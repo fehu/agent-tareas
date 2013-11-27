@@ -48,14 +48,6 @@ class Environment(buildTilesMap: Map => Seq[Tile],
 
   lazy val definedAt: Seq[Coordinate] = xRange.flatMap(x => yRange.map(x ->))
 
-  lazy val tags = new TypeTags{
-    implicit def coordinate: TypeTag[Coordinate] = typeTag[Coordinate]
-    implicit def state: TypeTag[State] = typeTag[State]
-    implicit def global: TypeTag[Global] = typeTag[Global]
-    implicit def action: TypeTag[Action] = typeTag[Action]
-    implicit def environment: TypeTag[Environment] = typeTag[Environment]
-  }
-
   assertDefinedAtAllCoordinates()
 
   def initStates: PartialFunction[Coordinate, State] = tilesInitMap.mapValues(mapStateBuilder.build)
@@ -166,7 +158,7 @@ class Overseer(actorSystem: ActorSystem,
   def position(id: AgentId): Option[Coordinate] = env.agentsPositions.get(id).map(_.coordinate)
 
   def actorResponseFuncs = baseActorResponses :: predictingActorResponses :: foreseeingActorResponses :: worldActorResponses :: Nil
-  def actorResponseFunc: PartialFunction[Any, () => Unit] = actorResponseFuncs.reduceLeft(_ orElse _)
+//  def actorResponseFunc: PartialFunction[Any, () => Unit] = actorResponseFuncs.reduceLeft(_ orElse _)
   def ref: Environment#Ref = new BaseEnvironmentRef with PredictableEnvironmentRefImpl
     with ForeseeableEnvironmentRefImpl with WorldEnvironmentRefImpl{}
 
@@ -175,7 +167,7 @@ class Overseer(actorSystem: ActorSystem,
   def getWorldMaxDelay: FiniteDuration = timeouts.getMapMaxDelay
   def positionMaxDelay: FiniteDuration = timeouts.positionMaxDelay
   def predictMaxDelay: FiniteDuration = timeouts.predictMaxDelay
-  def foreseeMaxDelay: FiniteDuration = ???
+  def foreseeMaxDelay: FiniteDuration = timeouts.foreseeMaxDelay
 
   protected def environmentOverseerActorProps = Props(classOf[EnvironmentOverseerActor], actorResponseFuncs)
 
