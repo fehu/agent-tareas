@@ -4,19 +4,19 @@ import feh.tec.util.{HasUUID, UUIDed, MapZipperWrapper, SideEffect}
 import scala.concurrent.Future
 import java.util.UUID
 
-trait Game[Layout <: GameStrategicLayout, G <: Game[Layout, G]] extends Environment[Null, Null, GameScore[Layout], StrategicChoice[Layout#PlayerRef], G]{
+trait Game[Strategy <: GameStrategicLayout, G <: Game[Strategy, G]] extends Environment[Null, Null, GameScore[Strategy], StrategicChoice[Strategy#Player], G]{
   self : G =>
 
-  type Ref <: GameRef[Layout, G]
-  final type Choice = StrategicChoice[Layout#PlayerRef]
+  type Ref <: GameRef[Strategy, G]
+  final type Choice = StrategicChoice[Strategy#Player]
 
-  def strategicLayout: Layout
+  def strategicLayout: Strategy
   def choose(choice: Choice)
   def await()
 
-  implicit def utilityIsNumeric = strategicLayout.utilityIsNumeric.asInstanceOf[Numeric[Layout#Utility]]
+  implicit def utilityIsNumeric = strategicLayout.utilityIsNumeric.asInstanceOf[Numeric[Strategy#Utility]]
 
-  def affected(act: StrategicChoice[Layout#PlayerRef]): SideEffect[G] = SideEffect{
+  def affected(act: StrategicChoice[Strategy#Player]): SideEffect[G] = SideEffect{
     choose(act)
     await()
     self
@@ -40,57 +40,57 @@ trait Game[Layout <: GameStrategicLayout, G <: Game[Layout, G]] extends Environm
   def agentPosition(ag: AgentId) = None
 }
 
-trait GameRef[Layout <: GameStrategicLayout, G <: Game[Layout, G]] extends EnvironmentRef[Null, Null, GameScore[Layout], StrategicChoice[Layout#PlayerRef], G]
+trait GameRef[Strategy <: GameStrategicLayout, G <: Game[Strategy, G]] extends EnvironmentRef[Null, Null, GameScore[Strategy], StrategicChoice[Strategy#Player], G]
 {
   def turn: Turn
   def asyncTurn: Future[Turn]
 }
 
-case class StrategicChoice[P <: GameStrategicLayout#PlayerRef](player: P, strategy: P#Strategy) extends AbstractAction
-case class GameScore[Layout <: GameStrategicLayout](score: Map[Layout#PlayerRef, Layout#Utility])(implicit num: Numeric[Layout#Utility]){
-  def update(scoreUpdates: Map[Layout#PlayerRef, Layout#Utility]) =
+case class StrategicChoice[P <: GameStrategicLayout#Player](player: P, strategy: P#Strategy) extends AbstractAction
+case class GameScore[Strategy <: GameStrategicLayout](score: Map[Strategy#Player, Strategy#Utility])(implicit num: Numeric[Strategy#Utility]){
+  def update(scoreUpdates: Map[Strategy#Player, Strategy#Utility]) =
     GameScore(score.zipByKey(scoreUpdates).mapValues((num.plus _).tupled))
 }
 object GameScore{
-  def zero[Layout <: GameStrategicLayout](layout: Layout) =
-    GameScore[Layout](layout.players.map(_ -> layout.utilityIsNumeric.zero).toMap)(layout.utilityIsNumeric.asInstanceOf[Numeric[Layout#Utility]])
+  def zero[Strategy <: GameStrategicLayout](strategy: Strategy) =
+    GameScore[Strategy](strategy.players.map(_ -> strategy.utilityIsNumeric.zero).toMap)(strategy.utilityIsNumeric.asInstanceOf[Numeric[Strategy#Utility]])
 }
 
-trait DeterministicGame[Layout <: DeterministicGameStrategicLayout, G <: DeterministicGame[Layout, G]]
-  extends Game[Layout, G] with Deterministic[Null, Null, GameScore[Layout], StrategicChoice[Layout#PlayerRef], G]
+trait DeterministicGame[Strategy <: DeterministicGameStrategicLayout, G <: DeterministicGame[Strategy, G]]
+  extends Game[Strategy, G] with Deterministic[Null, Null, GameScore[Strategy], StrategicChoice[Strategy#Player], G]
 {
   self: G =>
-  override def affected(act: StrategicChoice[Layout#PlayerRef]): SideEffect[G] = super[Game].affected(act)
+  override def affected(act: StrategicChoice[Strategy#Player]): SideEffect[G] = super[Game].affected(act)
 }
 
 
-trait OverseenGameImpl[Layout <: GameStrategicLayout, G <: MutableGameImpl[Layout, G]] extends Game[Layout, G]
+trait OverseenGameImpl[Strategy <: GameStrategicLayout, G <: MutableGameImpl[Strategy, G]] extends Game[Strategy, G]
 {
   self: G =>
 
-  def overseer: Option[GameOverseer[Layout, G]]
-  def connect(overseer: GameOverseer[Layout, G]): G
+  def overseer: Option[GameOverseer[Strategy, G]]
+  def connect(overseer: GameOverseer[Strategy, G]): G
 
   def choose(choice: Choice): Unit = overseer.foreach(_.registerChoice(choice))
   def await(): Unit = overseer.foreach(_.awaitEndOfTurn())
 }
 
-trait MutableGameImpl[Layout <: GameStrategicLayout, G <: MutableGameImpl[Layout, G]]
-  extends Game[Layout, G]
-  with MutableEnvironment[Null, Null, GameScore[Layout], StrategicChoice[Layout#PlayerRef], G]
+trait MutableGameImpl[Strategy <: GameStrategicLayout, G <: MutableGameImpl[Strategy, G]]
+  extends Game[Strategy, G]
+  with MutableEnvironment[Null, Null, GameScore[Strategy], StrategicChoice[Strategy#Player], G]
 {
   self: G =>
 
-  def initGlobalState: GameScore[Layout] = GameScore.zero(strategicLayout)
+  def initGlobalState: GameScore[Strategy] = GameScore.zero(strategicLayout)
 
   // for OverseenGameImpl: should be called by overseer in the end of the turn to update global state
-  def updateScores(scoresUpdate: Map[Layout#PlayerRef, Layout#Utility]){
+  def updateScores(scoresUpdate: Map[Strategy#Player, Strategy#Utility]){
     globalState = globalState.update(scoresUpdate)
   }
 
   def initStates: PartialFunction[Null, Null] = null
   override def states = super[Game].states
-//  override def globalState: GameScore[Layout] = super[Game].globalState
+//  override def globalState: GameScore[Strategy] = super[Game].globalState
 }
 
 trait Turn{
@@ -98,32 +98,34 @@ trait Turn{
   def next: Turn
 }
 
-trait GameOverseer[Layout <: GameStrategicLayout, G <: Game[Layout, G]]
-  extends EnvironmentOverseer[Null, Null, GameScore[Layout], StrategicChoice[Layout#PlayerRef], G]
+trait GameOverseer[Strategy <: GameStrategicLayout, G <: Game[Strategy, G]]
+  extends EnvironmentOverseer[Null, Null, GameScore[Strategy], StrategicChoice[Strategy#Player], G]
 {
   self: G =>
 
   def currentTurn: Turn
-  def registerChoice(choice: StrategicChoice[Layout#PlayerRef])
+  def registerChoice(choice: StrategicChoice[Strategy#Player])
   protected def allChoicesRegistered(): SideEffect[G]
   def awaitEndOfTurn()
 
 }
 
-trait GameOverseerWithActor[Layout <: GameStrategicLayout, G <: Game[Layout, G]]
-  extends GameOverseer[Layout, G] with EnvironmentOverseerWithActor[Null, Null, GameScore[Layout], StrategicChoice[Layout#PlayerRef], G]
+trait GameOverseerWithActor[Strategy <: GameStrategicLayout, G <: Game[Strategy, G]]
+  extends GameOverseer[Strategy, G] with EnvironmentOverseerWithActor[Null, Null, GameScore[Strategy], StrategicChoice[Strategy#Player], G]
 {
   self: G =>
 
-  case class GetTurn() extends UUIDed
+  /*case class GetTurn() extends UUIDed
   case class Turn(uuid: UUID, turn: Turn) extends HasUUID
 
   protected def gameOverseerResponses: PartialFunction[Any, () => Unit] = ???
+  */
+
 }
 
-trait MutableGameOverseer[Layout <: GameStrategicLayout, G <: MutableGameImpl[Layout, G]]
-  extends GameOverseer[Layout, G]
-  with MutableEnvironmentOverseer[Null, Null, GameScore[Layout], StrategicChoice[Layout#PlayerRef], G]
+trait MutableGameOverseer[Strategy <: GameStrategicLayout, G <: MutableGameImpl[Strategy, G]]
+  extends GameOverseer[Strategy, G]
+  with MutableEnvironmentOverseer[Null, Null, GameScore[Strategy], StrategicChoice[Strategy#Player], G]
 {
   self: G =>
 
@@ -133,13 +135,13 @@ trait GameStrategicLayout{
   type Utility
   implicit def utilityIsNumeric: Numeric[Utility]
 
-  trait PlayerRef{
+  trait Player{
     trait Strategy
     def availableStrategies: Set[Strategy] 
   }
 
-  type PlayersChoices = Map[PlayerRef, PlayerRef#Strategy]
-  type PlayersUtility = Map[PlayerRef, Utility]
+  type PlayersChoices = Map[Player, Player#Strategy]
+  type PlayersUtility = Map[Player, Utility]
 
 //  case class PlayerChoice[P <: PlayerRef](player: P, strategy: P#Strategy)
 //  case class PlayerUtility[P <: PlayerRef](player: P, utility: Utility)
@@ -150,7 +152,7 @@ trait GameStrategicLayout{
   def target: Target
 
   def nPlayers: Int
-  def players: Set[PlayerRef]
+  def players: Set[Player]
   def strategicLayout: PlayersChoices => PlayersUtility
 }
 
@@ -159,19 +161,19 @@ trait DeterministicGameStrategicLayout extends GameStrategicLayout{
 }
 
 trait TurnBasedGameStrategicLayout extends GameStrategicLayout{
-  def playersTurnOrdering: Ordering[PlayerRef]
+  def playersTurnOrdering: Ordering[Player]
   def playersInTurnOrder = players.toList.sorted(playersTurnOrdering)
 }
 
-object Player {
-  type Exec[Layout <: GameStrategicLayout, G <: Game[Layout, G]] = SimultaneousAgentsExecutor[Null, Null, GameScore[Layout], StrategicChoice[Layout#PlayerRef], G]
+object PlayerAgent {
+  type Exec[Strategy <: GameStrategicLayout, G <: Game[Strategy, G]] = SimultaneousAgentsExecutor[Null, Null, GameScore[Strategy], StrategicChoice[Strategy#Player], G]
 }
 
-trait Player[Layout <: GameStrategicLayout, G <: Game[Layout, G]]
-  extends Agent[Null, Null, GameScore[Layout], StrategicChoice[Layout#PlayerRef], G, Player.Exec[Layout, G]]
-  with SimultaneousAgentExecution[Null, Null, GameScore[Layout], StrategicChoice[Layout#PlayerRef], G, Player.Exec[Layout, G]]
+trait PlayerAgent[Strategy <: GameStrategicLayout, G <: Game[Strategy, G]]
+  extends Agent[Null, Null, GameScore[Strategy], StrategicChoice[Strategy#Player], G, PlayerAgent.Exec[Strategy, G]]
+  with SimultaneousAgentExecution[Null, Null, GameScore[Strategy], StrategicChoice[Strategy#Player], G, PlayerAgent.Exec[Strategy, G]]
 {
-  agent: DecisiveAgent[Null, Null, GameScore[Layout], StrategicChoice[Layout#PlayerRef], G, Player.Exec[Layout, G]] =>
+  agent: DecisiveAgent[Null, Null, GameScore[Strategy], StrategicChoice[Strategy#Player], G, PlayerAgent.Exec[Strategy, G]] =>
 
 
 }
