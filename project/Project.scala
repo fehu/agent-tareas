@@ -81,7 +81,7 @@ object AgentosTarea1 extends Build {
     id = "tarea3",
     base = file("tarea3"),
     settings = buildSettings
-  ) dependsOn agent
+  ) dependsOn (agent, swingVisualization)
 
   lazy val agent = Project(
     id = "agent",

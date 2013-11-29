@@ -164,10 +164,11 @@ trait SimultaneousAgentsExecutor[Position, EnvState, EnvGlobal, Action <: Abstra
 {
   type Ag <: Agent[Position, EnvState, EnvGlobal, Action, Env, SimultaneousAgentsExecutor[Position, EnvState, EnvGlobal, Action, Env]]
 
-  def register(agent: Ag)
+  def register(agent: Ag*)
   protected def agents: Set[Ag]
 }
 
+/*
 trait SimultaneousOnDemandAgentsExecutor[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env]]
   extends SimultaneousAgentsExecutor[Position, EnvState, EnvGlobal, Action, Env]
 {
@@ -181,4 +182,4 @@ trait SimultaneousOnDemandAgentsExecutor[Position, EnvState, EnvGlobal, Action <
     }
 
   }
-}
+}*/

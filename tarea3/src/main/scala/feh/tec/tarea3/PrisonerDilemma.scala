@@ -7,9 +7,12 @@ import feh.tec.agent.StrategicChoice
 import scala.math.Numeric.IntIsIntegral
 import akka.actor.{ActorSystem, Props, ActorRef, Scheduler}
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
+import feh.tec.visual.{SwingFrameAppCreation, SwingAppFrame}
+import feh.tec.visual.api.{AppBasicControlApi, AgentApp}
+import java.awt.Component
 
-class PrisonerDilemma extends DeterministicGame{
+class PrisonerDilemma extends AbstractDeterministicGame{
   type Utility = Int
   implicit def utilityIsNumeric = IntIsIntegral
 
@@ -22,8 +25,11 @@ class PrisonerDilemma extends DeterministicGame{
     def availableStrategies = Set(Betray, Refuse)
   }
 
-  object A extends PrisonerPlayer
-  object B extends PrisonerPlayer
+  object Players{
+    object A extends PrisonerPlayer
+    object B extends PrisonerPlayer
+  }
+  import Players._
 
   def players = Set(A, B)
 
@@ -44,7 +50,7 @@ class PrisonerDilemma extends DeterministicGame{
   def target = Min
 }
 
-class PrisonerDilemmaGameEnvironment(val strategicLayout: PrisonerDilemma)
+class PrisonerDilemmaGameEnvironment(val game: PrisonerDilemma = new PrisonerDilemma)
   extends DeterministicGameEnvironment[PrisonerDilemma, PrisonerDilemmaGameEnvironment]
   with MutableGameEnvironmentImpl[PrisonerDilemma, PrisonerDilemmaGameEnvironment]
 {
@@ -54,15 +60,15 @@ class PrisonerDilemmaGameEnvironment(val strategicLayout: PrisonerDilemma)
 }
 
 class PrisonerDilemmaGameCoordinator(environment: PrisonerDilemmaGameEnvironment,
-                                     val scheduler: Scheduler,
                                      val actorSystem: ActorSystem,
                                      val awaitEndOfTurnTimeout: FiniteDuration,
                                      val defaultFutureTimeout: Int,
                                      val defaultBlockingTimeout: Int)
-                                    (implicit val executionContext: ExecutionContext)
+                                    (implicit val executionContext: ExecutionContext = actorSystem.dispatcher)
   extends MutableGameCoordinator[PrisonerDilemma, PrisonerDilemmaGameEnvironment]
   with GameCoordinatorWithActor[PrisonerDilemma, PrisonerDilemmaGameEnvironment]
 {
+  val scheduler: Scheduler = actorSystem.scheduler
   def ref: PrisonerDilemmaGameEnvironment#Ref = new GameRefBaseImpl{}
   override val currentEnvironment: PrisonerDilemmaGameEnvironment = environment
 }
@@ -78,4 +84,49 @@ class PrisonerPlayer(val executionLoop: PlayerAgent.Exec[PrisonerDilemma, Prison
   def decide(currentPerception: Perception): ActionExplanation = ???
 }
 
-//class PrisonerDilemmaApp extends
+class PrisonersExec(val execControlTimeout: FiniteDuration,
+                    val onSuccess: () => Unit)
+                   (implicit val executionContext: ExecutionContext) extends ByTurnExec[PrisonerDilemma, PrisonerDilemmaGameEnvironment]{
+  type Ag = PrisonerPlayer
+}
+
+class PrisonerDilemmaApp(implicit val actorSystem: ActorSystem = ActorSystem.create()) extends SwingAppFrame
+  with SwingFrameAppCreation.Layout9PositionsDSL with SwingFrameAppCreation.Frame9PositionsLayoutBuilderImpl
+  with SwingFrameAppCreation.LayoutDSLDefaultImpl
+{
+  frame =>
+
+  implicit def executionContext = actorSystem.dispatcher
+
+  val game = new PrisonerDilemma
+  val env = new PrisonerDilemmaGameEnvironment(game)
+  val coordinator = new PrisonerDilemmaGameCoordinator(env, actorSystem,
+    awaitEndOfTurnTimeout = 50 millis,
+    defaultFutureTimeout = 10,
+    defaultBlockingTimeout = 10
+    )
+
+  var msg = ""
+
+  def createMsg() = ""
+
+  val gameExec = new PrisonersExec(50 millis, () => msg = createMsg)
+
+  def player(sel: (game.Players.type => game.Player)*) = sel.map(s => new PrisonerPlayer(gameExec, coordinator.ref, s(game.Players)))
+
+  val players = player(_.A, _.B)
+  val Seq(playerA, playerB) = players
+
+  def start(): Unit = {
+    buildLayout()
+    frame.open()
+//    app.start()
+  }
+  def stop(): Unit = {
+//    app.stop()
+    frame.close()
+  }
+
+  val layout/*: List[SwingFrameAppCreation.AbstractLayoutSetting]*/ = ???
+
+}

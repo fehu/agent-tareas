@@ -2,7 +2,6 @@ package feh.tec.visual
 
 import feh.tec.visual.api.{AppBasicControlApi, AwtWindowedApp}
 import scala.swing._
-import feh.tec.visual.SwingAppFrame.{LayoutBuilder, ComponentAccess, LayoutDSL}
 import scala.swing.ScrollPane.BarPolicy
 import java.awt.{Graphics, Color}
 import scala.swing.FlowPanel
@@ -12,13 +11,13 @@ import feh.tec.visual.util.AwtUtils
 import javax.swing.{JPanel, JComponent}
 import scala.collection.mutable
 
-trait SwingAppFrame extends Frame with AwtWindowedApp with AppBasicControlApi with LayoutDSL with LayoutBuilder{
-  def appWindow = peer
 
-//  def componentAccess: ComponentAccess
+trait SwingAppFrame extends Frame with AppBasicControlApi with SwingFrameAppCreation{
+  self: SwingFrameAppCreation#LayoutDSL with SwingFrameAppCreation#LayoutBuilder =>
 }
 
-object SwingAppFrame extends FormCreation{
+object SwingFrameAppCreation extends SwingFrameAppCreation
+trait SwingFrameAppCreation extends FormCreation{
   trait LayoutBuilder{
     dsl: LayoutDSL =>
     
@@ -32,12 +31,6 @@ object SwingAppFrame extends FormCreation{
     val layout: List[AbstractLayoutSetting]
 
     val componentAccess = new RegistringComponentAccess
-    private implicit class LayoutElemRegister(elem: LayoutElem){
-      def register = {
-        componentAccess.register(elem)
-        elem
-      }
-    }
 
     // upper lever settings
     protected def split(orientation: scala.swing.Orientation.Value)
@@ -71,24 +64,12 @@ object SwingAppFrame extends FormCreation{
       def and(other: LayoutSetting) = list :+ other
     }
 
-    private val awtToSwingComponentCache = mutable.HashMap.empty[java.awt.Component, Component]
-    implicit def awtToSwingComponent(c: java.awt.Component): Component =
-      awtToSwingComponentCache.getOrElse(c, {
-          val p = new Panel { // let's see, let's see ...
-            peer.add(new JPanel{
-              add(c)
-/*
-              override def paintComponent(g: Graphics) {
-                c.paint(g)
-                super.paintComponent(g)
-              }
-*/
-            })
-          }
-          awtToSwingComponentCache += c -> p
-          p
-      })
-
+    protected[SwingFrameAppCreation] implicit class LayoutElemRegister(elem: LayoutElem){
+      def register = {
+        componentAccess.register(elem)
+        elem
+      }
+    }
 
     class RegistringComponentAccess extends ComponentAccess{
       private val componentsMap = mutable.HashMap.empty[String, LayoutElem]
@@ -247,8 +228,8 @@ object SwingAppFrame extends FormCreation{
     def updateForms(): Unit = updatingComponents.foreach(_.updateForm())
   }
   
-  trait Frame9PositionsLayoutBuilderImpl extends LayoutBuilder with Layout9PositionsDSL with AwtUtils{
-    frame: Frame =>
+  trait Frame9PositionsLayoutBuilderImpl extends LayoutBuilder with AwtUtils{
+    frame: Frame with Layout9PositionsDSL=>
 
     /**
      * builds layout within `frame`
@@ -363,4 +344,41 @@ object SwingAppFrame extends FormCreation{
       frame.pack()
     }
   }
+}
+
+object SwingSurroundingFrameAppCreation extends SwingSurroundingFrameAppCreation
+trait SwingSurroundingFrameAppCreation extends SwingFrameAppCreation{
+
+  trait SurroundingLayoutBuilder extends LayoutBuilder{
+    dsl: SurroundingLayoutDSL =>
+  }
+
+  trait SurroundingLayoutDSL extends LayoutDSL with FormCreationDSL{
+
+    private val awtToSwingComponentCache = mutable.HashMap.empty[java.awt.Component, Component]
+    implicit def awtToSwingComponent(c: java.awt.Component): Component =
+      awtToSwingComponentCache.getOrElse(c, {
+        val p = new Panel { // let's see, let's see ...
+          peer.add(new JPanel{
+            add(c)
+            /*
+                          override def paintComponent(g: Graphics) {
+                            c.paint(g)
+                            super.paintComponent(g)
+                          }
+            */
+          })
+        }
+        awtToSwingComponentCache += c -> p
+        p
+      })
+  }
+}
+
+trait AppSurroundingSwingFrame extends SwingAppFrame with AwtWindowedApp
+  with SwingSurroundingFrameAppCreation
+{
+  self: SwingSurroundingFrameAppCreation#SurroundingLayoutDSL with SwingSurroundingFrameAppCreation#SurroundingLayoutBuilder =>
+
+  def appWindow = peer
 }

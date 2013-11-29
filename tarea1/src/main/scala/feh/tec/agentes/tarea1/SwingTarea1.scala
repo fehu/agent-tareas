@@ -1,11 +1,11 @@
 package feh.tec.agentes.tarea1
 
-import feh.tec.visual.{SwingAppFrame, SwingNicolApp}
+import feh.tec.visual.{AppSurroundingSwingFrame, SwingNicolApp}
 import feh.tec.visual.api.{AppBasicControlApi, AgentApp}
-import SwingAppFrame._
 import feh.tec.agent.AgentDecision.CriteriaMessage
 import feh.tec.visual.util.AwtUtils
 import nicol.Scene
+/*
 
 class SwingTarea1 extends SwingNicolApp with LayoutDSLDefaultImpl with Frame9PositionsLayoutBuilderImpl{
   lazy val layout =
@@ -45,3 +45,4 @@ object SwingTarea1App extends App with AwtUtils{
   swingApp.minimumSize = 1024 -> 786
   swingApp.start()
 }
+*/

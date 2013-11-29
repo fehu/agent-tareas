@@ -1,9 +1,6 @@
 package feh.tec.visual
 
-import feh.tec.visual.SwingAppFrame.{ComponentAccess, AbstractLayoutSetting}
-import feh.tec.visual.api.AgentApp
-import java.awt.{Canvas, Component}
-import java.awt.event.{ComponentEvent, ComponentAdapter}
+import java.awt.Canvas
 import feh.tec.visual.util.AwtEventUtils
 import scala.swing.event.{WindowClosing, WindowActivated}
 import org.lwjgl.opengl.{GL11, Display}
@@ -11,8 +8,8 @@ import org.lwjgl.opengl.{GL11, Display}
 /**
  * From http://lwjgl.org/wiki/index.php?title=Using_a_Resizeable_AWT_Frame_with_LWJGL
  */
-trait SwingNicolApp extends SwingAppFrame{
-  frame =>
+trait SwingNicolApp extends AppSurroundingSwingFrame{
+  frame: SwingSurroundingFrameAppCreation#SurroundingLayoutDSL with SwingSurroundingFrameAppCreation#SurroundingLayoutBuilder =>
 
 
   lazy val drawComponent = new Canvas() with AwtEventUtils{
