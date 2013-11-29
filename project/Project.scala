@@ -65,7 +65,7 @@ object AgentosTarea1 extends Build {
     )
   ).settings(ideaExcludeFolders := ".idea" :: ".idea_modules" :: Nil)
    .dependsOn(tarea1)
-   .aggregate(agent, world, drawApi, lwjglVisualization, swingVisualization, drawIntegration, tarea1, tarea3)
+   .aggregate(agent, lwjglVisualization, swingVisualization, drawIntegration, tarea1, tarea3)
 
 
   lazy val tarea1 =  Project(
@@ -75,7 +75,7 @@ object AgentosTarea1 extends Build {
       libraryDependencies += spray.json
     )
     ++ lwjglSettings
-  ) dependsOn (agent, world, drawApi, lwjglVisualization, swingVisualization, drawIntegration)
+  ) dependsOn (agent, lwjglVisualization, swingVisualization, drawIntegration)
 
   lazy val tarea3 =  Project(
     id = "tarea3",
@@ -91,29 +91,17 @@ object AgentosTarea1 extends Build {
     )
   )
 
-  lazy val world = Project(
-    id = "world",
-    base = file("world"),
-    settings = buildSettings
-  ) dependsOn agent
-
-  lazy val drawApi = Project(
-    id = "draw-api",
-    base = file("draw-api"),
-    settings = buildSettings
-  ) dependsOn world
-
   lazy val drawIntegration = Project(
     id = "draw-integration",
     base = file("draw-integration"),
     settings = buildSettings
-  ) dependsOn (drawApi, lwjglVisualization, swingVisualization)
+  ) dependsOn (agent, lwjglVisualization, swingVisualization)
 
   lazy val lwjglVisualization = Project(
     id = "lwjgl",
     base = file("lwjgl"),
     settings = lwjglSettings
-  ) dependsOn drawApi
+  ) dependsOn agent
 
   lazy val swingVisualization = Project(
     id = "swing",
@@ -121,5 +109,5 @@ object AgentosTarea1 extends Build {
     settings = buildSettings ++ Seq(
       libraryDependencies += scalaSwing
     )
-  ) dependsOn drawApi
+  ) dependsOn agent
 }

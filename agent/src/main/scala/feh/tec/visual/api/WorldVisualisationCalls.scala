@@ -1,4 +1,4 @@
-package feh.tec.map.visual
+package feh.tec.visual.api
 
 import feh.tec.world.{CoordinatesChain, WorldAtom}
 
