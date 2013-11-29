@@ -61,7 +61,7 @@ trait EnvironmentOverseerWithActor[Coordinate, State, Global, Action <: Abstract
   protected def affect(act: Action): SideEffect[Env] = updateEnvironment(_.affected(act).execute)
 
 
-  protected def baseActorResponses: PartialFunction[Any, () => Unit] = {
+  protected def baseActorResponses: PartialFunction[Any, () => Any] = {
     case Get.GlobalState => Response.GlobalState(env.globalState).liftUnit
     case g@Get.StateOf(c) => Response.StateOf(c, env.stateOf(c.asInstanceOf[Coordinate])).liftUnit
     case Get.VisibleStates => Response.VisibleStates(env.visibleStates).liftUnit
@@ -193,7 +193,7 @@ trait PredictingEnvironmentOverseerWithActor[Coordinate, State, Global, Action <
 
   def predictMaxDelay: FiniteDuration
 
-  protected def predictingActorResponses: PartialFunction[Any, () => Unit] = {
+  protected def predictingActorResponses: PartialFunction[Any, () => Any] = {
     case msg@Predict(a) => Prediction(msg.uuid, predict(a)).liftUnit
   }
 
@@ -266,7 +266,7 @@ trait ForeseeingEnvironmentOverseerWithActor[Coordinate, State, Global, Action <
 
   def foreseeMaxDelay: FiniteDuration
 
-  protected def foreseeingActorResponses: PartialFunction[Any, () => Unit] = {
+  protected def foreseeingActorResponses: PartialFunction[Any, () => Any] = {
     case msg@ForeseeExtended(possibleActions, depth, includeShorter, excludeTurningBack) => overseer.foresee(depth, possibleActions, includeShorter, excludeTurningBack).liftUnit
   }
 

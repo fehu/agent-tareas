@@ -5,8 +5,11 @@ import Ordered._
 import feh.tec.util.SideEffect
 import feh.tec.agent.StrategicChoice
 import scala.math.Numeric.IntIsIntegral
+import akka.actor.{ActorSystem, Props, ActorRef, Scheduler}
+import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.FiniteDuration
 
-class PrisonerDilemmaStrategicLayout extends DeterministicGameStrategicLayout{
+class PrisonerDilemma extends DeterministicGame{
   type Utility = Int
   implicit def utilityIsNumeric = IntIsIntegral
 
@@ -31,7 +34,7 @@ class PrisonerDilemmaStrategicLayout extends DeterministicGameStrategicLayout{
 
   def strategy = strategicLayoutBuilder2(A, B) _
 
-  val strategicLayout: Map[PlayersChoices, PlayersUtility] = Map(
+  val layout: Map[PlayersChoices, PlayersUtility] = Map(
     strategy(_.Betray, _.Betray)(8, 8),
     strategy(_.Betray, _.Refuse)(0, 12),
     strategy(_.Refuse, _.Betray)(12, 0),
@@ -41,15 +44,38 @@ class PrisonerDilemmaStrategicLayout extends DeterministicGameStrategicLayout{
   def target = Min
 }
 
-class PrisonerDilemmaGame(val strategicLayout: PrisonerDilemmaStrategicLayout)
-  extends DeterministicGame[PrisonerDilemmaStrategicLayout, PrisonerDilemmaGame]
-  with MutableGameImpl[PrisonerDilemmaStrategicLayout, PrisonerDilemmaGame]
+class PrisonerDilemmaGameEnvironment(val strategicLayout: PrisonerDilemma)
+  extends DeterministicGameEnvironment[PrisonerDilemma, PrisonerDilemmaGameEnvironment]
+  with MutableGameEnvironmentImpl[PrisonerDilemma, PrisonerDilemmaGameEnvironment]
 {
-//  type Ref = this.type
+  type Ref = GameRef[PrisonerDilemma, PrisonerDilemmaGameEnvironment]
 
-  def choose(choice: Choice): Unit = ???
-
-  def await(): Unit = ???
-
-  def playersScore = ???
+  override def affected(act: GameAction): SideEffect[PrisonerDilemmaGameEnvironment] = super[MutableGameEnvironmentImpl].affected(act)
 }
+
+class PrisonerDilemmaGameCoordinator(environment: PrisonerDilemmaGameEnvironment,
+                                     val scheduler: Scheduler,
+                                     val actorSystem: ActorSystem,
+                                     val awaitEndOfTurnTimeout: FiniteDuration,
+                                     val defaultFutureTimeout: Int,
+                                     val defaultBlockingTimeout: Int)
+                                    (implicit val executionContext: ExecutionContext)
+  extends MutableGameCoordinator[PrisonerDilemma, PrisonerDilemmaGameEnvironment]
+  with GameCoordinatorWithActor[PrisonerDilemma, PrisonerDilemmaGameEnvironment]
+{
+  def ref: PrisonerDilemmaGameEnvironment#Ref = new GameRefBaseImpl{}
+  override val currentEnvironment: PrisonerDilemmaGameEnvironment = environment
+}
+
+class PrisonerPlayer(val executionLoop: PlayerAgent.Exec[PrisonerDilemma, PrisonerDilemmaGameEnvironment],
+                     val env: PrisonerPlayer#EnvRef,
+                     val player: PrisonerDilemma#Player)
+  extends DummyPlayer[PrisonerDilemma, PrisonerDilemmaGameEnvironment]
+{
+  def notifyDecision(a: ActionExplanation) {}
+  def lastDecision: Option[ActionExplanation] = None
+
+  def decide(currentPerception: Perception): ActionExplanation = ???
+}
+
+//class PrisonerDilemmaApp extends

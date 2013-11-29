@@ -211,10 +211,10 @@ trait WorldEnvironmentOverseerWithActor[World <: AbstractWorld[Atom, Coordinate]
   def getWorldMaxDelay: FiniteDuration
   def positionMaxDelay: FiniteDuration
 
-  protected def worldActorResponses: PartialFunction[Any, () => Unit] = {
+  protected def worldActorResponses: PartialFunction[Any, () => Any] = {
     case msg@GetWorldByEnvRef(e) =>
-      WorldByEnvRef(msg.uuid, worldSnapshot()).liftUnit
-    case msg@GetWorldBySnapshot(s) => WorldBySnapshot(msg.uuid, worldSnapshot(s)).liftUnit
+      WorldByEnvRef(msg.uuid, worldSnapshot()).lifted
+    case msg@GetWorldBySnapshot(s) => WorldBySnapshot(msg.uuid, worldSnapshot(s)).lifted
   }
 
   trait WorldEnvironmentRefImpl extends WorldEnvironmentRef[Coordinate, State, Global, Action, Env, Atom, World]{

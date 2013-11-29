@@ -6,7 +6,7 @@ import org.sbtidea.SbtIdeaPlugin._
 
 object AgentosTarea1 extends Build {
 
-  val ScalaVersion = "2.10.2"
+  val ScalaVersion = "2.10.3"
 
   import Resolvers._
   import Dependencies._
@@ -15,7 +15,7 @@ object AgentosTarea1 extends Build {
     organization := "feh.tec.agentes",
     version      := "0.2.1",
     scalaVersion := ScalaVersion,
-    scalacOptions ++= Seq("-explaintypes"),
+//    scalacOptions ++= Seq("-explaintypes"),
     scalacOptions in (Compile, doc) ++= Seq("-diagrams", "-diagrams-debug"),
     resolvers += Release.spray
   )
@@ -82,7 +82,7 @@ object AgentosTarea1 extends Build {
     base = file("tarea3"),
     settings = buildSettings
   ) dependsOn agent
-  
+
   lazy val agent = Project(
     id = "agent",
     base = file("agent"),
@@ -90,12 +90,6 @@ object AgentosTarea1 extends Build {
       libraryDependencies ++= Seq(akka, reflectApi)
     )
   )
-
-  //  lazy val environment = Project(
-  //    id = "world",
-  //    base = file("world"),
-  //    settings = buildSettings
-  //  )
 
   lazy val world = Project(
     id = "world",

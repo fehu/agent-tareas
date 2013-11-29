@@ -2,10 +2,9 @@ package feh.tec.agentes.tarea1
 
 import feh.tec.world._
 import feh.tec.agent._
-import scala.reflect.runtime.universe._
 import akka.actor._
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.concurrent.duration._
 import feh.tec.visual.NicolLike2DEasel
 import feh.tec.visual.api.WorldRenderer
 import feh.tec.agent.AgentId
@@ -158,7 +157,7 @@ class Overseer(actorSystem: ActorSystem,
   def position(id: AgentId): Option[Coordinate] = env.agentsPositions.get(id).map(_.coordinate)
 
   def actorResponseFuncs = baseActorResponses :: predictingActorResponses :: foreseeingActorResponses :: worldActorResponses :: Nil
-//  def actorResponseFunc: PartialFunction[Any, () => Unit] = actorResponseFuncs.reduceLeft(_ orElse _)
+//  def actorResponseFunc: PartialFunction[Any, () => Any] = actorResponseFuncs.reduceLeft(_ orElse _)
   def ref: Environment#Ref = new BaseEnvironmentRef with PredictableEnvironmentRefImpl
     with ForeseeableEnvironmentRefImpl with WorldEnvironmentRefImpl{}
 
@@ -183,15 +182,18 @@ class Overseer(actorSystem: ActorSystem,
   protected def setup: DebuggingSetup = Tarea1.Debug
 }
 
-class EnvironmentOverseerActor(responses: PartialFunction[Any, () => Unit]) extends Actor{
+class EnvironmentOverseerActor(responses: PartialFunction[Any, () => Any]) extends Actor{
   val log = Logging(context.system, this)
 
-  def externalExec(f: PartialFunction[Any, () => Unit]): PartialFunction[Any, Unit] =
-    f andThen (exec => context.system.scheduler.scheduleOnce(Duration.Zero)(exec())(context.dispatcher))
+  private def scheduler = context.system.scheduler
+  import context.dispatcher
 
-
-  def receive: Actor.Receive = externalExec(responses)
-//    PartialFunction(externalExec(responses andThen sender.!)) // todo: doesn't seem good
+  def receive: Actor.Receive = responses andThen { // todo ??
+    response => scheduler.scheduleOnce(0 millis)(response() match{
+      case Unit =>
+      case msg => sender ! msg
+    })
+  }
 }
 
 

@@ -22,8 +22,8 @@ trait IndecisiveAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction, E
     def what: ActualDetailedPerception
   }
 
-  type Perception <: AbstractGlobalPerception
-  type DetailedPerception <: AbstractDetailedPerception
+  type Perception //<: AbstractGlobalPerception
+  type DetailedPerception //<: AbstractDetailedPerception
 
   type EnvRef = Env#Ref
   def env: EnvRef
