@@ -13,7 +13,7 @@ import feh.tec.visual.render.{LwjglSquareMapRoutesRenderer, LwjglSquareMapOnMous
 import java.awt.Color
 import LwjglSquareMapRenderer.BuildTDrawOpsParams
 import feh.tec.agent.AgentId
-import feh.tec.map.visual.WorldVisualisationCalls
+import feh.tec.visual.api.WorldVisualisationCalls
 
 case class AgentRef(ag: MyDummyAgent[Nothing])
 object AgentRef{

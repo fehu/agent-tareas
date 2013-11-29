@@ -63,6 +63,7 @@ trait SwingFrameAppCreation extends FormCreation{
     protected implicit class LayoutSettingListWrapper(list: List[LayoutSetting]){
       def and(other: LayoutSetting) = list :+ other
     }
+    protected implicit def layoutSettingToListWrapper(s: AbstractLayoutSetting): List[AbstractLayoutSetting] = s :: Nil
 
     protected[SwingFrameAppCreation] implicit class LayoutElemRegister(elem: LayoutElem){
       def register = {

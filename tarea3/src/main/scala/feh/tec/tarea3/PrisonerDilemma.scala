@@ -127,6 +127,13 @@ class PrisonerDilemmaApp(implicit val actorSystem: ActorSystem = ActorSystem.cre
     frame.close()
   }
 
-  val layout/*: List[SwingFrameAppCreation.AbstractLayoutSetting]*/ = ???
+  val layout =
+    layoutSettingToListWrapper(place(monitorFor(msg).text, "msg") in theCenter)
 
+
+}
+
+object PrisonerDilemmaExecutable extends App{
+  val app = new PrisonerDilemmaApp
+  app.start()
 }

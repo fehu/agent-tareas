@@ -4,9 +4,14 @@ import sbtunidoc.Plugin._
 import UnidocKeys._
 import org.sbtidea.SbtIdeaPlugin._
 
-object AgentosTarea1 extends Build {
+object Build extends sbt.Build {
 
   val ScalaVersion = "2.10.3"
+
+  val runPlugHole = InputKey[Unit]("run-plug-hole", "[Tarea1] Runs Plug-Hole Agent Application")
+  val runPrisonerDilemma = InputKey[Unit]("run-prisoner-dilemma", "[Tarea3] Runs Prisoner Dilemma Game")
+
+  // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // //
 
   import Resolvers._
   import Dependencies._
@@ -28,6 +33,9 @@ object AgentosTarea1 extends Build {
     resolvers ++= Seq(Release.sonatype, Snapshot.sonatype),
     libraryDependencies ++= Seq(Tests.scalaCheck, Tests.specs2)
   )
+
+  lazy val runTasks = runPlugHoleTask :: runPrisonerDilemmaTask :: Nil
+  // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // //
 
   object Resolvers{
     object Release{
@@ -57,14 +65,14 @@ object AgentosTarea1 extends Build {
     }
   }
 
+  // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // //
+
   lazy val root = Project(
     id = "root",
     base = file("."),
-    settings = buildSettings ++ unidocSettings ++ lwjglSettings ++ Seq(
-      mainClass in (Compile, run) := Some("feh.tec.agentes.tarea1.Tarea1Application")
-    )
+    settings = buildSettings ++ unidocSettings ++ lwjglSettings ++ runTasks
   ).settings(ideaExcludeFolders := ".idea" :: ".idea_modules" :: Nil)
-   .dependsOn(tarea1)
+   .dependsOn(tarea1, tarea3)
    .aggregate(agent, lwjglVisualization, swingVisualization, drawIntegration, tarea1, tarea3)
 
 
@@ -110,4 +118,9 @@ object AgentosTarea1 extends Build {
       libraryDependencies += scalaSwing
     )
   ) dependsOn agent
+
+  // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // //
+
+  lazy val runPlugHoleTask = fullRunInputTask(runPlugHole, Runtime, "feh.tec.agentes.tarea1.Tarea1Application")
+  lazy val runPrisonerDilemmaTask = fullRunInputTask(runPrisonerDilemma, Runtime, "feh.tec.tarea3.PrisonerDilemmaExecutable")
 }

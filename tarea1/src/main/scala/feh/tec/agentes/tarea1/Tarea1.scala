@@ -24,7 +24,7 @@ import feh.tec.agent.AgentDecision.ExtendedCriteriaBasedDecision
 import feh.tec.agentes.tarea1.Tarea1.Agents.ExecLoopBuilders.PauseBetweenExecs
 import feh.tec.agent.AgentId
 import feh.tec.visual.api.BasicStringDrawOps
-import feh.tec.map.visual.WorldVisualisationCalls
+import feh.tec.visual.api.WorldVisualisationCalls
 
 object Tarea1 {
   object Debug extends GlobalDebuggingSetup
@@ -381,7 +381,7 @@ object Tarea1App {
   import Tarea1.Agents.ExecLoopBuilders._
 
   var argsForTimeSpan: Option[FiniteDuration] = None
-  implicit val pauseBetweenExecs = PauseBetweenExecs(argsForTimeSpan getOrElse defaultPauseBetweenExecs)
+  implicit lazy val pauseBetweenExecs = PauseBetweenExecs(argsForTimeSpan getOrElse defaultPauseBetweenExecs)
 
   type Exec = ConditionalExec
   lazy val ag: MyDummyAgent[Exec] = new MyDummyAgent[Exec](
@@ -397,7 +397,7 @@ object Tarea1App {
 
   def renderMap(implicit easel: NicolLike2DEasel) = app.mapRenderer.render(env)
 
-  val agStop = ag.execution()
+  var agStop: Exec#StopFunc = _
 
   def terminate() = {
     Await.ready(agStop(), 1 second)
@@ -413,6 +413,7 @@ object Tarea1App {
 
   def start() = {
     app.start()
+    agStop = ag.execution()
 //    val f = overseer.ref.async.visibleStates
 //    println("!f + " +  f)
 //    f.map{
