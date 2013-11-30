@@ -1,4 +1,3 @@
-* pause hides map
 * fix artifacts on text rendering
 * string render markup for easel
 * analyse criteria failures in fail-example-02.png, fail-example-03.png, fail-example-04-*.png
@@ -6,4 +5,5 @@
 * repair showLabels
 * see https://github.com/mattdesl/lwjgl-basics for tips on 2d rendering
 * check floyd-warshall cache
-* check and rewrite all async environment ref calls
+* check world based environment specific async ref calls
+* grid layout doesn't fit well for universal layout - it ignores maximum size;

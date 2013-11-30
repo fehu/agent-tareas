@@ -7,11 +7,13 @@ import feh.tec.util.LiftWrapper
 import scala.swing.Label
 import java.awt.Color
 import concurrent.duration.FiniteDuration
+import scala.collection.mutable
 
 
 trait FormCreation {
 
   protected trait FormCreationDSL{
+    protected def monitorFor[K, V](get: => Map[K, V])(implicit chooser:  (=> Map[K, V]) => MapMonitorComponentChooser[K, V]) = chooser(get)
     protected def monitorFor[T](get: => T)(implicit chooser:  (=> T) => MonitorComponentChooser[T]) = chooser(get)
     protected def controlFor[T](get: => T)(set: T => Option[Throwable])(implicit chooser: (=> T, T => Option[Throwable]) => ControlComponentChooser[T]) = chooser(get, set)
     protected def numericControlFor[N](get: => N)(set: N => Option[Throwable])
@@ -28,6 +30,7 @@ trait FormCreation {
   }
 
   implicit def monitorComponentChooser[T](get: => T): MonitorComponentChooser[T] = new MonitorComponentChooser(get)
+  implicit def mapMonitorComponentChooser[K, V](get: => Map[K, V]): MapMonitorComponentChooser[K, V] = new MapMonitorComponentChooser(get)
   implicit def controlComponentChooser[T](get: => T, set: T => Option[Throwable]) = new ControlComponentChooser(get, set)
   implicit def numericControlComponentChooser[N: Numeric](get: => N, set: N => Option[Throwable]): NumericControlComponentChooser[N] = new NumericControlComponentChooser(get, set)
   implicit def triggerComponentChooser(action: => Unit): TriggerComponentChooser = new TriggerComponentChooser(action)
@@ -35,6 +38,9 @@ trait FormCreation {
 //  protected implicit def buildForm[T](builder: DSLFormBuilder[T]): Component = builder.build()
   implicit def buildIntForm: DSLFormBuilder[Int] => Component = _.build()
   implicit def buildStringForm: DSLFormBuilder[String] => Component = _.build()
+  implicit def buildMapForm: DSLListBuilder[_, _] => Component = _.build()
+  implicit def buildUnitForm: DSLFormBuilder[Unit] => Component = _.build()
+
 
   protected class MonitorComponentChooser[T](_get: => T){
     def get = _get
@@ -48,6 +54,12 @@ trait FormCreation {
     def asLabel = text
     def asTextField = textField
     def asTextArea = textArea
+  }
+
+  protected class MapMonitorComponentChooser[K, V](_get: => Map[K, V]) extends MonitorComponentChooser[Map[K, V]](_get){
+    def list = DSLListBuilder(() => get)
+
+    def asList = list
   }
 
   protected class ControlComponentChooser[T](_get: => T, val set: T => Option[Throwable]){
@@ -109,8 +121,6 @@ trait FormCreation {
 
     def color(c: Color): DSLLabelBuilder[T]  = copy(color = c)
     def withColor(c: Color): DSLLabelBuilder[T]  = color(c)
-
-    def toComponent: Component = build()
   }
 
   protected class DSLTextFormBuilder[T](get: => T) extends DSLFormBuilder[T]{
@@ -123,7 +133,7 @@ trait FormCreation {
     protected[FormCreation] def update(): Unit = ???
   }
 
-  protected class DSLTextAreaBuilder[T](t: T) extends DSLFormBuilder[T]{
+  protected class DSLTextAreaBuilder[T](get: => T) extends DSLFormBuilder[T]{
     type Form = TextArea with UpdateInterface
 
     protected[FormCreation] def build(): Form = ???
@@ -133,7 +143,7 @@ trait FormCreation {
     protected[FormCreation] def update(): Unit = ???
   }
 
-  protected class DSLComboBoxBuilder[T] (t: T) extends DSLFormBuilder[T]{
+  protected class DSLComboBoxBuilder[T] (get: => T) extends DSLFormBuilder[T]{
     type Form = ComboBox[T] with UpdateInterface
 
     protected[FormCreation] def build(): Form = ???
@@ -143,7 +153,7 @@ trait FormCreation {
     protected[FormCreation] def update(): Unit = ???
   }
 
-  protected class DSLSpinnerBuilder[N: Numeric](t: N) extends DSLFormBuilder[N]{
+  protected class DSLSpinnerBuilder[N: Numeric](get: => N) extends DSLFormBuilder[N]{
     type Form = Null with UpdateInterface//JSpinner // todo
 
     protected[FormCreation] def build(): Form = ???
@@ -153,7 +163,7 @@ trait FormCreation {
     protected[FormCreation] def update(): Unit = ???
   }
   
-  protected class DSLSliderBuilder[N: Numeric](t: N) extends DSLFormBuilder[N]{
+  protected class DSLSliderBuilder[N: Numeric](get: => N) extends DSLFormBuilder[N]{
     type Form = Slider with UpdateInterface
 
     protected[FormCreation] def build(): Form = ???
@@ -161,6 +171,31 @@ trait FormCreation {
     def affect(effects: (Form => Unit)*): DSLSliderBuilder[N] = ???
 
     protected[FormCreation] def update(): Unit = ???
+  }
+
+  protected case class DSLListBuilder[K, V](protected[FormCreation] val get: () => Map[K, V],
+                                            protected[FormCreation] val effects: List[DSLListBuilder[K, V]#Form => Unit] = Nil) extends DSLFormBuilder[Map[K, V]]{
+    type Form = ListView[V] with UpdateInterface
+
+    protected[FormCreation] def build(): ListView[V] with UpdateInterface = new ListView[V](Nil) with UpdateInterface{
+      listView =>
+
+      val mapCache = mutable.HashMap.apply(get().toSeq: _*)
+
+      def updateForm(): Unit = {
+        val newMap = get()
+        val addDiff = newMap.keySet -- mapCache.keySet
+        val rmDiff = mapCache.keySet -- newMap.keySet
+
+        mapCache --= rmDiff
+        mapCache ++= addDiff.map(k => k -> newMap(k))
+
+        listView.listData = mapCache.values.toSeq
+      }
+    }
+
+    def affect(effects: (Form=> Unit) *) = copy(effects = this.effects ++ effects)
+
   }
 
   protected case class DSLButtonBuilder(protected[FormCreation] val action: () => Unit,
@@ -209,5 +244,20 @@ trait FormCreation {
     def affect(effects: (Form => Unit) *): DSLFormBuilder[Unit] = ???
 
     protected[FormCreation] def update() {}
+  }
+
+  implicit class DSLFormBuilderOps[T](val builder: DSLFormBuilder[T]){
+    def sizes(min: Dimension = null,
+              max: Dimension = null,
+              preferred: Dimension = null): builder.type =
+    {
+      def helper(dim: Dimension, f: (builder.Form, Dimension) => Unit): Option[builder.Form => Unit] = Option(dim) map (d => f(_, d))
+
+      val h =
+        helper(min, _.minimumSize = _) ::
+        helper(max, _.maximumSize = _) ::
+        helper(preferred, _.preferredSize = _) :: Nil
+      builder.affect(h.flatten: _*).asInstanceOf[builder.type]
+    }
   }
 }

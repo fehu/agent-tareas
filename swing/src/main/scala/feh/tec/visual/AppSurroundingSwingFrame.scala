@@ -36,11 +36,17 @@ trait SwingFrameAppCreation extends FormCreation{
       SplitLayout(orientation, leftOrDown.toList, rightOrUp.toList)
     protected def set(s: UpperLevelLayoutGlobalSetting) = s
     protected def panel = new PanelChooser
+    protected def scrollable[C <% Component](vert: BarPolicy.Value = BarPolicy.AsNeeded,
+                                             hor: BarPolicy.Value = BarPolicy.AsNeeded)
+                                            (content: C, id: String) = ScrollPaneMeta(vert, hor, content, id)
+    protected def boxed[C <% Component](content: C, id: String) = BoxedMeta(content, id)
 
     // normal settings
     protected def place[C <% Component](what: C, id: String): DSLPlacing = DSLPlacing(what, id)
     protected def place[T](builder: DSLFormBuilder[T], id: String): DSLPlacing = DSLPlacing(DSLFormBuilderWrapper(builder).build, id)
     protected def place(meta: PanelMeta): DSLPlacing = DSLPlacing(meta.panel, meta.id)
+    protected def place(meta: ScrollPaneMeta): DSLPlacing = DSLPlacing(meta.component, meta.id)
+    protected def place(meta: BoxedMeta): DSLPlacing = DSLPlacing(meta.component, meta.id)
     protected def make(s: LayoutGlobalSetting) = s
 
     protected case class DSLPlacing(what: Component, id: String){
@@ -142,6 +148,36 @@ trait SwingFrameAppCreation extends FormCreation{
   case class Scrollable(vert: BarPolicy.Value = BarPolicy.AsNeeded,
                         hor: BarPolicy.Value = BarPolicy.AsNeeded) extends LayoutGlobalSetting
 
+  case class ScrollPaneMeta(vert: BarPolicy.Value,
+                            hor: BarPolicy.Value,
+                            protected val content: Component,
+                            id: String)
+    extends LayoutSetting
+  {
+    def component = {
+      val c =
+        if(content.isInstanceOf[UpdateInterface]) new ScrollPane(content) with UpdateInterface{
+          def updateForm(): Unit = content.asInstanceOf[UpdateInterface].updateForm()
+        }
+        else new ScrollPane(content)
+      c.horizontalScrollBarPolicy = hor
+      c.verticalScrollBarPolicy = vert
+      c
+    }
+
+  }
+
+  case class BoxedMeta(protected val content: Component,
+                       id: String)
+    extends LayoutSetting
+  {
+    def component =
+      if(content.isInstanceOf[UpdateInterface]) new BoxPanel(Orientation.NoOrientation) with UpdateInterface{
+        contents += content
+        def updateForm(): Unit = content.asInstanceOf[UpdateInterface].updateForm()
+      }
+      else new BoxPanel(Orientation.NoOrientation){ contents += content }
+  }
 
   trait PanelMeta extends LayoutSetting{
     type Panel <: scala.swing.Panel
