@@ -7,7 +7,7 @@ import feh.tec.visual.util.AwtUtils
 import nicol.Scene
 /*
 
-class SwingTarea1 extends SwingNicolApp with LayoutDSLDefaultImpl with Frame9PositionsLayoutBuilderImpl{
+class SwingTarea1 extends SwingNicolApp with LayoutDSLDefaultImpl with Frame9PositionsLayoutBuilder{
   lazy val layout =
     (place(drawComponent, "lwjgl") at theCenter) and
     (place(monitorFor(Tarea1App.ag.lastDecision.map(_.message) map criteriaMessage getOrElse "").asLabel, "lastDecision.message") to theRight of drawComponent)

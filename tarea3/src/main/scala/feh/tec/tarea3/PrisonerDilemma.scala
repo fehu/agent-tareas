@@ -10,7 +10,11 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import feh.tec.visual.{SwingFrameAppCreation, SwingAppFrame}
 import feh.tec.visual.api.{AppBasicControlApi, AgentApp}
-import java.awt.Component
+import java.awt.{Color, Component}
+import swing.{Swing, MainFrame}
+import feh.tec.util.RandomWrappers._
+import feh.tec.agent.AgentDecision.ExplainedActionStub
+import scala.util.Failure
 
 class PrisonerDilemma extends AbstractDeterministicGame{
   type Utility = Int
@@ -25,15 +29,15 @@ class PrisonerDilemma extends AbstractDeterministicGame{
     def availableStrategies = Set(Betray, Refuse)
   }
 
-  object Players{
+  object Prisoner{
     object A extends PrisonerPlayer
     object B extends PrisonerPlayer
   }
-  import Players._
+  import Prisoner._
 
   def players = Set(A, B)
 
-  def strategicLayoutBuilder2[P1 <: Player, P2 <: Player](p1: P1, p2: P2)
+  protected def strategicLayoutBuilder2[P1 <: Player, P2 <: Player](p1: P1, p2: P2)
                                                          (strategy1: P1 => P1#Strategy, strategy2: P2 => P2#Strategy)
                                                          (utility1: Utility, utility2: Utility): (PlayersChoices, PlayersUtility) =
     Map(p1 -> strategy1(p1), p2 -> strategy2(p2)) -> Map(p1 -> utility1, p2 -> utility2)
@@ -81,18 +85,15 @@ class PrisonerPlayer(val executionLoop: PlayerAgent.Exec[PrisonerDilemma, Prison
   def notifyDecision(a: ActionExplanation) {}
   def lastDecision: Option[ActionExplanation] = None
 
-  def decide(currentPerception: Perception): ActionExplanation = ???
+  def decide(perception: Perception): ActionExplanation = ExplainedActionStub(StrategicChoice(player, player.availableStrategies.toSeq.randomChoose))
 }
 
 class PrisonersExec(val execControlTimeout: FiniteDuration,
                     val onSuccess: () => Unit)
-                   (implicit val executionContext: ExecutionContext) extends ByTurnExec[PrisonerDilemma, PrisonerDilemmaGameEnvironment]{
-  type Ag = PrisonerPlayer
-}
+                   (implicit val executionContext: ExecutionContext) extends ByTurnExec[PrisonerDilemma, PrisonerDilemmaGameEnvironment]
 
-class PrisonerDilemmaApp(implicit val actorSystem: ActorSystem = ActorSystem.create()) extends SwingAppFrame
-  with SwingFrameAppCreation.Layout9PositionsDSL with SwingFrameAppCreation.Frame9PositionsLayoutBuilderImpl
-  with SwingFrameAppCreation.LayoutDSLDefaultImpl
+class PrisonerDilemmaApp(implicit val actorSystem: ActorSystem = ActorSystem.create())
+  extends MainFrame with SwingAppFrame with SwingFrameAppCreation.Frame9PositionsLayoutBuilder
 {
   frame =>
 
@@ -101,25 +102,45 @@ class PrisonerDilemmaApp(implicit val actorSystem: ActorSystem = ActorSystem.cre
   val game = new PrisonerDilemma
   val env = new PrisonerDilemmaGameEnvironment(game)
   val coordinator = new PrisonerDilemmaGameCoordinator(env, actorSystem,
-    awaitEndOfTurnTimeout = 50 millis,
-    defaultFutureTimeout = 10,
-    defaultBlockingTimeout = 10
+    awaitEndOfTurnTimeout = 100 millis,
+    defaultFutureTimeout = 100,
+    defaultBlockingTimeout = 100
     )
 
-  var msg = ""
+//  coordinator.listenToEndOfTurn{
+//    ref =>
+//
+//    msg = createMsg()
+//
+//    println(msg)
+//    updateForms()
+//  }
 
-  def createMsg() = ""
+  var msg = "!"
 
-  val gameExec = new PrisonersExec(50 millis, () => msg = createMsg)
+  def createMsg() = coordinator.ref.blocking.globalState.score.map{
+    case (p, u) => s"Player $p:\t$u"
+  } mkString "\n"
 
-  def player(sel: (game.Players.type => game.Player)*) = sel.map(s => new PrisonerPlayer(gameExec, coordinator.ref, s(game.Players)))
+  val gameExec = new PrisonersExec(100 millis, () => {
+    msg = createMsg()
+    updateForms()
+  })
+
+  def execTurn() = gameExec.execution.nextTurn()
+
+  def player(sel: (game.Prisoner.type => game.Player)*) = sel.map(s => new PrisonerPlayer(gameExec, coordinator.ref, s(game.Prisoner)))
 
   val players = player(_.A, _.B)
   val Seq(playerA, playerB) = players
 
   def start(): Unit = {
     buildLayout()
+    frame.minimumSize = 50 -> 50
+    frame.preferredSize = 300 -> 200
+    frame.pack()
     frame.open()
+    updateForms()
 //    app.start()
   }
   def stop(): Unit = {
@@ -127,8 +148,12 @@ class PrisonerDilemmaApp(implicit val actorSystem: ActorSystem = ActorSystem.cre
     frame.close()
   }
 
+  val scoreLabel = monitorFor(msg).text.affect(_.border = Swing.LineBorder(Color.red))
+  val turnButton = triggerFor(execTurn()).button("play a turn")
+
   val layout =
-    layoutSettingToListWrapper(place(monitorFor(msg).text, "msg") in theCenter)
+    (place(scoreLabel, "scoreLabel") in theCenter) and
+    (place(turnButton, "turnButton") on Top of "scoreLabel")
 
 
 }

@@ -162,7 +162,7 @@ trait AgentExecutionEnvironmentStopCondition[Position, EnvState, EnvGlobal, Acti
 trait SimultaneousAgentsExecutor[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env]]
   extends AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env]
 {
-  type Ag <: Agent[Position, EnvState, EnvGlobal, Action, Env, SimultaneousAgentsExecutor[Position, EnvState, EnvGlobal, Action, Env]]
+  final type Ag = Agent[Position, EnvState, EnvGlobal, Action, Env, SimultaneousAgentsExecutor[Position, EnvState, EnvGlobal, Action, Env]]
 
   def register(agent: Ag*)
   protected def agents: Set[Ag]

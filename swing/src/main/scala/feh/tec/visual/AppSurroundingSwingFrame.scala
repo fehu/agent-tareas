@@ -49,6 +49,7 @@ trait SwingFrameAppCreation extends FormCreation{
       def at(rel: DSLRelativePositionDirection): DSLRelativelyOf = to(rel)
       def in(pos: DSLAbsolutePosition): LayoutElem = to(pos)
       def in(rel: DSLRelativePositionDirection): DSLRelativelyOf = to(rel)
+      def on(rel: DSLRelativePositionDirection): DSLRelativelyOf = to(rel)
     }
 
     protected case class DSLRelativelyOf(what: Component, id: String, dir: DSLRelativePositionDirection){
@@ -229,8 +230,8 @@ trait SwingFrameAppCreation extends FormCreation{
     def updateForms(): Unit = updatingComponents.foreach(_.updateForm())
   }
   
-  trait Frame9PositionsLayoutBuilderImpl extends LayoutBuilder with AwtUtils{
-    frame: Frame with Layout9PositionsDSL=>
+  trait Frame9PositionsLayoutBuilder extends LayoutBuilder with AwtUtils with Layout9PositionsDSL with LayoutDSLDefaultImpl{
+    frame: Frame =>
 
     /**
      * builds layout within `frame`

@@ -189,9 +189,15 @@ class EnvironmentOverseerActor(responses: PartialFunction[Any, () => Any]) exten
   import context.dispatcher
 
   def receive: Actor.Receive = responses andThen { // todo ??
-    response => scheduler.scheduleOnce(0 millis)(response() match{
+    response => scheduler.scheduleOnce(0 millis)({
+      val x = response()
+      println("x = " + x)
+      x
+    } match{
       case Unit =>
-      case msg => sender ! msg
+      case msg =>
+        println(s"responding: $msg")
+        sender ! msg
     })
   }
 }

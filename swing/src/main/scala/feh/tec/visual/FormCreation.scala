@@ -1,10 +1,12 @@
 package feh.tec.visual
 
 import scala.swing._
+import event.ButtonClicked
 import javax.swing.JSpinner
 import feh.tec.util.LiftWrapper
 import scala.swing.Label
 import java.awt.Color
+import concurrent.duration.FiniteDuration
 
 
 trait FormCreation {
@@ -14,6 +16,7 @@ trait FormCreation {
     protected def controlFor[T](get: => T)(set: T => Option[Throwable])(implicit chooser: (=> T, T => Option[Throwable]) => ControlComponentChooser[T]) = chooser(get, set)
     protected def numericControlFor[N](get: => N)(set: N => Option[Throwable])
                                       (implicit chooser: (=> N, N => Option[Throwable]) => NumericControlComponentChooser[N], num: Numeric[N]) = chooser(get, set)
+    protected def triggerFor(action: => Unit)(implicit chooser: (=> Unit) => TriggerComponentChooser) = chooser(action)
 
     object A { var x = 0 }
     def test = monitorFor(A.x).text
@@ -27,6 +30,7 @@ trait FormCreation {
   implicit def monitorComponentChooser[T](get: => T): MonitorComponentChooser[T] = new MonitorComponentChooser(get)
   implicit def controlComponentChooser[T](get: => T, set: T => Option[Throwable]) = new ControlComponentChooser(get, set)
   implicit def numericControlComponentChooser[N: Numeric](get: => N, set: N => Option[Throwable]): NumericControlComponentChooser[N] = new NumericControlComponentChooser(get, set)
+  implicit def triggerComponentChooser(action: => Unit): TriggerComponentChooser = new TriggerComponentChooser(action)
 
   protected implicit def buildForm[T](builder: DSLFormBuilder[T]): Component = builder.build()
   implicit def buildIntForm: DSLFormBuilder[Int] => Component = _.build()
@@ -57,6 +61,11 @@ trait FormCreation {
     def spinner = new DSLSpinnerBuilder(get) 
     def slider = new DSLSliderBuilder(get)
   }
+  
+  protected class TriggerComponentChooser(action: => Unit){
+    def button(label: String) = new DSLButtonBuilder(() => action, label)
+    def toggle(label: String, repeatFreq: FiniteDuration) = new DSLToggleButtonBuilder(() => action, label, repeatFreq)
+  } 
 
   protected trait DSLFormBuilder[T]{
     type Form <: Component with UpdateInterface
@@ -65,9 +74,9 @@ trait FormCreation {
 
     def affect(effects: (Form => Unit)*): DSLFormBuilder[T]
 
-    protected[FormCreation] def update()
+//    protected[FormCreation] def update()
 
-    trait Setting
+//    trait Setting
   }
 
   protected trait UpdateInterface{
@@ -90,6 +99,7 @@ trait FormCreation {
       def updateForm(): Unit = {
         text = get().toString
       }
+      effects.foreach(_(this))
     }
 
     protected[FormCreation] def update(): Unit = ???
@@ -131,7 +141,7 @@ trait FormCreation {
   }
 
   protected class DSLSpinnerBuilder[N: Numeric](t: N) extends DSLFormBuilder[N]{
-    type Form = Null  with UpdateInterface//JSpinner // todo
+    type Form = Null with UpdateInterface//JSpinner // todo
 
     protected[FormCreation] def build(): Form = ???
 
@@ -141,7 +151,7 @@ trait FormCreation {
   }
   
   protected class DSLSliderBuilder[N: Numeric](t: N) extends DSLFormBuilder[N]{
-    type Form = Slider  with UpdateInterface
+    type Form = Slider with UpdateInterface
 
     protected[FormCreation] def build(): Form = ???
 
@@ -150,4 +160,51 @@ trait FormCreation {
     protected[FormCreation] def update(): Unit = ???
   }
 
+  protected case class DSLButtonBuilder(protected[FormCreation] val action: () => Unit,
+                                        protected[FormCreation] val label: String,
+                                        protected[FormCreation] val effects: List[DSLButtonBuilder#Form => Unit] = Nil)
+    extends DSLFormBuilder[Unit]
+  {
+    builder =>
+
+    type Form = Button with UpdateInterface
+
+    protected[FormCreation] def build(): Form =  new Button() with UpdateInterface{
+      button =>
+
+      text = label
+      reactions += {
+        case c@ButtonClicked(`button`) =>
+          println(builder.action)
+          builder.action()
+      }
+      listenTo(button)
+      effects.foreach(_(this))
+      def updateForm(): Unit = {}
+    }
+
+    def affect(effects: ((Form) => Unit) *): DSLFormBuilder[Unit] = copy(effects = this.effects ++ effects)
+
+    protected[FormCreation] def update() {}
+  }
+  
+  protected case class DSLToggleButtonBuilder(protected[FormCreation] val action: () => Unit,
+                                              protected[FormCreation] val label: String,
+                                              protected[FormCreation] val repeatFreq: FiniteDuration,
+                                              protected[FormCreation] val effects: List[DSLToggleButtonBuilder#Form => Unit] = Nil)
+    extends DSLFormBuilder[Unit]
+  {
+    type Form = ToggleButton with UpdateInterface
+
+    protected[FormCreation] def build(): Form =  new ToggleButton with UpdateInterface{
+      def updateForm(): Unit = {
+        text = label
+      }
+      effects.foreach(_(this))
+    }
+
+    def affect(effects: (Form => Unit) *): DSLFormBuilder[Unit] = ???
+
+    protected[FormCreation] def update() {}
+  }
 }

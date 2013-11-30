@@ -105,8 +105,8 @@ trait GameRef[Game <: AbstractGame, Env <: GameEnvironment[Game, Env]] extends E
   def awaitEndOfTurn()
   def strategies: Game
 
-  def blocking: BlockingApi = ???
-  def async: AsyncApi = ???
+//  def blocking: BlockingApi = ???
+//  def async: AsyncApi = ???
 }
 
 trait GameCoordinator[Game <: AbstractGame, Env <: GameEnvironment[Game, Env]]
@@ -127,11 +127,7 @@ trait GameCoordinatorWithActor[Game <: AbstractGame, Env <: GameEnvironment[Game
 {
   coordinator =>
 
-  case class GetTurn() extends UUIDed
-  case class TurnResponse(uuid: UUID, turn: Turn) extends HasUUID
-  case class RegisterChoice(choice: StrategicChoice[Game#Player]) extends UUIDed
-  case class AwaitEndOfTurn() extends UUIDed
-  case class TurnEnded(uuid: UUID) extends HasUUID
+  import GameCoordinatorActor._
 
   def awaitEndOfTurnTimeout: FiniteDuration
 
@@ -158,61 +154,82 @@ trait GameCoordinatorWithActor[Game <: AbstractGame, Env <: GameEnvironment[Game
     def awaitEndOfTurn(): Unit = coordinator.awaitEndOfTurn()
     def strategies: Game = coordinator.env.game
 
-    override lazy val blocking: BlockingApi = ???
-    override lazy val async: AsyncApi = ???
+//    override lazy val blocking: BlockingApi = ???
+//    override lazy val async: AsyncApi = ???
   }
 
-  protected class GameCoordinatorActor extends Actor{
-    val log = Logging(context.system, this)
-
-    private var turn = Turn.first
-    private val currentTurnChoicesMap = mutable.HashMap.empty[Game#Player, Game#Player#Strategy]
-    private val awaitingEndOfTurn = mutable.HashMap.empty[ActorRef, UUID]
-
-    protected def currentTurnChoices = currentTurnChoicesMap.map((StrategicChoice.apply[Game#Player] _).tupled).toSet
-    protected def newChoice(choice: StrategicChoice[Game#Player]) = {
-      assert(! currentTurnChoicesMap.keySet.contains(choice.player), s"${choice.player}'s choice has already been registered")
-      currentTurnChoicesMap += choice.player -> choice.strategy
-    }
-    protected def awaiting(waiting: ActorRef, id: UUID) = {
-      assert(!awaitingEndOfTurn.keySet.contains(waiting), s"$waiting is already waiting end of turn")
-      awaitingEndOfTurn += waiting -> id
-    }
-
-    protected def nextTurn() = {
-      val next = turn.next
-      turn = next
-      currentTurnChoicesMap.clear()
-      awaitingEndOfTurn.clear()
-      next
-    }
-
-    protected def turnFinished_? = currentTurnChoicesMap.keySet == coordinator.env.game.players
-
-    protected def endTurn() = coordinator.affect(StrategicChoices(currentTurnChoices)) // [Game#Player]
-    protected def notifyAwaiting() = awaitingEndOfTurn.foreach{
-        case (waiting, id) => waiting ! TurnEnded(id)
-      }
-
-    def receive: Actor.Receive = {
-      case msg@GetTurn() => sender ! TurnResponse(msg.uuid, turn)
-      case RegisterChoice(choice) =>
-        newChoice(choice)
-        if(turnFinished_?) {
-          endTurn()
-          notifyAwaiting()
-          nextTurn()
-        }
-      case msg@AwaitEndOfTurn() => awaiting(sender, msg.uuid)
-    }
+  def listenToEndOfTurn(f: Env#Ref => Unit) {
+    _endOfTurnListeners :+=  f
   }
+  protected var _endOfTurnListeners: Seq[Env#Ref => Unit] = Nil
+  def endOfTurnListeners: Seq[Env#Ref => Unit] = _endOfTurnListeners
 
-  protected def actorProps = Props(classOf[GameCoordinatorActor])
+  protected def actorProps = Props(classOf[GameCoordinatorActor[Game, Env]], coordinator)
 
   def actorSystem: ActorSystem
 
-  def actorRef: ActorRef = actorSystem.actorOf(actorProps)
+  lazy val actorRef: ActorRef = actorSystem.actorOf(actorProps)
 }
+
+object GameCoordinatorActor{
+  case class GetTurn() extends UUIDed
+  case class TurnResponse(uuid: UUID, turn: Turn) extends HasUUID
+  case class RegisterChoice[Game <: AbstractGame](choice: StrategicChoice[Game#Player]) extends UUIDed
+  case class AwaitEndOfTurn() extends UUIDed
+  case class TurnEnded(uuid: UUID) extends HasUUID
+}
+
+class GameCoordinatorActor[Game <: AbstractGame, Env <: GameEnvironment[Game, Env]](coordinator: GameCoordinatorWithActor[Game, Env]) extends Actor{
+  import GameCoordinatorActor._
+
+  val log = Logging(context.system, this)
+
+  private var turn = Turn.first
+  private val currentTurnChoicesMap = mutable.HashMap.empty[Game#Player, Game#Player#Strategy]
+  private val awaitingEndOfTurn = mutable.HashMap.empty[ActorRef, UUID]
+
+  protected def currentTurnChoices = currentTurnChoicesMap.map((StrategicChoice.apply[Game#Player] _).tupled).toSet
+  protected def newChoice(choice: StrategicChoice[Game#Player]) = {
+    assert(! currentTurnChoicesMap.keySet.contains(choice.player), s"${choice.player}'s choice has already been registered")
+    currentTurnChoicesMap += choice.player -> choice.strategy
+  }
+  protected def awaiting(waiting: ActorRef, id: UUID) = {
+    assert(!awaitingEndOfTurn.keySet.contains(waiting), s"$waiting is already waiting end of turn")
+    awaitingEndOfTurn += waiting -> id
+  }
+
+  protected def nextTurn() = {
+    val next = turn.next
+    turn = next
+    currentTurnChoicesMap.clear()
+    awaitingEndOfTurn.clear()
+    next
+  }
+
+  protected def turnFinished_? = currentTurnChoicesMap.keySet == coordinator.env.game.players
+
+  protected def endTurn() = coordinator.affect(StrategicChoices(currentTurnChoices)) // [Game#Player]
+  protected def notifyAwaiting() = awaitingEndOfTurn.foreach{
+      case (waiting, id) => waiting ! TurnEnded(id)
+    }
+
+  protected def notifyEndOfTurnListeners() =
+    coordinator.endOfTurnListeners.foreach(t => Future{ t(coordinator.ref) }(context.dispatcher))
+
+  def receive: Actor.Receive = {
+    case msg@GetTurn() => sender ! TurnResponse(msg.uuid, turn)
+    case RegisterChoice(choice) =>
+      newChoice(choice.asInstanceOf[StrategicChoice[Game#Player]])
+      if(turnFinished_?) {
+        endTurn()
+        notifyAwaiting()
+        notifyEndOfTurnListeners()
+        nextTurn()
+      }
+    case msg@AwaitEndOfTurn() => awaiting(sender, msg.uuid)
+  }
+}
+
 
 trait MutableGameCoordinator[Game <: AbstractGame, Env <: MutableGameEnvironmentImpl[Game, Env]]
   extends GameCoordinator[Game, Env]
@@ -225,9 +242,28 @@ trait AbstractGame{
   type Utility
   implicit def utilityIsNumeric: Numeric[Utility]
 
+  lazy val playerNameRegex = """.*\$(\w+)\$(\w+)\$.*""".r
+
   trait Player{
     trait Strategy
-    def availableStrategies: Set[Strategy] 
+    def availableStrategies: Set[Strategy]
+
+    override def toString: String = playerNameRegex.findAllIn(getClass.getName).matchData.toSeq.head |> {
+      mtch => mtch.group(1) + "#" + mtch.group(2)
+    }
+
+/*
+      playerNameRegex.findAllIn(getClass.getName) |> {
+      iter =>
+        iter.matchData
+//        println(iter)
+//        assert(iter.groupCount == 2, "couldn't parse player's name")
+        val (group: String, pl: String) = try iter.group(1) -> iter.group(2) catch {
+          case ex => ex.printStackTrace()
+        }
+        group + "#" + pl
+    }
+*/
   }
 
   type PlayersChoices = Map[Player, Player#Strategy]
@@ -264,6 +300,13 @@ trait PlayerAgent[Game <: AbstractGame, Env <: GameEnvironment[Game, Env]]
   with SimultaneousAgentExecution[Null, Null, GameScore[Game], GameAction, Env, PlayerAgent.Exec[Game, Env]]
 {
   agent: DecisiveAgent[Null, Null, GameScore[Game], GameAction, Env, PlayerAgent.Exec[Game, Env]] =>
+
+  executionLoop.register(this)
+
+  override def act(a: GameAction): SideEffect[Env#Ref] = SideEffect{
+    env.choose(a.asInstanceOf[StrategicChoice[Game#Player]])
+    env
+  }.flatExec
 }
 
 trait DummyPlayer[Game <: AbstractGame, Env <: GameEnvironment[Game, Env]]
@@ -282,7 +325,6 @@ trait DummyPlayer[Game <: AbstractGame, Env <: GameEnvironment[Game, Env]]
 }
 
 trait ByTurnExec[Game <: AbstractGame, Env <: GameEnvironment[Game, Env]] extends PlayerAgent.Exec[Game, Env]{
-  type Ag <: PlayerAgent[Game, Env]
   type Execution = Exec
 
   trait Exec{
@@ -298,21 +340,29 @@ trait ByTurnExec[Game <: AbstractGame, Env <: GameEnvironment[Game, Env]] extend
     exc =>
 
     def nextTurn(): Future[Exec] = {
+      println("nextTurn")
       if (executing_?) return Promise.failed[Exec](GameException("still waiting for all players to finish the previous turn")).future
+      println("nextTurn: executing")
       executing_? = true
       val f = exec()
-      f onComplete { case _ => executing_? = false }
+      f onComplete {
+        case _ => executing_? = false
+      }
       f onFailure { case thr => throw thr }
       f map { _ =>
         onSuccess()
         exc
+        //Await.result(
       }
     }
   }
 
   def onSuccess: () => Unit
 
-  protected def exec() = Future.sequence(agents.map(ag => Future { ag.lifetimeCycle(ag.env) }))
+  protected def exec() = Future.sequence(agents.map(ag => {
+    Future {
+      ag.lifetimeCycle(ag.env) }
+  }))
 
   private val _agents = mutable.HashSet.empty[Ag]
   def register(agent: Ag*) { _agents ++= agent }

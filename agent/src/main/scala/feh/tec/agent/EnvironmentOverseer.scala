@@ -21,7 +21,7 @@ trait EnvironmentOverseer[Coordinate, State, Global, Action <: AbstractAction, E
   def snapshot: EnvironmentSnapshot[Coordinate, State, Global, Action, Env]
   def ref: Env#Ref
 
-  protected def affect(a: Action): SideEffect[Env]
+  def affect(a: Action): SideEffect[Env]
 }
 
 protected[agent] object EnvironmentOverseerWithActor{
@@ -58,18 +58,18 @@ trait EnvironmentOverseerWithActor[Coordinate, State, Global, Action <: Abstract
 
   import EnvironmentOverseerWithActor._
 
-  protected def affect(act: Action): SideEffect[Env] = updateEnvironment(_.affected(act).execute)
+  def affect(act: Action): SideEffect[Env] = updateEnvironment(_.affected(act).execute).flatExec
 
 
   protected def baseActorResponses: PartialFunction[Any, () => Any] = {
-    case Get.GlobalState => Response.GlobalState(env.globalState).liftUnit
-    case g@Get.StateOf(c) => Response.StateOf(c, env.stateOf(c.asInstanceOf[Coordinate])).liftUnit
-    case Get.VisibleStates => Response.VisibleStates(env.visibleStates).liftUnit
-    case Get.Snapshot => Response.Snapshot(snapshot, Calendar.getInstance().getTimeInMillis).liftUnit
+    case Get.GlobalState => Response.GlobalState(env.globalState).lifted
+    case g@Get.StateOf(c) => Response.StateOf(c, env.stateOf(c.asInstanceOf[Coordinate])).lifted
+    case Get.VisibleStates => Response.VisibleStates(env.visibleStates).lifted
+    case Get.Snapshot => Response.Snapshot(snapshot, Calendar.getInstance().getTimeInMillis).lifted
     case a@Act(act) =>
       affect(act.asInstanceOf[Action]).execute
-      Response.ActionApplied(act).liftUnit
-    case msg@Get.Position(id) => Response.Position(msg.uuid, env.agentPosition(id)).liftUnit
+      Response.ActionApplied(act).lifted
+    case msg@Get.Position(id) => Response.Position(msg.uuid, env.agentPosition(id)).lifted
   }
 
   protected implicit def executionContext: ExecutionContext
@@ -194,7 +194,7 @@ trait PredictingEnvironmentOverseerWithActor[Coordinate, State, Global, Action <
   def predictMaxDelay: FiniteDuration
 
   protected def predictingActorResponses: PartialFunction[Any, () => Any] = {
-    case msg@Predict(a) => Prediction(msg.uuid, predict(a)).liftUnit
+    case msg@Predict(a) => Prediction(msg.uuid, predict(a)).lifted
   }
 
   trait PredictableEnvironmentRefImpl extends PredictableEnvironmentRef[Coordinate, State, Global, Action, Env]{
@@ -267,7 +267,7 @@ trait ForeseeingEnvironmentOverseerWithActor[Coordinate, State, Global, Action <
   def foreseeMaxDelay: FiniteDuration
 
   protected def foreseeingActorResponses: PartialFunction[Any, () => Any] = {
-    case msg@ForeseeExtended(possibleActions, depth, includeShorter, excludeTurningBack) => overseer.foresee(depth, possibleActions, includeShorter, excludeTurningBack).liftUnit
+    case msg@ForeseeExtended(possibleActions, depth, includeShorter, excludeTurningBack) => overseer.foresee(depth, possibleActions, includeShorter, excludeTurningBack).lifted
   }
 
   trait ForeseeableEnvironmentRefImpl extends ForeseeableEnvironmentRef[Coordinate, State, Global, Action, Env]{
