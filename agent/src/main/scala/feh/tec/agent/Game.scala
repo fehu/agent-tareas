@@ -41,10 +41,10 @@ case class StrategicChoice[P <: AbstractGame#Player](player: P, strategy: P#Stra
 case class StrategicChoices[P <: AbstractGame#Player](choices: Set[StrategicChoice[P]]) extends GameAction{
   def toMap: Map[P, P#Strategy] = choices.map(ch => ch.player -> ch.strategy).toMap
 }
-case class GameScore[Game <: AbstractGame](score: Map[Game#Player, Game#Utility])(implicit num: Numeric[Game#Utility]){
+case class GameScore[Game <: AbstractGame](utility: Map[Game#Player, Game#Utility])(implicit num: Numeric[Game#Utility]){
   def update(scoreUpdates: Map[Game#Player, Game#Utility]): GameScore[Game] =
-    GameScore(score.zipByKey(scoreUpdates).mapValues((num.plus _).tupled))
-  def update(scoreUpdate: GameScore[Game]): GameScore[Game] = update(scoreUpdate.score)
+    GameScore(utility.zipByKey(scoreUpdates).mapValues((num.plus _).tupled))
+  def update(scoreUpdate: GameScore[Game]): GameScore[Game] = update(scoreUpdate.utility)
 }
 object GameScore{
   def zero[Game <: AbstractGame](strategy: Game) =
@@ -68,8 +68,7 @@ trait DeterministicGameEnvironment[Game <: AbstractDeterministicGame, Env <: Det
 }
 
 trait MutableGameEnvironmentImpl[Game <: AbstractGame, Env <: MutableGameEnvironmentImpl[Game, Env]]
-  extends GameEnvironment[Game, Env]
-  with MutableEnvironment[Null, Null, GameScore[Game], GameAction, Env]
+  extends GameEnvironment[Game, Env] with MutableEnvironment[Null, Null, GameScore[Game], GameAction, Env]
 {
   self: Env =>
 
@@ -77,9 +76,14 @@ trait MutableGameEnvironmentImpl[Game <: AbstractGame, Env <: MutableGameEnviron
 
   def affected(act: GameAction): SideEffect[Env] = affected(act.asInstanceOf[StrategicChoices[Game#Player]])
   def affected(act: StrategicChoices[Game#Player]): SideEffect[Env] = SideEffect{
-    updateScores(play(act))
+    val  score = play(act)
+    _lastScore = Option(score)
+    updateScores(score)
     this
   }
+
+  protected var _lastScore: Option[GameScore[Game]] = None
+  def lastScore: Option[GameScore[Game]] = _lastScore
 
   def updateScores(scoresUpdate: Score){
     globalState = globalState.update(scoresUpdate)
@@ -89,7 +93,7 @@ trait MutableGameEnvironmentImpl[Game <: AbstractGame, Env <: MutableGameEnviron
   override def states = super[GameEnvironment].states
 }
 
-case class Turn(id: Long){
+case class Turn(id: Int){
   def next: Turn = copy(id+1)
 }
 
@@ -158,17 +162,19 @@ trait GameCoordinatorWithActor[Game <: AbstractGame, Env <: GameEnvironment[Game
 //    override lazy val async: AsyncApi = ???
   }
 
-  def listenToEndOfTurn(f: Env#Ref => Unit) {
+  def listenToEndOfTurn(f: (Turn, Game#PlayersChoices, Game#PlayersUtility) => Unit) {
     _endOfTurnListeners :+=  f
   }
-  protected var _endOfTurnListeners: Seq[Env#Ref => Unit] = Nil
-  def endOfTurnListeners: Seq[Env#Ref => Unit] = _endOfTurnListeners
+  protected var _endOfTurnListeners: Seq[(Turn, Game#PlayersChoices, Game#PlayersUtility) => Unit] = Nil
+  def endOfTurnListeners = _endOfTurnListeners
 
   protected def actorProps = Props(classOf[GameCoordinatorActor[Game, Env]], coordinator)
 
   def actorSystem: ActorSystem
 
   lazy val actorRef: ActorRef = actorSystem.actorOf(actorProps)
+
+  def lastScore: Option[GameScore[Game]]
 }
 
 object GameCoordinatorActor{
@@ -208,21 +214,32 @@ class GameCoordinatorActor[Game <: AbstractGame, Env <: GameEnvironment[Game, En
 
   protected def turnFinished_? = currentTurnChoicesMap.keySet == coordinator.env.game.players
 
-  protected def endTurn() = coordinator.affect(StrategicChoices(currentTurnChoices)) // [Game#Player]
-  protected def notifyAwaiting() = awaitingEndOfTurn.foreach{
-      case (waiting, id) => waiting ! TurnEnded(id)
-    }
+  protected def endTurn() = {
+    coordinator.affect(StrategicChoices(currentTurnChoices))
+    coordinator.lastScore
+  } 
+  protected def notifyAwaiting() = awaitingEndOfTurn.foreach{ case (waiting, id) => waiting ! TurnEnded(id) }
+
+  protected val history = mutable.Map.empty[Turn, (Game#PlayersChoices, Game#PlayersUtility)]
+  protected def guardHistory(score: GameScore[Game]){
+    val choices = currentTurnChoicesMap.toMap.asInstanceOf[Game#PlayersChoices]
+    val utility = score.utility.asInstanceOf[Game#PlayersUtility]
+    history += turn-> ( choices -> utility)
+    lastHistory = (turn, choices, utility)
+  }
+  private var lastHistory: (Turn, Game#PlayersChoices, Game#PlayersUtility) = _
 
   protected def notifyEndOfTurnListeners() =
-    coordinator.endOfTurnListeners.foreach(t => Future{ t(coordinator.ref) }(context.dispatcher))
+    coordinator.endOfTurnListeners.foreach(t => Future{ t.tupled(lastHistory) }(context.dispatcher))
 
   def receive: Actor.Receive = {
     case msg@GetTurn() => sender ! TurnResponse(msg.uuid, turn)
     case RegisterChoice(choice) =>
       newChoice(choice.asInstanceOf[StrategicChoice[Game#Player]])
       if(turnFinished_?) {
-        endTurn()
+        val Some(score) = endTurn()
         notifyAwaiting()
+        guardHistory(score)
         notifyEndOfTurnListeners()
         nextTurn()
       }
@@ -236,6 +253,8 @@ trait MutableGameCoordinator[Game <: AbstractGame, Env <: MutableGameEnvironment
   with MutableEnvironmentOverseer[Null, Null, GameScore[Game], GameAction, Env]
 {
 
+
+  def lastScore: Option[GameScore[Game]] = env.lastScore
 }
 
 trait AbstractGame{
@@ -251,19 +270,6 @@ trait AbstractGame{
     override def toString: String = playerNameRegex.findAllIn(getClass.getName).matchData.toSeq.head |> {
       mtch => mtch.group(1) + "#" + mtch.group(2)
     }
-
-/*
-      playerNameRegex.findAllIn(getClass.getName) |> {
-      iter =>
-        iter.matchData
-//        println(iter)
-//        assert(iter.groupCount == 2, "couldn't parse player's name")
-        val (group: String, pl: String) = try iter.group(1) -> iter.group(2) catch {
-          case ex => ex.printStackTrace()
-        }
-        group + "#" + pl
-    }
-*/
   }
 
   type PlayersChoices = Map[Player, Player#Strategy]

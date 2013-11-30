@@ -79,10 +79,11 @@ class PrisonerDilemmaGameCoordinator(environment: PrisonerDilemmaGameEnvironment
 
 class PrisonerPlayer(val executionLoop: PlayerAgent.Exec[PrisonerDilemma, PrisonerDilemmaGameEnvironment],
                      val env: PrisonerPlayer#EnvRef,
-                     val player: PrisonerDilemma#Player)
+                     val player: PrisonerDilemma#Player,
+                     decisionTaken: PrisonerPlayer#ActionExplanation => Unit = _ => {})
   extends DummyPlayer[PrisonerDilemma, PrisonerDilemmaGameEnvironment]
 {
-  def notifyDecision(a: ActionExplanation) {}
+  def notifyDecision(a: ActionExplanation) { decisionTaken(a) }
   def lastDecision: Option[ActionExplanation] = None
 
   def decide(perception: Perception): ActionExplanation = ExplainedActionStub(StrategicChoice(player, player.availableStrategies.toSeq.randomChoose))
@@ -107,18 +108,16 @@ class PrisonerDilemmaApp(implicit val actorSystem: ActorSystem = ActorSystem.cre
     defaultBlockingTimeout = 100
     )
 
-//  coordinator.listenToEndOfTurn{
-//    ref =>
-//
-//    msg = createMsg()
-//
-//    println(msg)
-//    updateForms()
-//  }
+  coordinator.listenToEndOfTurn{
+    (turn, choices, utility) =>
+      println("turn = " + turn)
+      println("choices = " + choices)
+      println("utility = " + utility)
+  }
 
   var msg = "!"
 
-  def createMsg() = coordinator.ref.blocking.globalState.score.map{
+  def createMsg() = coordinator.ref.blocking.globalState.utility.map{
     case (p, u) => s"Player $p:\t$u"
   } mkString "\n"
 
