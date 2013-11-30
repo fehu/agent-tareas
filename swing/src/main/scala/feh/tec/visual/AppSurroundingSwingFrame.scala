@@ -4,12 +4,11 @@ import feh.tec.visual.api.{AppBasicControlApi, AwtWindowedApp}
 import scala.swing._
 import scala.swing.ScrollPane.BarPolicy
 import java.awt.{Graphics, Color}
-import scala.swing.FlowPanel
-import scala.swing.BoxPanel
-import scala.swing.Orientation
 import feh.tec.visual.util.AwtUtils
 import javax.swing.{JPanel, JComponent}
 import scala.collection.mutable
+import java.util.UUID
+import feh.tec.util._
 
 
 trait SwingAppFrame extends Frame with AppBasicControlApi with SwingFrameAppCreation{
@@ -33,13 +32,15 @@ trait SwingFrameAppCreation extends FormCreation{
     val componentAccess = new RegistringComponentAccess
 
     // upper lever settings
-    protected def split(orientation: scala.swing.Orientation.Value)
-                       (leftOrDown: List[LayoutSetting])(rightOrUp: List[LayoutSetting]) = SplitLayout(orientation, leftOrDown.toList, rightOrUp.toList)
+    protected def split(orientation: scala.swing.Orientation.Value)(leftOrDown: List[LayoutSetting])(rightOrUp: List[LayoutSetting]) =
+      SplitLayout(orientation, leftOrDown.toList, rightOrUp.toList)
     protected def set(s: UpperLevelLayoutGlobalSetting) = s
+    protected def panel = new PanelChooser
 
     // normal settings
     protected def place[C <% Component](what: C, id: String): DSLPlacing = DSLPlacing(what, id)
     protected def place[T](builder: DSLFormBuilder[T], id: String): DSLPlacing = DSLPlacing(DSLFormBuilderWrapper(builder).build, id)
+    protected def place(meta: PanelMeta): DSLPlacing = DSLPlacing(meta.panel, meta.id)
     protected def make(s: LayoutGlobalSetting) = s
 
     protected case class DSLPlacing(what: Component, id: String){
@@ -73,6 +74,19 @@ trait SwingFrameAppCreation extends FormCreation{
       }
     }
 
+    protected implicit def componentIdPairToUnplacedLayoutElem[C <% Component](p: (C, String)): UnplacedLayoutElem = {
+      val el = LayoutElem.unplaced(p._1, p._2)
+      el.register
+      el
+    }
+
+    protected class PanelChooser{
+      def flow[E <% UnplacedLayoutElem](alignment: FlowPanel.Alignment.type => FlowPanel.Alignment.Value)(elems: E*) =
+        FlowPanelMeta(alignment(FlowPanel.Alignment), elems.toList.map(x => x: UnplacedLayoutElem))
+      def box[E <% UnplacedLayoutElem](alignment: Orientation.type => Orientation.Value)(elems: E*) =
+        BoxPanelMeta(alignment(Orientation), elems.toList.map(x => x: UnplacedLayoutElem))
+    }
+
     class RegistringComponentAccess extends ComponentAccess{
       private val componentsMap = mutable.HashMap.empty[String, LayoutElem]
       protected[LayoutDSL] def register(elem: LayoutElem){
@@ -85,6 +99,7 @@ trait SwingFrameAppCreation extends FormCreation{
         val comp = c: Component
         componentsMap.find(_._2.component == comp).map(_._1)
       }
+      def all: Seq[LayoutElem] = componentsMap.values.toSeq
     }
   }
 
@@ -112,6 +127,13 @@ trait SwingFrameAppCreation extends FormCreation{
   // // //// // //// // //// // //// // //  Layout Settings  // // //// // //// // //// // //// // //
 
   case class LayoutElem(component: Component, id: String, pos: DSLPosition) extends LayoutSetting
+  object LayoutElem{
+    def unplaced(c: Component, id: String): UnplacedLayoutElem = new LayoutElem(c, id, null) with UnplacedLayoutElem 
+  } 
+  
+  trait UnplacedLayoutElem extends LayoutElem{
+    override val pos = Undefined  
+  }
 
   /*  protected object LayoutElem{
       def apply(what: Component, id: String, pos: DSLPosition): LayoutElem = ???
@@ -120,14 +142,88 @@ trait SwingFrameAppCreation extends FormCreation{
   case class Scrollable(vert: BarPolicy.Value = BarPolicy.AsNeeded,
                         hor: BarPolicy.Value = BarPolicy.AsNeeded) extends LayoutGlobalSetting
 
+
+  trait PanelMeta extends LayoutSetting{
+    type Panel <: scala.swing.Panel
+    def panelName: String
+    def elems: List[LayoutSetting]
+    def panel: Panel
+
+    def id: String = s"$panelName: ${UUID.randomUUID().toString}"
+
+    def affect(effects: (Panel => Unit)*): PanelMeta
+  }
+
+  case class FlowPanelMeta(alignment: FlowPanel.Alignment.Value,
+                           elems: List[LayoutElem],
+                           panelName: String = "FlowPanel",
+                           protected val effects: List[FlowPanelMeta#Panel => Unit] = Nil) extends PanelMeta
+  {
+
+    type Panel = FlowPanel
+    def panel = {
+      val p = new FlowPanel(alignment)(elems.map(_.component): _*)
+      effects.foreach(_(p))
+      p
+    }
+    def affect(effects: (FlowPanelMeta#Panel => Unit) *): PanelMeta = copy(effects = this.effects ++ effects)
+  }
+  case class BoxPanelMeta(alignment: Orientation.Value,
+                          elems: List[LayoutElem],
+                          indent: Option[Int] = Some(10),
+                          panelName: String = "BoxPanel",
+                          protected val effects: List[BoxPanelMeta#Panel => Unit] = Nil) extends PanelMeta
+  {
+    type Panel = BoxPanel
+
+    def indent(i: Option[Int]): BoxPanelMeta = copy(indent = i)
+
+    def elem(el: LayoutElem*) = copy(elems = elems ++ el)
+    def glue = copy(elems = elems :+ LayoutElem.unplaced(createGlue, null))
+    def strut(i: Int) = copy(elems = elems :+ LayoutElem.unplaced(createStrut(i), null))
+
+    def panel = {
+      val p = new BoxPanel(alignment)
+      val contents = Y[List[Component], List[Component]](
+        rec => {
+          case Nil => Nil
+          case x :: Nil => List(x)
+          case x :: y :: tail => x :: createGlue :: y :: rec(tail)
+        }
+      )(elems.map(_.component))
+
+      p.contents ++= indent.map{
+        i => createStrut(i) :: contents ::: List(createStrut(i))
+      } getOrElse contents
+
+      effects.foreach(_(p))
+      p
+    }
+    def affect(effects: (BoxPanelMeta#Panel => Unit) *): PanelMeta = copy(effects = this.effects ++ effects)
+
+    protected def createGlue = alignment match {
+      case Orientation.Horizontal => Swing.HGlue
+      case Orientation.Vertical => Swing.VGlue
+    }
+    protected def createStrut(i: Int) = alignment match{
+      case Orientation.Horizontal => Swing.HStrut(i)
+      case Orientation.Vertical => Swing.VStrut(i)
+    }
+  }
+
   // // //// // //// // //// // //// // //  Positions  // // //// // //// // //// // //// // //
 
   sealed trait DSLPosition{
     def isRelative: Boolean
     final def isAbsolute = !isRelative
+
+    def isDefined: Boolean
   }
-  trait DSLAbsolutePosition extends DSLPosition{ final def isRelative = false }
-  case class DSLRelativePosition(dir: DSLRelativePositionDirection, relTo: String) extends DSLPosition{ final def isRelative = true }
+  case object Undefined extends DSLPosition{ def isRelative = false; final def isDefined = false }
+  trait DSLAbsolutePosition extends DSLPosition{ final def isRelative = false ; final def isDefined = true}
+  case class DSLRelativePosition(dir: DSLRelativePositionDirection, relTo: String) extends DSLPosition{
+    final def isRelative = true ; final def isDefined = true
+  }
   trait DSLRelativePositionDirection
 
   trait ComponentAccess{
@@ -139,6 +235,10 @@ trait SwingFrameAppCreation extends FormCreation{
 
     def id[C <% Component](c: C): String = getId(c).get
     def getId[C <% Component](c: C): Option[String]
+    
+    def all: Seq[LayoutElem]
+
+    def collect[R](f: PartialFunction[LayoutElem, R]): Seq[R] = all.collect(f)
   }
 
   trait ComponentAccessBuilder{
@@ -223,9 +323,9 @@ trait SwingFrameAppCreation extends FormCreation{
     }
 */
 
-    protected lazy val updatingComponents = collectDsl(layout, {
+    protected lazy val updatingComponents = componentAccess.collect{
       case LayoutElem(c, _, _) if c.isInstanceOf[UpdateInterface] => c.asInstanceOf[UpdateInterface]
-    })
+    }
 
     def updateForms(): Unit = updatingComponents.foreach(_.updateForm())
   }
@@ -270,7 +370,7 @@ trait SwingFrameAppCreation extends FormCreation{
 
         def all = northWest :: north :: northEast :: west :: center :: east :: southWest :: south :: southEast :: Nil
 
-        val p = new GridPanel(nx, ny){
+        val p = new GridPanel(ny, nx){
           panel =>
 
           def putContents(c: (Seq[LayoutElem], Orientation.Value)) = {

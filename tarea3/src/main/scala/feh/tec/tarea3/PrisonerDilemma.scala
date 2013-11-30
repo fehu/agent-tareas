@@ -10,11 +10,11 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import feh.tec.visual.{SwingFrameAppCreation, SwingAppFrame}
 import feh.tec.visual.api.{AppBasicControlApi, AgentApp}
-import java.awt.{Color, Component}
-import swing.{Swing, MainFrame}
+import scala.swing.{Orientation, Component, Swing, MainFrame}
 import feh.tec.util.RandomWrappers._
 import feh.tec.agent.AgentDecision.ExplainedActionStub
 import scala.util.Failure
+import scala.collection.mutable
 
 class PrisonerDilemma extends AbstractDeterministicGame{
   type Utility = Int
@@ -113,18 +113,24 @@ class PrisonerDilemmaApp(implicit val actorSystem: ActorSystem = ActorSystem.cre
       println("turn = " + turn)
       println("choices = " + choices)
       println("utility = " + utility)
+      updateMsgs()
+      println("Messages.scoreMessageA = " +  Messages.scoreMessageA)
+      println("Messages.scoreMessageB = " +  Messages.scoreMessageB)
+      updateForms()
   }
 
-  var msg = "!"
+  object Messages{
+    var scoreMessageA = ""
+    var scoreMessageB = ""
+  }
 
-  def createMsg() = coordinator.ref.blocking.globalState.utility.map{
-    case (p, u) => s"Player $p:\t$u"
-  } mkString "\n"
 
-  val gameExec = new PrisonersExec(100 millis, () => {
-    msg = createMsg()
-    updateForms()
-  })
+  def updateMsgs(): Unit = coordinator.ref.blocking.globalState.utility.map{
+    case (p@game.Prisoner.A, u) => Messages.scoreMessageA =  s"$p: $u"
+    case (p@game.Prisoner.B, u) => Messages.scoreMessageB =  s"$p: $u"
+  }
+
+  val gameExec = new PrisonersExec(100 millis, () => {})
 
   def execTurn() = gameExec.execution.nextTurn()
 
@@ -140,6 +146,7 @@ class PrisonerDilemmaApp(implicit val actorSystem: ActorSystem = ActorSystem.cre
     frame.pack()
     frame.open()
     updateForms()
+    println()
 //    app.start()
   }
   def stop(): Unit = {
@@ -147,13 +154,17 @@ class PrisonerDilemmaApp(implicit val actorSystem: ActorSystem = ActorSystem.cre
     frame.close()
   }
 
-  val scoreLabel = monitorFor(msg).text.affect(_.border = Swing.LineBorder(Color.red))
+  val scoreLabelA = monitorFor(Messages.scoreMessageA).text
+  val scoreLabelB = monitorFor(Messages.scoreMessageB).text
   val turnButton = triggerFor(execTurn()).button("play a turn")
 
-  val layout =
-    (place(scoreLabel, "scoreLabel") in theCenter) and
-    (place(turnButton, "turnButton") on Top of "scoreLabel")
+  val scorePanel = panel.box(_.Horizontal)(scoreLabelA.toComponent -> "score-A", scoreLabelB.toComponent -> "score-B")
+//  val scorePanel = panel.box(_.Horizontal)().glue.elem(scoreLabelA.toComponent -> "score-A")
 
+  val layout = List(
+    place(turnButton, "turnButton") in theCenter,
+    place(scorePanel/*.affect(_.xLayoutAlignment = Component)*/) on Top of "turnButton"
+  )
 
 }
 

@@ -32,8 +32,9 @@ trait FormCreation {
   implicit def numericControlComponentChooser[N: Numeric](get: => N, set: N => Option[Throwable]): NumericControlComponentChooser[N] = new NumericControlComponentChooser(get, set)
   implicit def triggerComponentChooser(action: => Unit): TriggerComponentChooser = new TriggerComponentChooser(action)
 
-  protected implicit def buildForm[T](builder: DSLFormBuilder[T]): Component = builder.build()
+//  protected implicit def buildForm[T](builder: DSLFormBuilder[T]): Component = builder.build()
   implicit def buildIntForm: DSLFormBuilder[Int] => Component = _.build()
+  implicit def buildStringForm: DSLFormBuilder[String] => Component = _.build()
 
   protected class MonitorComponentChooser[T](_get: => T){
     def get = _get
@@ -108,6 +109,8 @@ trait FormCreation {
 
     def color(c: Color): DSLLabelBuilder[T]  = copy(color = c)
     def withColor(c: Color): DSLLabelBuilder[T]  = color(c)
+
+    def toComponent: Component = build()
   }
 
   protected class DSLTextFormBuilder[T](get: => T) extends DSLFormBuilder[T]{
