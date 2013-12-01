@@ -224,7 +224,7 @@ class GameCoordinatorActor[Game <: AbstractGame, Env <: GameEnvironment[Game, En
   protected def turnFinished_? = currentTurnChoicesMap.keySet == coordinator.env.game.players
 
   protected def endTurn() = {
-    coordinator.affect(StrategicChoices(currentTurnChoices))
+    coordinator.affect(StrategicChoices(currentTurnChoices)).flatExec
     coordinator.lastScore
   } 
   protected def notifyAwaiting() = awaitingEndOfTurn.foreach{ case (waiting, id) => waiting ! TurnEnded(id) }

@@ -58,7 +58,7 @@ trait EnvironmentOverseerWithActor[Coordinate, State, Global, Action <: Abstract
 
   import EnvironmentOverseerWithActor._
 
-  def affect(act: Action): SideEffect[Env] = updateEnvironment(_.affected(act).execute).flatExec
+  def affect(act: Action): SideEffect[Env] = updateEnvironment(_.affected(act).execute)
 
 
   protected def baseActorResponses: PartialFunction[Any, () => Any] = {
