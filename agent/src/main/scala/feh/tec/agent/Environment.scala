@@ -189,7 +189,7 @@ trait PredictableNonDeterministicEnvironment[Coordinate, State, Global, Action <
    */
   type Prediction = Map[Double, EnvironmentSnapshot[Coordinate, State, Global, Action, Env]]
 }
-// ?? does nothing
+
 trait EnvironmentImplementation[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]]
   extends Environment[Coordinate, State, Global, Action, Env]
 {

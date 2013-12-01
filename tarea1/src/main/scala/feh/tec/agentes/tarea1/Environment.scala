@@ -157,7 +157,6 @@ class Overseer(actorSystem: ActorSystem,
   def position(id: AgentId): Option[Coordinate] = env.agentsPositions.get(id).map(_.coordinate)
 
   def actorResponseFuncs = baseActorResponses :: predictingActorResponses :: foreseeingActorResponses :: worldActorResponses :: Nil
-//  def actorResponseFunc: PartialFunction[Any, () => Any] = actorResponseFuncs.reduceLeft(_ orElse _)
   def ref: Environment#Ref = new BaseEnvironmentRef with PredictableEnvironmentRefImpl
     with ForeseeableEnvironmentRefImpl with WorldEnvironmentRefImpl{}
 
@@ -190,14 +189,10 @@ class EnvironmentOverseerActor(responses: PartialFunction[Any, () => Any]) exten
 
   def receive: Actor.Receive = responses andThen { // todo ??
     response => scheduler.scheduleOnce(0 millis)({
-      val x = response()
-      println("x = " + x)
-      x
-    } match{
+      response()
+    } match {
       case Unit =>
-      case msg =>
-        println(s"responding: $msg")
-        sender ! msg
+      case msg => sender ! msg
     })
   }
 }

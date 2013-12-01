@@ -167,19 +167,3 @@ trait SimultaneousAgentsExecutor[Position, EnvState, EnvGlobal, Action <: Abstra
   def register(agent: Ag*)
   protected def agents: Set[Ag]
 }
-
-/*
-trait SimultaneousOnDemandAgentsExecutor[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env]]
-  extends SimultaneousAgentsExecutor[Position, EnvState, EnvGlobal, Action, Env]
-{
-  protected implicit def executionContext: ExecutionContext
-  protected def scheduler: Scheduler
-
-  def exec(): Unit = agents.foreach(exec)
-  protected def exec(ag: Ag){
-    scheduler.scheduleOnce(0 millis){
-      ag.lifetimeCycle(ag.env)
-    }
-
-  }
-}*/

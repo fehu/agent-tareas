@@ -26,12 +26,6 @@ object HasUUID{
         (a ? msg)(timeout).mapTo[Resp].havingSameUUID(msg)
     }
   }
-
-  /*
-  (agent.self ? msg)(getMapMaxDelay)
-        .mapTo[MapByEnvRef].sameUUID(msg).withFilter.map(_.snapshot)
-      }
-   */
 }
 
 class UUIDed(final val uuid : UUID = UUID.randomUUID()) extends HasUUID

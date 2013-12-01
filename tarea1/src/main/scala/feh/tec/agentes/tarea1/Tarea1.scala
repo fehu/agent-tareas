@@ -414,11 +414,6 @@ object Tarea1App {
   def start() = {
     app.start()
     agStop = ag.execution()
-//    val f = overseer.ref.async.visibleStates
-//    println("!f + " +  f)
-//    f.map{
-//      case x => println("visibleStates: " + x)
-//    }
   }
 }
 
