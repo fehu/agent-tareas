@@ -94,6 +94,9 @@ class PrisonerPlayer(val executionLoop: PlayerAgent.Exec[PrisonerDilemma, Prison
   protected def buildAccompliceChoicesStats = accomplice.availableStrategies.toSeq.map(_ -> .0)
   protected lazy val accompliceChoicesStats = mutable.HashMap(buildAccompliceChoicesStats: _*)
 
+  def guardAccompliceChoice(strategy: accomplice.Strategy) =
+    accompliceChoicesStats(strategy) = accompliceChoicesStats(strategy) + 1
+
   def accompliceChoiceProb: Map[game.Player#Strategy, Double] ={
     val n = accompliceChoicesStats.map(_._2).sum
     if(n == 0) Map()
@@ -130,8 +133,11 @@ class PrisonerPlayer(val executionLoop: PlayerAgent.Exec[PrisonerDilemma, Prison
     else identity
 
   def decide(perception: Perception): ActionExplanation = ExplainedActionStub{
+    env.lastChoices.map(ch =>
+      guardAccompliceChoice(ch.asInstanceOf[game.PlayersChoices](accomplice).asInstanceOf[accomplice.Strategy])
+    )
     val expectedUtil = probableUtility
-    println("expectedUtil = " + expectedUtil)
+    println(s"expectedUtil $player = " + expectedUtil)
 
     StrategicChoice(
       gPlayer,

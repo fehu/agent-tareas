@@ -113,6 +113,7 @@ trait GameRef[Game <: AbstractGame, Env <: GameEnvironment[Game, Env]] extends E
   def choose(choice: StrategicChoice[Game#Player])
   def awaitEndOfTurn()
   def strategies: Game
+  def lastChoices: Option[Game#PlayersChoices]
 
 //  def blocking: BlockingApi = ???
 //  def async: AsyncApi = ???
@@ -150,6 +151,9 @@ trait GameCoordinatorWithActor[Game <: AbstractGame, Env <: GameEnvironment[Game
 
   def registerChoice(choice: StrategicChoice[Game#Player]): Unit = actorRef ! RegisterChoice(choice)
 
+  protected[agent] var _lastChoices: Game#PlayersChoices = null
+  def lastChoices: Option[Game#PlayersChoices] = Option(_lastChoices)
+
 //  protected def allChoicesRegistered(): SideEffect[G] = updateEnvironment(_.updateScores())
 
   def awaitEndOfTurn(): Unit = AwaitEndOfTurn() |> {
@@ -163,6 +167,7 @@ trait GameCoordinatorWithActor[Game <: AbstractGame, Env <: GameEnvironment[Game
     def choose(choice: StrategicChoice[Game#Player]): Unit = registerChoice(choice)
     def awaitEndOfTurn(): Unit = coordinator.awaitEndOfTurn()
     def strategies: Game = coordinator.env.game
+    def lastChoices: Option[Game#PlayersChoices] = coordinator.lastChoices
 
 //    override lazy val blocking: BlockingApi = ???
 //    override lazy val async: AsyncApi = ???
@@ -233,6 +238,7 @@ class GameCoordinatorActor[Game <: AbstractGame, Env <: GameEnvironment[Game, En
   protected def guardHistory(score: GameScore[Game]){
     val choices = currentTurnChoicesMap.toMap.asInstanceOf[Game#PlayersChoices]
     val utility = score.utility.asInstanceOf[Game#PlayersUtility]
+    coordinator._lastChoices = choices
     history += turn-> ( choices -> utility)
     lastHistory = (turn, choices, utility)
   }
