@@ -2,10 +2,9 @@ package feh.tec.agentes.tarea1
 
 import feh.tec.world._
 import feh.tec.agent._
-import scala.reflect.runtime.universe._
 import akka.actor._
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.concurrent.duration._
 import feh.tec.visual.NicolLike2DEasel
 import feh.tec.visual.api.WorldRenderer
 import feh.tec.agent.AgentId
@@ -47,14 +46,6 @@ class Environment(buildTilesMap: Map => Seq[Tile],
   type Snapshot = EnvironmentSnapshot[Coordinate, State, Global, Action, Environment]
 
   lazy val definedAt: Seq[Coordinate] = xRange.flatMap(x => yRange.map(x ->))
-
-  lazy val tags = new TypeTags{
-    implicit def coordinate: TypeTag[Coordinate] = typeTag[Coordinate]
-    implicit def state: TypeTag[State] = typeTag[State]
-    implicit def global: TypeTag[Global] = typeTag[Global]
-    implicit def action: TypeTag[Action] = typeTag[Action]
-    implicit def environment: TypeTag[Environment] = typeTag[Environment]
-  }
 
   assertDefinedAtAllCoordinates()
 
@@ -166,7 +157,7 @@ class Overseer(actorSystem: ActorSystem,
   def position(id: AgentId): Option[Coordinate] = env.agentsPositions.get(id).map(_.coordinate)
 
   def actorResponseFuncs = baseActorResponses :: predictingActorResponses :: foreseeingActorResponses :: worldActorResponses :: Nil
-  def actorResponseFunc: PartialFunction[Any, () => Unit] = actorResponseFuncs.reduceLeft(_ orElse _)
+//  def actorResponseFunc: PartialFunction[Any, () => Any] = actorResponseFuncs.reduceLeft(_ orElse _)
   def ref: Environment#Ref = new BaseEnvironmentRef with PredictableEnvironmentRefImpl
     with ForeseeableEnvironmentRefImpl with WorldEnvironmentRefImpl{}
 
@@ -175,11 +166,11 @@ class Overseer(actorSystem: ActorSystem,
   def getWorldMaxDelay: FiniteDuration = timeouts.getMapMaxDelay
   def positionMaxDelay: FiniteDuration = timeouts.positionMaxDelay
   def predictMaxDelay: FiniteDuration = timeouts.predictMaxDelay
-  def foreseeMaxDelay: FiniteDuration = ???
+  def foreseeMaxDelay: FiniteDuration = timeouts.foreseeMaxDelay
 
   protected def environmentOverseerActorProps = Props(classOf[EnvironmentOverseerActor], actorResponseFuncs)
 
-  val actorRef: ActorRef = actorSystem.actorOf(environmentOverseerActorProps)
+  lazy val actorRef: ActorRef = actorSystem.actorOf(environmentOverseerActorProps)
 
   def debugMessagePrefix: String = "[Overseer]"
 
@@ -191,15 +182,24 @@ class Overseer(actorSystem: ActorSystem,
   protected def setup: DebuggingSetup = Tarea1.Debug
 }
 
-class EnvironmentOverseerActor(responses: PartialFunction[Any, () => Unit]) extends Actor{
+class EnvironmentOverseerActor(responses: PartialFunction[Any, () => Any]) extends Actor{
   val log = Logging(context.system, this)
 
-  def externalExec(f: PartialFunction[Any, () => Unit]): PartialFunction[Any, Unit] =
-    f andThen (exec => context.system.scheduler.scheduleOnce(Duration.Zero)(exec())(context.dispatcher))
+  private def scheduler = context.system.scheduler
+  import context.dispatcher
 
-
-  def receive: Actor.Receive = externalExec(responses)
-//    PartialFunction(externalExec(responses andThen sender.!)) // todo: doesn't seem good
+  def receive: Actor.Receive = responses andThen { // todo ??
+    response => scheduler.scheduleOnce(0 millis)({
+      val x = response()
+      println("x = " + x)
+      x
+    } match{
+      case Unit =>
+      case msg =>
+        println(s"responding: $msg")
+        sender ! msg
+    })
+  }
 }
 
 

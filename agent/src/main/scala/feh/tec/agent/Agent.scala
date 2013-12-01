@@ -22,8 +22,8 @@ trait IndecisiveAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction, E
     def what: ActualDetailedPerception
   }
 
-  type Perception <: AbstractGlobalPerception
-  type DetailedPerception <: AbstractDetailedPerception
+  type Perception //<: AbstractGlobalPerception
+  type DetailedPerception //<: AbstractDetailedPerception
 
   type EnvRef = Env#Ref
   def env: EnvRef
@@ -42,7 +42,7 @@ case class AgentId(uuid: UUID = UUID.randomUUID()) extends HasUUID
  *  [[feh.tec.agent.DecisiveAgent]] and [[feh.tec.agent.Agent]] implementations make it necessary to mix-in at least one of execution patterns in them
  */
 sealed trait AgentExecution[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
-                            Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env]]
+                            +Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env]]
   extends IndecisiveAgent[Position, EnvState, EnvGlobal, Action, Env]
 {
   def executionLoop: Exec
@@ -59,13 +59,18 @@ sealed trait AgentExecution[Position, EnvState, EnvGlobal, Action <: AbstractAct
     sense _ andThen decide andThen {expl => notifyDecision(expl); expl.action} andThen act
 }
 
+trait SimultaneousAgentExecution[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
+                                 Exec <: SimultaneousAgentsExecutor[Position, EnvState, EnvGlobal, Action, Env]]
+  extends AgentExecution[Position, EnvState, EnvGlobal, Action, Env, Exec]
+{
 
+}
 
 /** Abstract trait for agents with decision part;
  *  [[feh.tec.agent.Agent]] implementation makes it necessary to mix-in one of decision strategies in it
  */
 sealed trait DecisiveAgent[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
-                           Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env]]{
+                           +Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env]]{
   indecisiveSelf: AgentExecution[Position, EnvState, EnvGlobal, Action, Env, Exec] =>
 }
 
@@ -133,7 +138,7 @@ trait Agent[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Envi
  *  An agent implemented using [[akka.actor.Actor]]
  */
 trait AgentWithActor[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
-                 Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env]]
+                     +Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env]]
   extends AgentExecution[Position, EnvState, EnvGlobal, Action, Env, Exec]
 {
   agent: DecisiveAgent[Position, EnvState, EnvGlobal, Action, Env, Exec] =>

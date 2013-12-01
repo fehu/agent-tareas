@@ -1,4 +1,4 @@
-Agentes - Tarea №1
+Agents Project
 ========================
 
 <i>An agents project for master studies in tec de monterrey</i>
@@ -6,12 +6,13 @@ Agentes - Tarea №1
 To build and run the project one would need the <a href="http://www.scala-sbt.org/">sbt</a> building tool
 
 * Execute <code>sbt update</code> in project directory to fetch the library dependencies 
-* To run tests execute <code>sbt test</code>
-* To run the application execute <code>sbt run</code>
-  * To run with agent execution frequency specified run <code> sbt "run execution_frequency"</code>
+* To run tests run <code>sbt test</code>
+* To run the 'plug-hole' application run <code>sbt run-plug-hole</code>
+  * To run with agent execution frequency specified, run <code> sbt "run-plug-hole execution_frequency"</code>
     where <i>execution_frequency</i> is a string, composed of duration and unit, for example:
     1 sec, 0.5 sec, 200 millis
   * The application is stopped by 'Escape' and paused/resumed by 'Space' keys
+* To run prisoner dilemma game, run <code>sbt run-prisoner-dilemma</code>
 
 IDE Integration
 * <a href="http://www.jetbrains.com/idea/">IntelliJ IDEA</a> (There is a free opensource community version) <br/> 

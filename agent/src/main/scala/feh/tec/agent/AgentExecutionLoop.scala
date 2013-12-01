@@ -1,7 +1,7 @@
 package feh.tec.agent
 
-import scala.concurrent.{Await, Future}
-import akka.actor.{ActorSystem, ActorRef, Actor}
+import scala.concurrent.{ExecutionContext, Await, Future}
+import akka.actor.{Scheduler, ActorSystem, ActorRef, Actor}
 import scala.concurrent.duration._
 import akka.pattern._
 
@@ -26,7 +26,7 @@ trait PausableAgentExecution[Position, EnvState, EnvGlobal, Action <: AbstractAc
 }
 
 trait ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
-                              +Ag <: AgentWithActor[Position, EnvState, EnvGlobal, Action, Env, _ <: ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, Ag]]]
+                              +Ag <: AgentWithActor[Position, EnvState, EnvGlobal, Action, Env, ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, Ag]]]
   extends AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env]
 {
   def receive: PartialFunction[Any, Option[Any]]
@@ -36,11 +36,19 @@ trait ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action <: AbstractA
   protected def scheduler = agent.env.sys.scheduler
 }
 
+trait ActorAgentExec[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
+                     Ag <: AgentWithActor[Position, EnvState, EnvGlobal, Action, Env, ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, Ag]]]
+  extends ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, Ag]
+{
+  protected def exec(ag: Ag)
+  protected def exec(): Unit = exec(agent)
+}
+
 trait ByTimerAgentExecution // todo: very important
 
 trait AgentExecutionStopPauseImplementation[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
-                                            Ag <: AgentWithActor[Position, EnvState, EnvGlobal, Action, Env, _ <: ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, Ag]]]{
-  self: ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, Ag] with PausableAgentExecution[Position, EnvState, EnvGlobal, Action, Env] =>
+                                            Ag <: AgentWithActor[Position, EnvState, EnvGlobal, Action, Env, ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, Ag]]]{
+  self: ActorAgentExec[Position, EnvState, EnvGlobal, Action, Env, Ag] with PausableAgentExecution[Position, EnvState, EnvGlobal, Action, Env] =>
 
   type Execution = () => StopFunc
   type StopFunc = () => Future[Stopped.type]
@@ -90,8 +98,6 @@ trait AgentExecutionStopPauseImplementation[Position, EnvState, EnvGlobal, Actio
       case Exec => exec()
     }
   })
-
-  protected def exec()
   
   protected def stopExec: StopFunc = () => agent.actorRef
     .ask(Stop)(execControlTimeout)
@@ -110,19 +116,19 @@ trait AgentExecutionStopPauseImplementation[Position, EnvState, EnvGlobal, Actio
 }
 
 trait AgentInfiniteExecution[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
-                             Ag <: AgentWithActor[Position, EnvState, EnvGlobal, Action, Env, _ <: ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, Ag]]]
+                             Ag <: AgentWithActor[Position, EnvState, EnvGlobal, Action, Env, ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, Ag]]]
   extends ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, Ag] with PausableAgentExecution[Position, EnvState, EnvGlobal, Action, Env]
-    with AgentExecutionStopPauseImplementation[Position, EnvState, EnvGlobal, Action, Env, Ag]
+    with AgentExecutionStopPauseImplementation[Position, EnvState, EnvGlobal, Action, Env, Ag] with ActorAgentExec[Position, EnvState, EnvGlobal, Action, Env, Ag]
 {
-  protected def exec() {
-    agent.lifetimeCycle(agent.env)
-    if (pauseBetweenExecs.toMillis > 0) scheduler.scheduleOnce(pauseBetweenExecs, agent.actorRef, Exec)
-    else agent.actorRef ! Exec
+  protected def exec(ag: Ag) {
+    ag.lifetimeCycle(ag.env)
+    if (pauseBetweenExecs.toMillis > 0) scheduler.scheduleOnce(pauseBetweenExecs, ag.actorRef, Exec)
+    else ag.actorRef ! Exec
   }
 }
 
 trait AgentConditionalExecution[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
-                                Ag <: AgentWithActor[Position, EnvState, EnvGlobal, Action, Env, _ <: ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, Ag]],
+                                Ag <: AgentWithActor[Position, EnvState, EnvGlobal, Action, Env, ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, Ag]],
                                 StopConditionParams <: Product]
   extends AgentInfiniteExecution[Position, EnvState, EnvGlobal, Action, Env, Ag]
 {
@@ -136,19 +142,44 @@ trait AgentConditionalExecution[Position, EnvState, EnvGlobal, Action <: Abstrac
 
   def notifyFinished()
 
-  override protected def exec() {
-    agent.lifetimeCycle(agent.env)
+  override protected def exec(ag: Ag) {
+    ag.lifetimeCycle(ag.env)
     if(testConditions) notifyFinished()
-    else if (pauseBetweenExecs.toMillis > 0) scheduler.scheduleOnce(pauseBetweenExecs, agent.actorRef, Exec)
-    else agent.actorRef ! Exec
+    else if (pauseBetweenExecs.toMillis > 0) scheduler.scheduleOnce(pauseBetweenExecs, ag.actorRef, Exec)
+    else ag.actorRef ! Exec
   }
 }
 
 trait AgentExecutionEnvironmentStopCondition[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
-                                   Ag <: AgentWithActor[Position, EnvState, EnvGlobal, Action, Env, _ <: ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, Ag]]] 
+                                   Ag <: AgentWithActor[Position, EnvState, EnvGlobal, Action, Env, ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, Ag]]]
   extends AgentConditionalExecution[Position, EnvState, EnvGlobal, Action, Env, Ag, (EnvGlobal, Set[EnvState])]
 {
   private def envApi = agent.env.blocking
 
   def testCondition: StopCondition => Boolean = _(envApi.globalState -> envApi.visibleStates.values.toSet)
 }
+
+trait SimultaneousAgentsExecutor[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env]]
+  extends AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env]
+{
+  final type Ag = Agent[Position, EnvState, EnvGlobal, Action, Env, SimultaneousAgentsExecutor[Position, EnvState, EnvGlobal, Action, Env]]
+
+  def register(agent: Ag*)
+  protected def agents: Set[Ag]
+}
+
+/*
+trait SimultaneousOnDemandAgentsExecutor[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env]]
+  extends SimultaneousAgentsExecutor[Position, EnvState, EnvGlobal, Action, Env]
+{
+  protected implicit def executionContext: ExecutionContext
+  protected def scheduler: Scheduler
+
+  def exec(): Unit = agents.foreach(exec)
+  protected def exec(ag: Ag){
+    scheduler.scheduleOnce(0 millis){
+      ag.lifetimeCycle(ag.env)
+    }
+
+  }
+}*/

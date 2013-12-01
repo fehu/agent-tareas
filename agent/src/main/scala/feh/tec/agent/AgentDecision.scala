@@ -96,6 +96,11 @@ object AgentDecision{
     def explain: Explanation
   }
 
+  case class ExplainedActionStub[Action](action: Action) extends ExplainedAction[Action]{
+    type Explanation = None.type
+    def explain: Explanation = None
+  }
+
   trait CriteriaReasonedExplanation[Position, EnvState, EnvGlobal, Action <: AbstractAction,
                                     Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
                                     Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env],

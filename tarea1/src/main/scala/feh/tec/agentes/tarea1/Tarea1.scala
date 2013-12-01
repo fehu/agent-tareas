@@ -14,7 +14,7 @@ import Map._
 import feh.tec.util._
 import feh.tec.agentes.tarea1.Criteria.{DistanceToClosestPlugAndHoleCriterion, NumberOfHolesCriterion, PlugsMovingAgentCriteria}
 import scala.{math, Predef, Some}
-import scala.concurrent.Await
+import scala.concurrent.{ExecutionContext, Await}
 import java.awt.Color
 import scala.collection.mutable
 import feh.tec.agent.AgentDecision.{FailsafeDecisionStrategy, DecisionStrategy}
@@ -24,7 +24,7 @@ import feh.tec.agent.AgentDecision.ExtendedCriteriaBasedDecision
 import feh.tec.agentes.tarea1.Tarea1.Agents.ExecLoopBuilders.PauseBetweenExecs
 import feh.tec.agent.AgentId
 import feh.tec.visual.api.BasicStringDrawOps
-import feh.tec.map.visual.WorldVisualisationCalls
+import feh.tec.visual.api.WorldVisualisationCalls
 
 object Tarea1 {
   object Debug extends GlobalDebuggingSetup
@@ -136,12 +136,18 @@ object Tarea1 {
         override lazy val rewriteCriteria: Option[Measure#Criteria] = Some(backupCriteria)
       }
 
+      def criteriaFailed: ExtendedCriteriaBasedDecision[ActionExplanation, Position, EnvState, EnvGlobal, Action, Env, Exec, Measure] => Boolean =
+        _.consideredOptionsCriteriaValues |> {
+          ops =>
+            ops.length != 1 && ops.distinct.length == 1
+        }
+
       override protected def createBehaviorSelectionStrategy: DecisionStrategy[Action, DecisionArg, ExtendedCriteriaBasedDecision[ActionExplanation, Position, EnvState, EnvGlobal, Action, Env, Exec, Measure]] =
         {
           val strategy = super.createBehaviorSelectionStrategy
           FailsafeDecisionStrategy.Builder(strategy)
             .append(
-              _.consideredOptionsCriteriaValues.flatten.distinct.size == 1,
+            criteriaFailed,
               new BackupMeasureBasedForeseeingDecisionStrategy
             )
             .build()
@@ -266,7 +272,7 @@ trait Tarea1AppSetup{
 }
 
 
-object Tarea1App extends App{
+object Tarea1App {
   val CriteriaDebug = false
 
   import Tarea1._
@@ -355,19 +361,10 @@ object Tarea1App extends App{
 
 //  Tarea1.Debug() = true
 
-  def processArgsForTimeSpan(): Option[FiniteDuration] =
-    if(args.nonEmpty) {
-      val dur = Duration(args.mkString(" ")).ensuring(_.isFinite())
-      Some(FiniteDuration(dur.length, dur.unit))
-    }
-    else None
-
-  implicit val pauseBetweenExecs = PauseBetweenExecs(processArgsForTimeSpan getOrElse defaultPauseBetweenExecs)
-
 //  val env = environment(Option(Agents.Id.dummy), Maps.failExample1(Agents.Id.dummy))
-  val env = environment(Option(Agents.Id.dummy))
+  lazy val env = environment(Option(Agents.Id.dummy))
 //  val env = TestEnvironment.test1(Option(Agents.Id.dummy))
-  val overseer = Tarea1.overseer(env, timeouts)
+  lazy val overseer = Tarea1.overseer(env, timeouts)
 
   implicit def agResolver = new AgentResolver{
     def byId(id: AgentId): Option[AgentRef] = PartialFunction.condOpt(id){
@@ -375,7 +372,7 @@ object Tarea1App extends App{
     }
   }
 
-  lazy val game = new NicolBasedTarea1Game(env, Agents.Id.dummy)
+  lazy val app = new NicolBasedTarea1AgentApp(env, Agents.Id.dummy)
 
 
   val foreseeingDepth = 5
@@ -383,33 +380,58 @@ object Tarea1App extends App{
   import visual.easel
   import Tarea1.Agents.ExecLoopBuilders._
 
+  var argsForTimeSpan: Option[FiniteDuration] = None
+  implicit lazy val pauseBetweenExecs = PauseBetweenExecs(argsForTimeSpan getOrElse defaultPauseBetweenExecs)
+
   type Exec = ConditionalExec
-  val ag: MyDummyAgent[Exec] = new MyDummyAgent[Exec](
+  lazy val ag: MyDummyAgent[Exec] = new MyDummyAgent[Exec](
     overseer.ref,
     setup.criteria,
     setup.backupCriteria,
     (setup.findPossibleActions[Exec] _).curried,
     Agents.Id.dummy,
     foreseeingDepth,
-    game.mapRenderer)
+    app.mapRenderer)
 
   lazy val finishedScene = new FinishedScene(renderMap.lifted)
 
-  def renderMap(implicit easel: NicolLike2DEasel) = game.mapRenderer.render(env)
+  def renderMap(implicit easel: NicolLike2DEasel) = app.mapRenderer.render(env)
 
-  val agStop = ag.execution()
+  var agStop: Exec#StopFunc = _
 
   def terminate() = {
     Await.ready(agStop(), 1 second)
     actorSystem.stop(ag.actorRef)
     actorSystem.stop(overseer.actorRef)
-    game.stop
+    app.stop
   }
 
   def setFinishedScene() = Finished.flag = true
   def isFinished = Finished.flag
 
-  game.start()
+  implicit def execContext: ExecutionContext = ExecutionContext.global
+
+  def start() = {
+    app.start()
+    agStop = ag.execution()
+//    val f = overseer.ref.async.visibleStates
+//    println("!f + " +  f)
+//    f.map{
+//      case x => println("visibleStates: " + x)
+//    }
+  }
+}
+
+object Tarea1Application extends App{
+  def processArgsForTimeSpan(): Option[FiniteDuration] =
+    if(args.nonEmpty) {
+      val dur = Duration(args.mkString(" ")).ensuring(_.isFinite())
+      Some(FiniteDuration(dur.length, dur.unit))
+    }
+    else None
+
+  Tarea1App.argsForTimeSpan = processArgsForTimeSpan()
+  Tarea1App.start()
 }
 
 object Tarea1EndScene extends End(Tarea1App.terminate())

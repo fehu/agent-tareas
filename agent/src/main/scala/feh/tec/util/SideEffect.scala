@@ -1,9 +1,15 @@
 package feh.tec.util
 
 class SideEffect[+R](effect: => R){
-  lazy val result = effect
+  lazy val result = {
+    _applied = true
+    effect
+  }
 
   def execute = result
+
+  private var _applied = false
+  def applied = _applied
 
   def more[R2](other: => R2) = new SideEffect[R2]({effect; other})
   def then[R2](f: R => R2): SideEffect[R2] = more(f(effect))

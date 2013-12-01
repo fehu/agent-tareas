@@ -8,7 +8,7 @@ import java.awt.Color
 import feh.tec.visual.render.LwjglSquareMapRenderer.BuildTDrawOpsParams
 import scala.Some
 import feh.tec.visual.api.BasicStringDrawOps
-import feh.tec.map.visual.WorldVisualisationCalls
+import feh.tec.visual.api.WorldVisualisationCalls
 import feh.tec.util
 import feh.tec.world.Simple2dDirection._
 import feh.tec.util.TripleBuilder
