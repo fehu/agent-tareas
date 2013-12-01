@@ -2,7 +2,7 @@ package feh.tec.agent
 
 import scala.concurrent._
 import concurrent.duration._
-import feh.tec.util.{SideEffect, ScopedState}
+import feh.tec.util.{MapZipperWrapper, SideEffect, ScopedState}
 import akka.actor.Scheduler
 
 /**
@@ -101,6 +101,15 @@ trait EnvironmentRefBlockingApiImpl[Coordinate, State, Global, Action <: Abstrac
 }
 */
 
+object EnvironmentSnapshot{
+  /**
+   * compares both states, ignores agent's position
+   */
+  def withStateComparator[State, R](c: (State, State) => Boolean)(f: => R) = StateComparator.doWith(c.asInstanceOf[(Any, Any) => Boolean])(f)
+  protected object StateComparator extends ScopedState[(Any, Any) => Boolean](_ == _)
+  def stateComparator[State] = StateComparator.get.asInstanceOf[(State, State) => Boolean]
+}
+
 /**
  * should be mixed-in last
  */
@@ -123,10 +132,15 @@ trait EnvironmentSnapshot[Coordinate, State, Global, Action <: AbstractAction, E
   def asEnv: Env with EnvironmentSnapshot[Coordinate, State, Global, Action, Env] = self
 
   override def equals(obj: scala.Any): Boolean = PartialFunction.cond(obj){
-    case snap: EnvironmentSnapshot[_, _, _, _, _] =>
+    case snap: EnvironmentSnapshot[Coordinate, State, Global, Action, Env] =>
       snap.globalState == this.globalState &&
-      snap.states == this.states
+      snap.states.zipByKey(this.states).forall{
+        case (_, (s1, s2)) => EnvironmentSnapshot.stateComparator[State](s1, s2)
+      }
   }
+
+  def diff(that: EnvironmentSnapshot[Coordinate, State, Global, Action, Env]) =
+    this.states.zipByKey(that.states).filter{ case (_, (v1, v2)) => v1 != v2 }
 
   override def toString: String = s"EnvironmentSnapshot($globalState, $states)"
 }
