@@ -90,5 +90,6 @@ package object util {
   implicit class ConditionalChainingWrapper[T](t: T){
     def `if`[R](cond: T => Boolean)(then: T => R)(`else`: T => R): R = if(cond(t)) then(t) else `else`(t)
     def `case`(cond: T => Boolean)(f: T => T): T = if(cond(t)) f(t) else t
+    def `case`(cond: Boolean)(f: T => T): T = if(cond) f(t) else t
   }
 }

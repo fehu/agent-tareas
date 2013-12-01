@@ -69,8 +69,10 @@ object IdealForeseeingAgentDecisionStrategies{
 
     def tacticalOptionsIncludeShorter = true
     def tacticalOptionsExcludeTurningBack = true
-    def tacticalOptionsFilterLeadingToSameState = true
+    def tacticalOptionsFilterAgentIgnoringComparator: Option[(EnvState, EnvState) => Boolean] = None
+    final def tacticalOptionsFilterLeadingToSameState = tacticalOptionsFilterAgentIgnoringComparator.isDefined
     def bestOptionsPreferShorter = true
+//    def filter
 
 
     protected def makeDecisions(arg: Ag#DecisionArg): Decisions = arg match {
@@ -78,10 +80,16 @@ object IdealForeseeingAgentDecisionStrategies{
         implicit val num = ag.measure.measureNumeric.asInstanceOf[Numeric[M#Measure]]
         def behavioursFunc = ag.perceiveFromSnapshot _ andThen ag.possibleBehaviors
         def filterTacticalOptions(ops: Map[Seq[Action], Env#Prediction]) =
-          if(!tacticalOptionsFilterLeadingToSameState) ops
-          else ops.groupBy(_._2).map{
-            case (prediction, map) => map.keys.toSeq.randomChoose -> prediction
-          }
+          tacticalOptionsFilterAgentIgnoringComparator.map{
+            compar =>
+              EnvironmentSnapshot.withStateComparator[EnvState, Map[Seq[Action], Env#Prediction]](compar){
+                ops.groupBy(_._2).map{
+                  case (prediction, map) => map.keys.toSeq.randomChoose -> prediction
+                }
+              }
+          } getOrElse ops
+
+
 
         val tacticalOptions = ag.env
           .foresee(foreseeingDepth, _ => behavioursFunc, includeShorter = tacticalOptionsIncludeShorter, excludeTurningBack = tacticalOptionsExcludeTurningBack)

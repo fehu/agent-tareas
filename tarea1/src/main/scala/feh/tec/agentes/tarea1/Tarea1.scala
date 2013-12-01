@@ -13,7 +13,7 @@ import nicol._
 import Map._
 import feh.tec.util._
 import feh.tec.agentes.tarea1.Criteria.{DistanceToClosestPlugAndHoleCriterion, NumberOfHolesCriterion, PlugsMovingAgentCriteria}
-import scala.{math, Predef, Some}
+import scala.{Predef, math, Some}
 import scala.concurrent.{ExecutionContext, Await}
 import java.awt.Color
 import scala.collection.mutable
@@ -134,6 +134,15 @@ object Tarea1 {
         extends IdealForeseeingAgentDecisionStrategies.MeasureBasedForeseeingDecisionStrategy[Position, EnvState, EnvGlobal, Action, Env, Exec, Measure, agent.type](foreseeingDepth, debug, notifyRouteChosen)
       {
         override lazy val rewriteCriteria: Option[Measure#Criteria] = Some(backupCriteria)
+
+        override def tacticalOptionsIncludeShorter: Boolean = false
+
+        override def tacticalOptionsFilterAgentIgnoringComparator: Option[(EnvState, EnvState) => Boolean] =  Some{
+          (s1, s2) =>
+            s1.self && s2.empty ||
+            s1.empty && s2.self ||
+            s1 == s2
+        }
       }
 
       def criteriaFailed: ExtendedCriteriaBasedDecision[ActionExplanation, Position, EnvState, EnvGlobal, Action, Env, Exec, Measure] => Boolean =
@@ -296,16 +305,14 @@ object Tarea1App {
       {
         def numberOfHolesWeight: Double = -10
 
-//        def distanceToClosestPlugWeight: Float = -1
-//        protected def shortestRouteFinder: MapShortestRouteFinder = new MapShortestRouteFinder
-
         def debug: Boolean = CriteriaDebug
       }.toList
 
-    def backupCriteria: Measure#Criteria = new PlugsMovingAgentCriteria with DistanceToClosestPlugAndHoleCriterion{
+    def backupCriteria: Measure#Criteria = new DistanceToClosestPlugAndHoleCriterion with NumberOfHolesCriterion{
       def agentId: AgentId = Agents.Id.dummy
       def distanceToClosetPlugWeight: Float = -1
       def distanceFromPlugToClosestHoleWeight: Float = -1
+      def numberOfHolesWeight: Double = -10
 
       lazy val floydWarshall = new FloydWarshall
       protected def clearDistanceMap(): Unit = minDistsMapCache.clear()
