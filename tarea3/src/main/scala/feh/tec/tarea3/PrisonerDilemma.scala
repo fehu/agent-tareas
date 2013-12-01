@@ -1,26 +1,22 @@
 package feh.tec.tarea3
 
 import feh.tec.agent._
-import Ordered._
 import feh.tec.util.{PipeWrapper, I, ConditionalChainingWrapper, SideEffect}
-import feh.tec.agent.StrategicChoice
 import scala.math.Numeric.IntIsIntegral
-import akka.actor.{ActorSystem, Props, ActorRef, Scheduler}
+import akka.actor.{ActorSystem, Scheduler}
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import feh.tec.visual.{SwingFrameAppCreation, SwingAppFrame}
-import feh.tec.visual.api.{AppBasicControlApi, AgentApp}
 import scala.swing._
-import feh.tec.util.RandomWrappers._
-import feh.tec.agent.AgentDecision.ExplainedActionStub
-import scala.util.{Random, Failure}
+import scala.util.Random
 import scala.collection.mutable
 import scala.collection.immutable.NumericRange
 import scala.swing.GridBagPanel.{Anchor, Fill}
-import java.awt.{Font, Color}
+import java.awt.{Color, Font}
 import feh.tec.agent.AgentDecision.ExplainedActionStub
 import feh.tec.agent.StrategicChoice
-import scala.xml.Text
+import scala.swing.event.ValueChanged
+import javax.swing.border.LineBorder
 
 class PrisonerDilemma extends AbstractDeterministicGame{
   type Utility = Int
@@ -96,7 +92,8 @@ class PrisonerPlayer(val executionLoop: PlayerAgent.Exec[PrisonerDilemma, Prison
 
   lazy val accomplice = (game.players - player.asInstanceOf[game.Player]).head
 
-  protected lazy val accompliceChoicesStats = mutable.HashMap(accomplice.availableStrategies.toSeq.map(_ -> .0): _*)
+  protected def buildAccompliceChoicesStats = accomplice.availableStrategies.toSeq.map(_ -> .0)
+  protected lazy val accompliceChoicesStats = mutable.HashMap(buildAccompliceChoicesStats: _*)
 
   def accompliceChoiceProb: Map[game.Player#Strategy, Double] ={
     val n = accompliceChoicesStats.map(_._2).sum
@@ -105,8 +102,6 @@ class PrisonerPlayer(val executionLoop: PlayerAgent.Exec[PrisonerDilemma, Prison
   }
 
   def gPlayer = player.asInstanceOf[game.PrisonerPlayer]
-
-//  def utilityProbabilities:
 
   def probableUtility: Map[PrisonerDilemma#Player#Strategy, Double] ={
     val prob = accompliceChoiceProb.`case`(_.isEmpty)(_ => accomplice.availableStrategies.map(_ -> 1.0).toMap)
@@ -120,8 +115,11 @@ class PrisonerPlayer(val executionLoop: PlayerAgent.Exec[PrisonerDilemma, Prison
     }.toMap
   }
 
-  var randomChance = 0.0
-  var preference: Double = .5
+  protected def defaultRandomChoice = 0d
+  protected def defaultPreference = .5
+
+  var randomChance = defaultRandomChoice
+  var preference: Double = defaultPreference
   val preferred1 = gPlayer.Betray
   val preferred2 = gPlayer.Refuse
 
@@ -145,6 +143,13 @@ class PrisonerPlayer(val executionLoop: PlayerAgent.Exec[PrisonerDilemma, Prison
       })._1
     ) |> irrationalBehaviour
 
+  }
+
+  def reset(){
+    randomChance = defaultRandomChoice
+    preference = defaultPreference
+    accompliceChoicesStats.clear()
+    accompliceChoicesStats ++= buildAccompliceChoicesStats
   }
 }
 
@@ -180,8 +185,8 @@ class PrisonerDilemmaApp(implicit val actorSystem: ActorSystem = ActorSystem.cre
   }
 
   object Messages{
-    var scoreMessageA = s"${playerA.player}"
-    var scoreMessageB = s"${playerB.player}"
+    var scoreMessageA = "0"
+    var scoreMessageB = "0"
     val _history = mutable.HashMap.empty[Int, (String, String)]
     def history = _history.toMap
 
@@ -200,8 +205,8 @@ class PrisonerDilemmaApp(implicit val actorSystem: ActorSystem = ActorSystem.cre
 
 
   def updateMsgs(): Unit = coordinator.ref.blocking.globalState.utility.map{
-    case (p@game.Prisoner.A, u) => Messages.scoreMessageA =  s"$p: $u"
-    case (p@game.Prisoner.B, u) => Messages.scoreMessageB =  s"$p: $u"
+    case (p@game.Prisoner.A, u) => Messages.scoreMessageA =  u.toString
+    case (p@game.Prisoner.B, u) => Messages.scoreMessageB =  u.toString
   }
 
   val gameExec = new PrisonersExec(100 millis, () => {})
@@ -215,8 +220,6 @@ class PrisonerDilemmaApp(implicit val actorSystem: ActorSystem = ActorSystem.cre
 
   def start(): Unit = {
     buildLayout()
-//    frame.minimumSize = 50 -> 50
-//    frame.preferredSize = 300 -> 200
     frame.pack()
     frame.open()
     updateForms()
@@ -226,6 +229,16 @@ class PrisonerDilemmaApp(implicit val actorSystem: ActorSystem = ActorSystem.cre
   def stop(): Unit = {
 //    app.stop()
     frame.close()
+  }
+
+  def reset(){
+    coordinator.reset()
+    playerA.reset()
+    playerB.reset()
+    Messages._history.clear()
+    Messages.scoreMessageA = "0"
+    Messages.scoreMessageB = "0"
+    updateForms()
   }
 
   class HistoryListEntry extends GridBagPanel{
@@ -273,10 +286,14 @@ class PrisonerDilemmaApp(implicit val actorSystem: ActorSystem = ActorSystem.cre
   val scoreLabelA = monitorFor(Messages.scoreMessageA).text
   val scoreLabelB = monitorFor(Messages.scoreMessageB).text
   val historyList = monitorFor(Messages.history.toMap).list(Ordering.Int.reverse)
-    .fillBoth.renderKeys(historyListRenderer)
+    .fillBoth.renderKeys(historyListRenderer).maxXWeight.maxYWeight
+
   val turnButton = triggerFor(execTurn()).button("play a turn")
     .sizes(min = 50 -> 20, max = Int.MaxValue -> 100, preferred = 200 -> 30)
     .fillHorizontally
+  val resetButton = triggerFor(reset).button("Reset")
+    .sizes(min = 50 -> 20)
+    .anchor(_.West)
 
   def sliderControl(get: => Double, set: Double => Unit) =
     numericControlFor(get)(set)
@@ -290,43 +307,75 @@ class PrisonerDilemmaApp(implicit val actorSystem: ActorSystem = ActorSystem.cre
 
   def preferenceControl(get: => Double, set: Double => Unit) =
     sliderControl(get, set).labels(
-      (for(i <- 0 to 10) yield i*10 -> label(i*10 + "/" + (100 - i*10))).toMap
+      (for(i <- 0 to 10) yield i*10 -> new Label(i*10 + "/" + (100 - i*10))).toMap
     )
 
   val preferenceA = preferenceControl(playerA.preference, playerA.preference = _)
   val preferenceB = preferenceControl(playerB.preference, playerB.preference = _)
 
+  listenTo(irrationalityA, irrationalityB)
+  reactions += {
+    case ValueChanged(irrationalityA.formMeta.form) =>
+      if(irrationalityA.value == 0) preferenceA.enabled = false
+      else if(!preferenceA.enabled) preferenceA.enabled = true
+    case ValueChanged(irrationalityB.formMeta.form) =>
+      if(irrationalityB.value == 0) preferenceB.enabled = false
+      else if(!preferenceB.enabled) preferenceB.enabled = true
+  }
+
   val scorePanel = panel.box(_.Horizontal)(scoreLabelA -> "score-A", scoreLabelB -> "score-B")
     .layout(_.fill = Fill.Horizontal, _.weightx = 1)
 
-  def referLabel = label(<html>random action<br/>preference<br/><br/><center>Betray/Refuse</center></html>)
+  def referLabel = label(<html><center>random action<br/>preference<br/><br/>Betray/Refuse</center></html>)
   def randLabel = label(<html>random<br/>action<br/>chance</html>)
 
   val setupA = panel.gridBag(
     place(irrationalityA, "rand-A") in theCenter,
-    place(preferenceA, "prefer-A") to theWest,
-    place(randLabel, "-l-rand-A") to theSouth,
-    place(referLabel, "-l-refer-A") to theNorthWest
-  ).layout(_.gridheight = 2)
+    place(preferenceA, "prefer-A") in theWest,
+    place(randLabel, "-l-rand-A") in theSouth,
+    place(referLabel, "-l-refer-A") in theNorthWest
+  ).layout(_.gridheight = 2).insets(20)().maxYWeight
 
   val setupB = panel.gridBag(
     place(irrationalityB, "rand-B") in theCenter,
-    place(preferenceB, "prefer-B") to theEast,
-    place(randLabel, "-l-rand-B") to theSouth,
-    place(referLabel, "-l-refer-B") to theNorthEast
-  ).layout(_.gridheight = 2)
+    place(preferenceB, "prefer-B") in theEast,
+    place(randLabel, "-l-rand-B") in theSouth,
+    place(referLabel, "-l-refer-B") in theNorthEast
+  ).layout(_.gridheight = 2).insets(20)().maxYWeight
 
-  val layout = List(
+  val appPanel = panel.gridBag(
     place(turnButton, "turn") in theCenter,
-    place(scorePanel/*.affect(_.xLayoutAlignment = Component)*/) on Top of "turn",
+    place(scorePanel) on Top of "turn",
     place(scrollable()(historyList, "history")) on theBottom of "turn",
     place(setupA, "setup-A") to theLeft of "turn",
-    place(setupB, "setup-B") to theRight of "turn"
-//      place(irrationalityPanel/*, "rand-P"*/) to theRight of "turn"
+    place(setupB, "setup-B") to theRight of "turn",
+    place(label(playerA.player.toString), "a-label") to theNorthWest of "turn",
+    place(label(playerB.player.toString), "b-label") to theNorthEast of "turn"
+  ).fillBoth.maxXWeight.yWeight(.9)
+
+  title = "Prisoner Dilemma Game"
+
+  val gameTitle = <h3><b>{title}</b></h3>
+  val description =
+    <html>
+      in order to make a decision each agent
+      <ol>
+        <li>calculates expected utility for each available choice</li>
+        <li>???</li>
+        <li>PROFIT</li>
+      </ol>
+    </html>
+
+  val layout = List(
+    place(appPanel, "app") in theCenter,
+    place(label(gameTitle), "title") on Top of "app",
+    place(
+      panel.box(_.Horizontal)(resetButton.component -> "reset", label(description).form -> "description").width(3).fillBoth
+    ) to SouthWest of "app"
   )
 
   frame.minimumSize = 740 -> 520
-  frame.preferredSize = 740 -> 520
+  frame.preferredSize = 900 -> 600
 }
 
 object PrisonerDilemmaExecutable extends App{

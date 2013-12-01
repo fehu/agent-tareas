@@ -2,15 +2,13 @@ package feh.tec.visual
 
 import scala.swing._
 import scala.swing.event.{ValueChanged, ButtonClicked}
-import javax.swing.JSpinner
-import feh.tec.util.LiftWrapper
 import scala.swing.Label
 import java.awt.Color
 import concurrent.duration.FiniteDuration
 import scala.collection.mutable
 import scala.collection.immutable.NumericRange
 import feh.tec.util._
-import scala.swing.GridBagPanel.Fill
+import scala.swing.GridBagPanel.{Anchor, Fill}
 
 
 object FormCreation{
@@ -28,12 +26,6 @@ trait FormCreation {
                                       (implicit chooser: (=> N, N => Unit) => NumericControlComponentChooser[N], num: Numeric[N]) = chooser(get, set)
     protected def triggerFor(action: => Unit)(implicit chooser: (=> Unit) => TriggerComponentChooser) = chooser(action)
 
-    object A { var x = 0 }
-    def test = monitorFor(A.x).text
-      .affect(_.border = ???, _.background = ???)
-
-//    def test2 = numericControlFor(A.x){case x if x > 0 => None case _ => Some(new Exception(""))}.slider
-
     def updateForms()
   }
 
@@ -44,16 +36,16 @@ trait FormCreation {
   implicit def triggerComponentChooser(action: => Unit): TriggerComponentChooser = new TriggerComponentChooser(action)
 
 //  protected implicit def buildForm[T](builder: DSLFormBuilder[T]): Component = builder.build()
-  implicit def buildIntForm: DSLFormBuilder[Int] => BuildMeta = _.build()
-  implicit def buildStringForm: DSLFormBuilder[String] => BuildMeta = _.build()
-  implicit def buildMapForm: DSLKeyedListBuilder[_, _] => BuildMeta = _.build()
-  implicit def buildUnitForm: DSLFormBuilder[Unit] => BuildMeta = _.build()
+  implicit def buildIntMeta: DSLFormBuilder[Int] => BuildMeta = _.formMeta
+  implicit def buildStringMeta: DSLFormBuilder[String] => BuildMeta = _.formMeta
+  implicit def buildMapMeta: DSLKeyedListBuilder[_, _] => BuildMeta = _.formMeta
+  implicit def buildUnitMeta: DSLFormBuilder[Unit] => BuildMeta = _.formMeta
 
   implicit def intFormToComponent: DSLFormBuilder[Int] => Component = _.component
   implicit def stringFormToComponent: DSLFormBuilder[String] => Component = _.component
   implicit def mapFormToComponent: DSLKeyedListBuilder[_, _] => Component = _.form
   implicit def unitFormToComponent: DSLFormBuilder[Unit] => Component = _.component
-  implicit def doubleSliderToComponent: DSLSliderBuilder[Double] => Component = _.form
+  implicit def doubleSliderToComponent: DSLSliderBuilder[Double] => Slider = _.form
 
   implicit def componentToMeta(c: Component): BuildMeta = BuildMeta(c)
 
@@ -114,13 +106,14 @@ trait FormCreation {
   }
 
   protected trait AbstractDSLBuilder{
-    type Form <: Component
+    type Comp <: Component
 
-    def affect(effects: (Form => Unit)*): AbstractDSLBuilder
+    def affect(effects: (Comp => Unit)*): AbstractDSLBuilder
     def layout(effects: (Constraints => Unit)*): AbstractDSLBuilder
   }
   protected trait DSLFormBuilder[T] extends AbstractDSLBuilder{
     type Form <: Component with UpdateInterface
+    type Comp = Form
 
     case class FormBuildMeta(form: Form, layout: List[Constraints => Unit]) extends BuildMeta{
       def component: Component = form
@@ -128,40 +121,35 @@ trait FormCreation {
 
     protected implicit def toFormMeta(p: (Form, List[Constraints => Unit])): FormBuildMeta = FormBuildMeta(p._1, p._2)
 
-    protected[FormCreation] def build(): FormBuildMeta
+    def formMeta: FormBuildMeta
 
 
     override def affect(effects: (Form => Unit)*): DSLFormBuilder[T]
     override def layout(effects: (Constraints => Unit)*): DSLFormBuilder[T]
 
-//    protected[FormCreation] def update()
-
-//    trait Setting
   }
 
   protected trait UpdateInterface{
     def updateForm()
   }
 
-  case class DSLFormBuilderWrapper[T](builder: DSLFormBuilder[T]){
-    def build = builder.build() 
-  }
-  
-  protected case class DSLLabelBuilder[T] protected[FormCreation] (protected[FormCreation] val get: () => T,
-                                                                   protected[FormCreation] val effects: List[DSLLabelBuilder[T]#Form => Unit] = Nil,
-                                                                   protected[FormCreation] val layout: List[Constraints => Unit] = Nil,
-                                                                   protected[FormCreation] val color: Color = Color.black)
+  protected case class DSLLabelBuilder[T] protected[visual] (protected[FormCreation] val get: () => T,
+                                                             protected[FormCreation] val effects: List[DSLLabelBuilder[T]#Form => Unit] = Nil,
+                                                             protected[FormCreation] val layout: List[Constraints => Unit] = Nil,
+                                                             protected[FormCreation] val color: Color = Color.black)
     extends DSLFormBuilder[T]
   {
     type Form = Label with UpdateInterface
 
-    protected[FormCreation] def build(): FormBuildMeta = new Label() with UpdateInterface{
+    def form = new Label() with UpdateInterface{
       foreground = color
       def updateForm(): Unit = {
         text = get().toString
       }
       effects.foreach(_(this))
-    } -> layout
+    }
+
+    lazy val formMeta: FormBuildMeta = form -> layout
 
     def affect(effects: (Form => Unit)*) = copy(effects = this.effects ::: effects.toList)
     def layout(effects: (Constraints => Unit)*) = copy(layout = layout ++ effects)
@@ -173,7 +161,7 @@ trait FormCreation {
   protected class DSLTextFormBuilder[T](get: => T) extends DSLFormBuilder[T]{
     type Form = TextField with UpdateInterface
 
-    protected[FormCreation] def build(): FormBuildMeta = ???
+    lazy val formMeta: FormBuildMeta = ???
 
     def affect(effects: (Form => Unit)*): DSLTextFormBuilder[T] = ???
     def layout(effects: (Constraints => Unit)*): DSLFormBuilder[T] = ???
@@ -182,7 +170,7 @@ trait FormCreation {
   protected class DSLTextAreaBuilder[T](get: => T) extends DSLFormBuilder[T]{
     type Form = TextArea with UpdateInterface
 
-    protected[FormCreation] def build(): FormBuildMeta = ???
+    lazy val formMeta: FormBuildMeta = ???
 
     def affect(effects: (Form => Unit)*): DSLTextAreaBuilder[T] = ???
     def layout(effects: (Constraints => Unit)*): DSLFormBuilder[T] = ???
@@ -191,7 +179,7 @@ trait FormCreation {
   protected class DSLComboBoxBuilder[T] (get: => T) extends DSLFormBuilder[T]{
     type Form = ComboBox[T] with UpdateInterface
 
-    protected[FormCreation] def build(): FormBuildMeta = ???
+    lazy val formMeta: FormBuildMeta = ???
 
     def affect(effects: (Form => Unit)*): DSLComboBoxBuilder[T] = ???
     def layout(effects: (Constraints => Unit)*): DSLFormBuilder[T] = ???
@@ -200,7 +188,7 @@ trait FormCreation {
   protected class DSLSpinnerBuilder[N: Numeric](get: => N) extends DSLFormBuilder[N]{
     type Form = Null with UpdateInterface//JSpinner // todo
 
-    protected[FormCreation] def build(): FormBuildMeta = ???
+    lazy val formMeta: FormBuildMeta = ???
 
     def affect(effects: (Form => Unit)*): DSLSpinnerBuilder[N] = ???
     def layout(effects: (Constraints => Unit)*): DSLFormBuilder[N] = ???
@@ -218,7 +206,7 @@ trait FormCreation {
     val num = implicitly[Numeric[N]]
     import num._
 
-    def form: Slider with UpdateInterface = new Slider with UpdateInterface{
+    lazy val form: Slider with UpdateInterface = new Slider with UpdateInterface{
       slider =>
 
 //      val n = range.length
@@ -244,7 +232,7 @@ trait FormCreation {
     }
 
     // todo: this is for floating
-    protected[FormCreation] def build(): FormBuildMeta = form -> layout
+    lazy val formMeta: FormBuildMeta = form -> layout
 
     private def divideStep = (_: N) match{
       case d: Double =>
@@ -275,7 +263,7 @@ trait FormCreation {
 
     type Form = ListView[(K, V)] with UpdateInterface
 
-    def form: ListView[(K, V)] with UpdateInterface = new ListView[(K, V)](Nil) with UpdateInterface{
+    lazy val form: ListView[(K, V)] with UpdateInterface = new ListView[(K, V)](Nil) with UpdateInterface{
       listView =>
 
       Option(builder.renderer).foreach(listView.renderer = _)
@@ -286,15 +274,17 @@ trait FormCreation {
         val newMap = get()
         val addDiff = newMap.keySet -- mapCache.keySet
         val rmDiff = mapCache.keySet -- newMap.keySet
+        val empt = !rmDiff.isEmpty || !addDiff.isEmpty
 
         mapCache --= rmDiff
         mapCache ++= addDiff.map(k => k -> newMap(k))
 
-        listView.listData = mapCache.toSeq.sortBy(_._1)
+        if(empt)
+          listView.listData = mapCache.toSeq.sortBy(_._1)
       }
     }
 
-    protected[FormCreation] def build(): FormBuildMeta = form -> layout
+    lazy val formMeta: FormBuildMeta = form -> layout
 
     def affect(effects: (Form=> Unit) *) = copy(effects = this.effects ++ effects)
     def layout(effects: (Constraints => Unit)*) = copy(layout = layout ++ effects)
@@ -317,14 +307,12 @@ trait FormCreation {
 
     type Form = Button with UpdateInterface
 
-    protected[FormCreation] def build(): FormBuildMeta =  new Button() with UpdateInterface{
+    lazy val formMeta: FormBuildMeta =  new Button() with UpdateInterface{
       button =>
 
       text = label
       reactions += {
-        case c@ButtonClicked(`button`) =>
-          println(builder.action)
-          builder.action()
+        case c@ButtonClicked(`button`) => builder.action()
       }
       listenTo(button)
       effects.foreach(_(this))
@@ -344,7 +332,7 @@ trait FormCreation {
   {
     type Form = ToggleButton with UpdateInterface
 
-    protected[FormCreation] def build(): FormBuildMeta =  new ToggleButton with UpdateInterface{
+    lazy val formMeta: FormBuildMeta =  new ToggleButton with UpdateInterface{
       def updateForm(): Unit = {
         text = label
       }
@@ -361,7 +349,7 @@ trait FormCreation {
               max: Dimension = null,
               preferred: Dimension = null): B =
     {
-      def helper(dim: Dimension, f: (builder.Form, Dimension) => Unit): Option[builder.Form => Unit] = Option(dim) map (d => f(_, d))
+      def helper(dim: Dimension, f: (builder.Comp, Dimension) => Unit): Option[builder.Comp => Unit] = Option(dim) map (d => f(_, d))
 
       val h =
         helper(min, _.minimumSize = _) ::
@@ -373,12 +361,24 @@ trait FormCreation {
     def fillHorizontally: B = builder.layout(_.fill = Fill.Horizontal).asInstanceOf[B]
     def fillBoth: B = builder.layout(_.fill = Fill.Both).asInstanceOf[B]
 
-    def maxXWeight: B = builder.layout(_.weightx = 1).asInstanceOf[B]
-    def minXWeight: B = builder.layout(_.weightx = 0).asInstanceOf[B]
-    def maxYWeight: B = builder.layout(_.weighty = 1).asInstanceOf[B]
-    def minYWeight: B = builder.layout(_.weighty = 0).asInstanceOf[B]
+    def height(i: Int) = builder.layout(_.gridheight = i).asInstanceOf[B]
+    def width(i: Int) = builder.layout(_.gridwidth = i).asInstanceOf[B]
+
+    def xWeight(w: Double): B = builder.layout(_.weightx = w).asInstanceOf[B]
+    def yWeight(w: Double): B = builder.layout(_.weighty = w).asInstanceOf[B]
+    def maxXWeight: B = xWeight(1)
+    def minXWeight: B = xWeight(0)
+    def maxYWeight: B = yWeight(1)
+    def minYWeight: B = yWeight(0)
+
+    def insets(default: Int = 0)(top: Int = default, left: Int = default, bottom: Int = default, right: Int = default): B =
+      builder.layout(_.insets = new Insets(top, left, bottom, right)).asInstanceOf[B]
+
+    def anchor(f: Anchor.type => Anchor.Value): B = builder.layout(_.anchor = f(Anchor)).asInstanceOf[B]
   }
 
   implicit class ListDSLFormBuilderOps[K, V](builder: DSLKeyedListBuilder[K, V]) extends DSLFormBuilderOps[DSLKeyedListBuilder[K, V]](builder)
   implicit class ButtonDSLFormBuilderOps(builder: DSLButtonBuilder) extends DSLFormBuilderOps[DSLButtonBuilder](builder)
+  implicit class LabelDSLFormBuilderOps[T](builder: DSLLabelBuilder[T]) extends DSLFormBuilderOps[DSLLabelBuilder[T]](builder)
+  implicit class SliderDSLFormBuilderOps[N: Numeric](builder: DSLSliderBuilder[N]) extends DSLFormBuilderOps[DSLSliderBuilder[N]](builder)
 }

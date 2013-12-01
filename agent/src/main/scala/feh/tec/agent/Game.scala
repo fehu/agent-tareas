@@ -26,6 +26,7 @@ trait GameEnvironment[Game <: AbstractGame, Env <: GameEnvironment[Game, Env]] e
   implicit def utilityIsNumeric = game.utilityIsNumeric.asInstanceOf[Numeric[Game#Utility]]
 
   def updateScores(scoresUpdate: Score)
+  def setScore(score: Score)
 
   // those are not used
   def states: PartialFunction[Null, Null] = PartialFunction.empty
@@ -89,6 +90,10 @@ trait MutableGameEnvironmentImpl[Game <: AbstractGame, Env <: MutableGameEnviron
     globalState = globalState.update(scoresUpdate)
   }
 
+  def setScore(score: Score){
+    globalState = score
+  }
+
   def initStates: PartialFunction[Null, Null] = null
   override def states = super[GameEnvironment].states
 }
@@ -121,6 +126,7 @@ trait GameCoordinator[Game <: AbstractGame, Env <: GameEnvironment[Game, Env]]
   def registerChoice(choice: StrategicChoice[Game#Player])
 //  protected def allChoicesRegistered(): SideEffect[Env]
   def awaitEndOfTurn()
+  def reset()
 
   // no snapshots
   def snapshot: EnvironmentSnapshot[Null, Null, GameScore[Game], GameAction, Env] = ???
@@ -175,6 +181,8 @@ trait GameCoordinatorWithActor[Game <: AbstractGame, Env <: GameEnvironment[Game
   lazy val actorRef: ActorRef = actorSystem.actorOf(actorProps)
 
   def lastScore: Option[GameScore[Game]]
+
+  def reset(): Unit = actorRef ! Reset
 }
 
 object GameCoordinatorActor{
@@ -183,6 +191,7 @@ object GameCoordinatorActor{
   case class RegisterChoice[Game <: AbstractGame](choice: StrategicChoice[Game#Player]) extends UUIDed
   case class AwaitEndOfTurn() extends UUIDed
   case class TurnEnded(uuid: UUID) extends HasUUID
+  case object Reset
 }
 
 class GameCoordinatorActor[Game <: AbstractGame, Env <: GameEnvironment[Game, Env]](coordinator: GameCoordinatorWithActor[Game, Env]) extends Actor{
@@ -244,6 +253,15 @@ class GameCoordinatorActor[Game <: AbstractGame, Env <: GameEnvironment[Game, En
         nextTurn()
       }
     case msg@AwaitEndOfTurn() => awaiting(sender, msg.uuid)
+    case Reset =>
+      turn = Turn.first
+      currentTurnChoicesMap.clear()
+      awaitingEndOfTurn.clear()
+      history.clear()
+      lastHistory = null
+      coordinator.env.setScore(GameScore.zero(coordinator.env.game))
+      notifyAwaiting()
+      notifyEndOfTurnListeners()
   }
 }
 
