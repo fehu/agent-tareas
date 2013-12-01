@@ -6,6 +6,7 @@ import java.util.Calendar
 import scala.reflect.runtime.universe._
 
 package object util {
+  type I[T] = T => T
   /**
    *  The fixed point combinator
    */
@@ -84,5 +85,10 @@ package object util {
         case (k, v) => k -> (v, m2(k))
       }.toMap
     }
+  }
+
+  implicit class ConditionalChainingWrapper[T](t: T){
+    def `if`[R](cond: T => Boolean)(then: T => R)(`else`: T => R): R = if(cond(t)) then(t) else `else`(t)
+    def `case`(cond: T => Boolean)(f: T => T): T = if(cond(t)) f(t) else t
   }
 }

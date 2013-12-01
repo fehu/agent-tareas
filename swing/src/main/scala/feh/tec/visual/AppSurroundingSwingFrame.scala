@@ -9,6 +9,7 @@ import javax.swing.{JPanel, JComponent}
 import scala.collection.mutable
 import java.util.UUID
 import feh.tec.util._
+import feh.tec.visual.FormCreation.Constraints
 
 
 trait SwingAppFrame extends Frame with AppBasicControlApi with SwingFrameAppCreation{
@@ -36,20 +37,20 @@ trait SwingFrameAppCreation extends FormCreation{
       SplitLayout(orientation, leftOrDown.toList, rightOrUp.toList)
     protected def set(s: UpperLevelLayoutGlobalSetting) = s
     protected def panel = new PanelChooser
-    protected def scrollable[C <% Component](vert: BarPolicy.Value = BarPolicy.AsNeeded,
+    protected def scrollable[M <% BuildMeta](vert: BarPolicy.Value = BarPolicy.AsNeeded,
                                              hor: BarPolicy.Value = BarPolicy.AsNeeded)
-                                            (content: C, id: String) = ScrollPaneMeta(vert, hor, content, id)
-    protected def boxed[C <% Component](content: C, id: String) = BoxedMeta(content, id)
+                                            (content: M, id: String) = ScrollPaneMeta(vert, hor, content, id)
+    protected def boxed[M <% BuildMeta](content: M, id: String) = BoxedMeta(content, id)
 
     // normal settings
-    protected def place[C <% Component](what: C, id: String): DSLPlacing = DSLPlacing(what, id)
+    protected def place[M <% BuildMeta](what: M, id: String): DSLPlacing = DSLPlacing(what, id)
     protected def place[T](builder: DSLFormBuilder[T], id: String): DSLPlacing = DSLPlacing(DSLFormBuilderWrapper(builder).build, id)
-    protected def place(meta: PanelMeta): DSLPlacing = DSLPlacing(meta.panel, meta.id)
-    protected def place(meta: ScrollPaneMeta): DSLPlacing = DSLPlacing(meta.component, meta.id)
-    protected def place(meta: BoxedMeta): DSLPlacing = DSLPlacing(meta.component, meta.id)
+    protected def place(meta: PanelMeta): DSLPlacing = DSLPlacing(meta.meta, meta.id)
+    protected def place(meta: ScrollPaneMeta): DSLPlacing = DSLPlacing(meta.meta, meta.id)
+    protected def place(meta: BoxedMeta): DSLPlacing = DSLPlacing(meta.meta, meta.id)
     protected def make(s: LayoutGlobalSetting) = s
 
-    protected case class DSLPlacing(what: Component, id: String){
+    protected case class DSLPlacing(what: BuildMeta, id: String){
       def to(pos: DSLAbsolutePosition): LayoutElem = LayoutElem(what, id, pos).register
       def to(rel: DSLRelativePositionDirection): DSLRelativelyOf = DSLRelativelyOf(what, id, rel)
       def at(pos: DSLAbsolutePosition): LayoutElem = to(pos)
@@ -59,7 +60,7 @@ trait SwingFrameAppCreation extends FormCreation{
       def on(rel: DSLRelativePositionDirection): DSLRelativelyOf = to(rel)
     }
 
-    protected case class DSLRelativelyOf(what: Component, id: String, dir: DSLRelativePositionDirection){
+    protected case class DSLRelativelyOf(what: BuildMeta, id: String, dir: DSLRelativePositionDirection){
       def of(rel: String): LayoutElem = LayoutElem(what, id, DSLRelativePosition(dir, rel)).register
       def of[C <% Component](c: C) = LayoutElem(what, id, DSLRelativePosition(dir, componentAccess.id(c))).register
     }
@@ -81,7 +82,7 @@ trait SwingFrameAppCreation extends FormCreation{
     }
 
     protected implicit def componentIdPairToUnplacedLayoutElem[C <% Component](p: (C, String)): UnplacedLayoutElem = {
-      val el = LayoutElem.unplaced(p._1, p._2)
+      val el = LayoutElem.unplaced(BuildMeta(p._1), p._2)
       el.register
       el
     }
@@ -99,11 +100,11 @@ trait SwingFrameAppCreation extends FormCreation{
         componentsMap += elem.id -> elem
       }
 
-      def get(id: String) = componentsMap.get(id).map(_.component)
+      def get(id: String) = componentsMap.get(id).map(_.meta.component)
       def getLayoutOf(id: String) = componentsMap.get(id)
       def getId[C <% Component](c: C) = {
         val comp = c: Component
-        componentsMap.find(_._2.component == comp).map(_._1)
+        componentsMap.find(_._2.meta.component == comp).map(_._1)
       }
       def all: Seq[LayoutElem] = componentsMap.values.toSeq
     }
@@ -132,9 +133,9 @@ trait SwingFrameAppCreation extends FormCreation{
 
   // // //// // //// // //// // //// // //  Layout Settings  // // //// // //// // //// // //// // //
 
-  case class LayoutElem(component: Component, id: String, pos: DSLPosition) extends LayoutSetting
+  case class LayoutElem(meta: BuildMeta, id: String, pos: DSLPosition) extends LayoutSetting
   object LayoutElem{
-    def unplaced(c: Component, id: String): UnplacedLayoutElem = new LayoutElem(c, id, null) with UnplacedLayoutElem 
+    def unplaced(c: BuildMeta, id: String): UnplacedLayoutElem = new LayoutElem(c, id, null) with UnplacedLayoutElem 
   } 
   
   trait UnplacedLayoutElem extends LayoutElem{
@@ -150,33 +151,36 @@ trait SwingFrameAppCreation extends FormCreation{
 
   case class ScrollPaneMeta(vert: BarPolicy.Value,
                             hor: BarPolicy.Value,
-                            protected val content: Component,
+                            protected val content: BuildMeta,
                             id: String)
     extends LayoutSetting
   {
     def component = {
       val c =
-        if(content.isInstanceOf[UpdateInterface]) new ScrollPane(content) with UpdateInterface{
-          def updateForm(): Unit = content.asInstanceOf[UpdateInterface].updateForm()
+        if(content.component.isInstanceOf[UpdateInterface]) new ScrollPane(content.component) with UpdateInterface{
+          def updateForm(): Unit = content.component.asInstanceOf[UpdateInterface].updateForm()
         }
-        else new ScrollPane(content)
+        else new ScrollPane(content.component)
       c.horizontalScrollBarPolicy = hor
       c.verticalScrollBarPolicy = vert
       c
     }
 
+    def meta = BuildMeta(component, content.layout: _*)
   }
 
-  case class BoxedMeta(protected val content: Component,
+  case class BoxedMeta(protected val content: BuildMeta,
                        id: String)
     extends LayoutSetting
   {
     def component =
-      if(content.isInstanceOf[UpdateInterface]) new BoxPanel(Orientation.NoOrientation) with UpdateInterface{
-        contents += content
-        def updateForm(): Unit = content.asInstanceOf[UpdateInterface].updateForm()
+      if(content.component.isInstanceOf[UpdateInterface]) new BoxPanel(Orientation.NoOrientation) with UpdateInterface{
+        contents += content.component
+        def updateForm(): Unit = content.component.asInstanceOf[UpdateInterface].updateForm()
       }
-      else new BoxPanel(Orientation.NoOrientation){ contents += content }
+      else new BoxPanel(Orientation.NoOrientation){}
+
+    def meta = BuildMeta(component, content.layout: _*)
   }
 
   trait PanelMeta extends LayoutSetting{
@@ -184,39 +188,45 @@ trait SwingFrameAppCreation extends FormCreation{
     def panelName: String
     def elems: List[LayoutSetting]
     def panel: Panel
+    def meta = BuildMeta(panel, layout: _*)
 
     def id: String = s"$panelName: ${UUID.randomUUID().toString}"
 
     def affect(effects: (Panel => Unit)*): PanelMeta
+    def layout(effects: (Constraints => Unit)*): PanelMeta
+    protected def layout: List[Constraints => Unit]
   }
 
   case class FlowPanelMeta(alignment: FlowPanel.Alignment.Value,
                            elems: List[LayoutElem],
                            panelName: String = "FlowPanel",
-                           protected val effects: List[FlowPanelMeta#Panel => Unit] = Nil) extends PanelMeta
+                           protected val effects: List[FlowPanelMeta#Panel => Unit] = Nil,
+                           protected val layout: List[Constraints => Unit] = Nil) extends PanelMeta
   {
 
     type Panel = FlowPanel
     def panel = {
-      val p = new FlowPanel(alignment)(elems.map(_.component): _*)
+      val p = new FlowPanel(alignment)(elems.map(_.meta.component): _*)
       effects.foreach(_(p))
       p
     }
     def affect(effects: (FlowPanelMeta#Panel => Unit) *): PanelMeta = copy(effects = this.effects ++ effects)
+    def layout(effects: (Constraints => Unit) *) = copy(layout = layout ++ effects)
   }
   case class BoxPanelMeta(alignment: Orientation.Value,
                           elems: List[LayoutElem],
                           indent: Option[Int] = Some(10),
                           panelName: String = "BoxPanel",
-                          protected val effects: List[BoxPanelMeta#Panel => Unit] = Nil) extends PanelMeta
+                          protected val effects: List[BoxPanelMeta#Panel => Unit] = Nil,
+                          protected val layout: List[Constraints => Unit] = Nil) extends PanelMeta
   {
     type Panel = BoxPanel
 
     def indent(i: Option[Int]): BoxPanelMeta = copy(indent = i)
 
     def elem(el: LayoutElem*) = copy(elems = elems ++ el)
-    def glue = copy(elems = elems :+ LayoutElem.unplaced(createGlue, null))
-    def strut(i: Int) = copy(elems = elems :+ LayoutElem.unplaced(createStrut(i), null))
+    def glue = copy(elems = elems :+ LayoutElem.unplaced(BuildMeta(createGlue), null))
+    def strut(i: Int) = copy(elems = elems :+ LayoutElem.unplaced(BuildMeta(createStrut(i)), null))
 
     def panel = {
       val p = new BoxPanel(alignment)
@@ -226,7 +236,7 @@ trait SwingFrameAppCreation extends FormCreation{
           case x :: Nil => List(x)
           case x :: y :: tail => x :: createGlue :: y :: rec(tail)
         }
-      )(elems.map(_.component))
+      )(elems.map(_.meta.component))
 
       p.contents ++= indent.map{
         i => createStrut(i) :: contents ::: List(createStrut(i))
@@ -236,11 +246,13 @@ trait SwingFrameAppCreation extends FormCreation{
       p
     }
     def affect(effects: (BoxPanelMeta#Panel => Unit) *): PanelMeta = copy(effects = this.effects ++ effects)
+    def layout(effects: (Constraints => Unit) *) = copy(layout = layout ++ effects)
 
     protected def createGlue = alignment match {
       case Orientation.Horizontal => Swing.HGlue
       case Orientation.Vertical => Swing.VGlue
     }
+
     protected def createStrut(i: Int) = alignment match{
       case Orientation.Horizontal => Swing.HStrut(i)
       case Orientation.Vertical => Swing.VStrut(i)
@@ -275,6 +287,10 @@ trait SwingFrameAppCreation extends FormCreation{
     def all: Seq[LayoutElem]
 
     def collect[R](f: PartialFunction[LayoutElem, R]): Seq[R] = all.collect(f)
+
+    def updatable = collect{
+      case LayoutElem(BuildMeta(c, _), _, _) if c.isInstanceOf[UpdateInterface] => c.asInstanceOf[UpdateInterface]
+    }
   }
 
   trait ComponentAccessBuilder{
@@ -359,9 +375,7 @@ trait SwingFrameAppCreation extends FormCreation{
     }
 */
 
-    protected lazy val updatingComponents = componentAccess.collect{
-      case LayoutElem(c, _, _) if c.isInstanceOf[UpdateInterface] => c.asInstanceOf[UpdateInterface]
-    }
+    protected lazy val updatingComponents = componentAccess.updatable
 
     def updateForms(): Unit = updatingComponents.foreach(_.updateForm())
   }
@@ -406,25 +420,38 @@ trait SwingFrameAppCreation extends FormCreation{
 
         def all = northWest :: north :: northEast :: west :: center :: east :: southWest :: south :: southEast :: Nil
 
-        val p = new GridPanel(ny, nx){
+        val p = new GridBagPanel{
           panel =>
 
-          def putContents(c: (Seq[LayoutElem], Orientation.Value)) = {
+          def createContent(c: (Seq[LayoutElem], Orientation.Value)) = {
             val (elems, orientation) = c
-            if(elems.size == 0) {} // do nothing
-            else if(elems.size == 1) panel.contents += elems.head.component
-            else panel.contents += new BoxPanel(orientation){ contents ++= elems.map(_.component) }
+            if(elems.size == 0) None // do nothing
+            else if(elems.size == 1) Some(elems.head.meta)
+            else Some(BuildMeta(new BoxPanel(orientation){ contents ++= elems.map(_.meta.component) }/*, todo: take meta from one of components ?? */))
           }
 
-          if(nx1 == 1 && ny1 == 1) putContents(northWest)
-          if(nx2 == 1 && ny1 == 1) putContents(north)
-          if(nx3 == 1 && ny1 == 1) putContents(northEast)
-          if(nx1 == 1 && ny2 == 1) putContents(west)
-          if(nx2 == 1 && ny2 == 1) putContents(center)
-          if(nx3 == 1 && ny2 == 1) putContents(east)
-          if(nx1 == 1 && ny3 == 1) putContents(southWest)
-          if(nx2 == 1 && ny3 == 1) putContents(south)
-          if(nx3 == 1 && ny3 == 1) putContents(southEast)
+          def applyLayout(constraints: Constraints, buildConstraints: Seq[Constraints => Unit]) = {
+            buildConstraints.foreach(_(constraints))
+            constraints
+          }
+
+          def putContents(c: (Seq[LayoutElem], Orientation.Value))(x: Int, y: Int, buildConstraints: (Constraints => Unit)*) {
+            putContents(c, applyLayout(x -> y, buildConstraints))
+          }
+          def putContents(c: (Seq[LayoutElem], Orientation.Value), constraints: Constraints) {
+            val metaOpt = createContent(c)
+            metaOpt.foreach{ meta => panel.layout += meta.component -> applyLayout(constraints, meta.layout) }
+          }
+
+          if(nx1 == 1 && ny1 == 1) putContents(northWest)   (0, 0)
+          if(nx2 == 1 && ny1 == 1) putContents(north)       (1, 0)
+          if(nx3 == 1 && ny1 == 1) putContents(northEast)   (2, 0)
+          if(nx1 == 1 && ny2 == 1) putContents(west)        (0, 1)
+          if(nx2 == 1 && ny2 == 1) putContents(center)      (1, 1)
+          if(nx3 == 1 && ny2 == 1) putContents(east)        (2, 1)
+          if(nx1 == 1 && ny3 == 1) putContents(southWest)   (0, 2)
+          if(nx2 == 1 && ny3 == 1) putContents(south)       (1, 2)
+          if(nx3 == 1 && ny3 == 1) putContents(southEast)   (2, 2)
 /*          for{
             (elems, flow) <- all
             if elems.nonEmpty
@@ -463,7 +490,7 @@ trait SwingFrameAppCreation extends FormCreation{
       }
 
       val absoluteMap = absolute.map(le => le.id -> le).toMap
-      def center(id: String) = LayoutElem(absoluteMap(id).component, id, Center)
+      def center(id: String) = LayoutElem(absoluteMap(id).meta, id, Center)
 
       val panelsMap = groupedRelative.map{
         case (centerId, elems) => centerId -> panel(center(centerId) :: elems.map(e => e.copy(pos = relativeToAbsolute(e.pos))), None) // todo
@@ -475,7 +502,7 @@ trait SwingFrameAppCreation extends FormCreation{
         }.toSeq ++ unReferenced
 
       val finalPanel =
-        if(finalElems.length == 1) finalElems.head.component
+        if(finalElems.length == 1) finalElems.head.meta.component
         else panel(finalElems.toList, scrollable)
 
       frame.contents = finalPanel

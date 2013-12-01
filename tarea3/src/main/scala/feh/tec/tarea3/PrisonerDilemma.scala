@@ -2,7 +2,7 @@ package feh.tec.tarea3
 
 import feh.tec.agent._
 import Ordered._
-import feh.tec.util.SideEffect
+import feh.tec.util.{PipeWrapper, I, ConditionalChainingWrapper, SideEffect}
 import feh.tec.agent.StrategicChoice
 import scala.math.Numeric.IntIsIntegral
 import akka.actor.{ActorSystem, Props, ActorRef, Scheduler}
@@ -13,8 +13,10 @@ import feh.tec.visual.api.{AppBasicControlApi, AgentApp}
 import scala.swing.{Orientation, Component, Swing, MainFrame}
 import feh.tec.util.RandomWrappers._
 import feh.tec.agent.AgentDecision.ExplainedActionStub
-import scala.util.Failure
+import scala.util.{Random, Failure}
 import scala.collection.mutable
+import scala.collection.immutable.NumericRange
+import scala.swing.GridBagPanel.Fill
 
 class PrisonerDilemma extends AbstractDeterministicGame{
   type Utility = Int
@@ -86,7 +88,54 @@ class PrisonerPlayer(val executionLoop: PlayerAgent.Exec[PrisonerDilemma, Prison
   def notifyDecision(a: ActionExplanation) { decisionTaken(a) }
   def lastDecision: Option[ActionExplanation] = None
 
-  def decide(perception: Perception): ActionExplanation = ExplainedActionStub(StrategicChoice(player, player.availableStrategies.toSeq.randomChoose))
+  lazy val game: PrisonerDilemma = sense(env)
+
+  lazy val accomplice = (game.players - player.asInstanceOf[game.Player]).head
+
+  protected lazy val accompliceChoicesStats = mutable.HashMap(accomplice.availableStrategies.toSeq.map(_ -> .0): _*)
+
+  def accompliceChoiceProb: Map[game.Player#Strategy, Double] ={
+    val n = accompliceChoicesStats.map(_._2).sum
+    if(n == 0) Map()
+    else accompliceChoicesStats.mapValues(_ / n).toMap
+  }
+
+  def gPlayer = player.asInstanceOf[game.Player]
+
+//  def utilityProbabilities:
+
+  def probableUtility: Map[PrisonerDilemma#Player#Strategy, Double] ={
+    val prob = accompliceChoiceProb.`case`(_.isEmpty)(_ => accomplice.availableStrategies.map(_ -> 1.0).toMap)
+    gPlayer.availableStrategies.asInstanceOf[Set[game.Player#Strategy]].map{
+      myStrategy => myStrategy ->
+        (.0 /: prob){
+          case (acc, (opStrategy, opStrategyProb)) =>
+            val utility = game.layout(Map(gPlayer -> myStrategy, accomplice -> opStrategy))(gPlayer)
+            acc + (utility * opStrategyProb)
+        }
+    }.toMap
+  }
+
+  var irrationalProbability: Double = 0
+
+  def irrationalBehaviour: I[StrategicChoice[PrisonerDilemma#Player]] =
+    if(Random.nextDouble() < irrationalProbability) _ => StrategicChoice(gPlayer, gPlayer.availableStrategies.toSeq.randomChoose)
+    else identity
+
+  def decide(perception: Perception): ActionExplanation = ExplainedActionStub{
+    val expectedUtil = probableUtility
+    println("expectedUtil = " + expectedUtil)
+
+    StrategicChoice(
+      gPlayer,
+      (game.target match{
+        //        case game.Max => probableUtility.maxBy(_._2) todo: use thi in generic case
+        case game.Min if expectedUtil.isEmpty => expectedUtil.minBy(_._2)
+        case game.Min => expectedUtil.minBy(_._2)
+      })._1
+    ) |> irrationalBehaviour
+
+  }
 }
 
 class PrisonersExec(val execControlTimeout: FiniteDuration,
@@ -172,9 +221,13 @@ class PrisonerDilemmaApp(implicit val actorSystem: ActorSystem = ActorSystem.cre
   val scoreLabelA = monitorFor(Messages.scoreMessageA).text
   val scoreLabelB = monitorFor(Messages.scoreMessageB).text
   val historyList = monitorFor(Messages.history.toMap).list
-  val turnButton = triggerFor(execTurn()).button("play a turn").sizes(min = 50 -> 50, max = 1000 -> 100, preferred = 100 -> 50)
+  val turnButton = triggerFor(execTurn()).button("play a turn")
+    .sizes(min = 50 -> 20, max = Int.MaxValue -> 100, preferred = 200 -> 30)
+    .fillHorizontally
+  val irrationalityA = numericControlFor(playerA.irrationalProbability)(playerA.irrationalProbability = _)
+    .slider(NumericRange.inclusive(.0, 1.0, 0.01)(Numeric.DoubleAsIfIntegral)).affect(_.orientation = Orientation.Vertical)
 
-  val scorePanel = panel.box(_.Horizontal)(scoreLabelA -> "score-A", scoreLabelB -> "score-B")
+  val scorePanel = panel.box(_.Horizontal)(scoreLabelA -> "score-A", scoreLabelB -> "score-B").layout(_.fill = Fill.Horizontal)
 //  val scorePanel = panel.box(_.Horizontal)().glue.elem(scoreLabelA.toComponent -> "score-A")
 
 //  val historyPanel = List(
@@ -186,7 +239,8 @@ class PrisonerDilemmaApp(implicit val actorSystem: ActorSystem = ActorSystem.cre
   val layout = List(
     place(boxed(turnButton, "turn")) in theCenter,
     place(scorePanel/*.affect(_.xLayoutAlignment = Component)*/) on Top of "turn",
-    place(scrollable()(historyList, "history")) on theBottom of "turn"
+    place(scrollable()(historyList, "history")) on theBottom of "turn",
+    place(irrationalityA, "rand-A") to theRight of "turn"
   )
 
 }
