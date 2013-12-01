@@ -88,7 +88,17 @@ object Build extends sbt.Build {
   lazy val tarea3 =  Project(
     id = "tarea3",
     base = file("tarea3"),
-    settings = buildSettings
+    settings = buildSettings ++ Seq(
+      initialCommands +=
+        """
+          |import feh.tec.tarea3._
+          |import scala.swing._
+          |import Swing._
+          |import java.awt.Color
+          |import feh.tec.util._
+          |val app = new PrisonerDilemmaApp
+        """.stripMargin
+    )
   ) dependsOn (agent, swingVisualization)
 
   lazy val agent = Project(

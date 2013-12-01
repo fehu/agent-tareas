@@ -10,13 +10,17 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import feh.tec.visual.{SwingFrameAppCreation, SwingAppFrame}
 import feh.tec.visual.api.{AppBasicControlApi, AgentApp}
-import scala.swing.{Orientation, Component, Swing, MainFrame}
+import scala.swing._
 import feh.tec.util.RandomWrappers._
 import feh.tec.agent.AgentDecision.ExplainedActionStub
 import scala.util.{Random, Failure}
 import scala.collection.mutable
 import scala.collection.immutable.NumericRange
-import scala.swing.GridBagPanel.Fill
+import scala.swing.GridBagPanel.{Anchor, Fill}
+import java.awt.{Font, Color}
+import feh.tec.agent.AgentDecision.ExplainedActionStub
+import feh.tec.agent.StrategicChoice
+import scala.xml.Text
 
 class PrisonerDilemma extends AbstractDeterministicGame{
   type Utility = Int
@@ -100,7 +104,7 @@ class PrisonerPlayer(val executionLoop: PlayerAgent.Exec[PrisonerDilemma, Prison
     else accompliceChoicesStats.mapValues(_ / n).toMap
   }
 
-  def gPlayer = player.asInstanceOf[game.Player]
+  def gPlayer = player.asInstanceOf[game.PrisonerPlayer]
 
 //  def utilityProbabilities:
 
@@ -116,10 +120,16 @@ class PrisonerPlayer(val executionLoop: PlayerAgent.Exec[PrisonerDilemma, Prison
     }.toMap
   }
 
-  var irrationalProbability: Double = 0
+  var randomChance = 0.0
+  var preference: Double = .5
+  val preferred1 = gPlayer.Betray
+  val preferred2 = gPlayer.Refuse
 
   def irrationalBehaviour: I[StrategicChoice[PrisonerDilemma#Player]] =
-    if(Random.nextDouble() < irrationalProbability) _ => StrategicChoice(gPlayer, gPlayer.availableStrategies.toSeq.randomChoose)
+    if(Random.nextDouble() < randomChance) {
+      val chosen = if(Random.nextDouble() < preference) preferred1 else preferred2
+      _ => StrategicChoice(gPlayer, chosen)
+    }
     else identity
 
   def decide(perception: Perception): ActionExplanation = ExplainedActionStub{
@@ -170,8 +180,8 @@ class PrisonerDilemmaApp(implicit val actorSystem: ActorSystem = ActorSystem.cre
   }
 
   object Messages{
-    var scoreMessageA = ""
-    var scoreMessageB = ""
+    var scoreMessageA = s"${playerA.player}"
+    var scoreMessageB = s"${playerB.player}"
     val _history = mutable.HashMap.empty[Int, (String, String)]
     def history = _history.toMap
 
@@ -205,8 +215,8 @@ class PrisonerDilemmaApp(implicit val actorSystem: ActorSystem = ActorSystem.cre
 
   def start(): Unit = {
     buildLayout()
-    frame.minimumSize = 50 -> 50
-    frame.preferredSize = 300 -> 200
+//    frame.minimumSize = 50 -> 50
+//    frame.preferredSize = 300 -> 200
     frame.pack()
     frame.open()
     updateForms()
@@ -218,31 +228,105 @@ class PrisonerDilemmaApp(implicit val actorSystem: ActorSystem = ActorSystem.cre
     frame.close()
   }
 
+  class HistoryListEntry extends GridBagPanel{
+    val turn = new Label()
+    val playerA = new Label()
+    val playerB = new Label()
+
+    def set(a: (Int, (String, String))){
+      val (turn, (playerA, playerB)) = a
+      this.turn.text = turn.toString
+      this.playerA.text = playerA
+      this.playerB.text = playerB
+    }
+
+    turn.font = new Font(turn.font.getName, Font.BOLD, turn.font.getSize * 2)
+
+    layout ++= Map(
+      turn -> (1 -> 0 : Constraints).pipe{
+        c =>
+          c.anchor = Anchor.Center
+          c.weightx = 0
+          c
+      },
+      playerA -> (0 -> 0 : Constraints).pipe{
+        c =>
+          c.anchor = Anchor.West
+          c.weightx = 0.5
+          c
+      },
+      playerB -> (2 -> 0 : Constraints).pipe{
+        c =>
+          c.anchor = Anchor.East
+          c.weightx = 0.5
+          c
+      }
+    )
+  }
+
+  val historyListRenderer = new ListView.AbstractRenderer[(Int, (String, String)), HistoryListEntry](new HistoryListEntry) {
+    def configure(list: ListView[_], isSelected: Boolean, focused: Boolean, a: (Int, (String, String)), index: Int){
+      component.set(a)
+    }
+  }
+
   val scoreLabelA = monitorFor(Messages.scoreMessageA).text
   val scoreLabelB = monitorFor(Messages.scoreMessageB).text
-  val historyList = monitorFor(Messages.history.toMap).list
+  val historyList = monitorFor(Messages.history.toMap).list(Ordering.Int.reverse)
+    .fillBoth.renderKeys(historyListRenderer)
   val turnButton = triggerFor(execTurn()).button("play a turn")
     .sizes(min = 50 -> 20, max = Int.MaxValue -> 100, preferred = 200 -> 30)
     .fillHorizontally
-  val irrationalityA = numericControlFor(playerA.irrationalProbability)(playerA.irrationalProbability = _)
-    .slider(NumericRange.inclusive(.0, 1.0, 0.01)(Numeric.DoubleAsIfIntegral)).affect(_.orientation = Orientation.Vertical)
 
-  val scorePanel = panel.box(_.Horizontal)(scoreLabelA -> "score-A", scoreLabelB -> "score-B").layout(_.fill = Fill.Horizontal)
-//  val scorePanel = panel.box(_.Horizontal)().glue.elem(scoreLabelA.toComponent -> "score-A")
+  def sliderControl(get: => Double, set: Double => Unit) =
+    numericControlFor(get)(set)
+      .slider(NumericRange.inclusive(.0, 1.0, 0.01)(Numeric.DoubleAsIfIntegral))
+      .affect(_.orientation = Orientation.Vertical)
 
-//  val historyPanel = List(
-//    Scrollable(),
-//    place(historyList, "history") in theCenter
-//  )
+  def irrationalityControl(get: => Double, set: Double => Unit) = sliderControl(get, set).defaultLabels(0.1)
 
+  val irrationalityA = irrationalityControl(playerA.randomChance, playerA.randomChance = _)
+  val irrationalityB = irrationalityControl(playerB.randomChance, playerB.randomChance = _)
+
+  def preferenceControl(get: => Double, set: Double => Unit) =
+    sliderControl(get, set).labels(
+      (for(i <- 0 to 10) yield i*10 -> label(i*10 + "/" + (100 - i*10))).toMap
+    )
+
+  val preferenceA = preferenceControl(playerA.preference, playerA.preference = _)
+  val preferenceB = preferenceControl(playerB.preference, playerB.preference = _)
+
+  val scorePanel = panel.box(_.Horizontal)(scoreLabelA -> "score-A", scoreLabelB -> "score-B")
+    .layout(_.fill = Fill.Horizontal, _.weightx = 1)
+
+  def referLabel = label(<html>random action<br/>preference<br/><br/><center>Betray/Refuse</center></html>)
+  def randLabel = label(<html>random<br/>action<br/>chance</html>)
+
+  val setupA = panel.gridBag(
+    place(irrationalityA, "rand-A") in theCenter,
+    place(preferenceA, "prefer-A") to theWest,
+    place(randLabel, "-l-rand-A") to theSouth,
+    place(referLabel, "-l-refer-A") to theNorthWest
+  ).layout(_.gridheight = 2)
+
+  val setupB = panel.gridBag(
+    place(irrationalityB, "rand-B") in theCenter,
+    place(preferenceB, "prefer-B") to theEast,
+    place(randLabel, "-l-rand-B") to theSouth,
+    place(referLabel, "-l-refer-B") to theNorthEast
+  ).layout(_.gridheight = 2)
 
   val layout = List(
-    place(boxed(turnButton, "turn")) in theCenter,
+    place(turnButton, "turn") in theCenter,
     place(scorePanel/*.affect(_.xLayoutAlignment = Component)*/) on Top of "turn",
     place(scrollable()(historyList, "history")) on theBottom of "turn",
-    place(irrationalityA, "rand-A") to theRight of "turn"
+    place(setupA, "setup-A") to theLeft of "turn",
+    place(setupB, "setup-B") to theRight of "turn"
+//      place(irrationalityPanel/*, "rand-P"*/) to theRight of "turn"
   )
 
+  frame.minimumSize = 740 -> 520
+  frame.preferredSize = 740 -> 520
 }
 
 object PrisonerDilemmaExecutable extends App{
