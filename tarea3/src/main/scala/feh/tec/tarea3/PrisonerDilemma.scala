@@ -12,11 +12,10 @@ import scala.util.Random
 import scala.collection.mutable
 import scala.collection.immutable.NumericRange
 import scala.swing.GridBagPanel.{Anchor, Fill}
-import java.awt.{Color, Font}
+import java.awt.Font
 import feh.tec.agent.AgentDecision.ExplainedActionStub
 import feh.tec.agent.StrategicChoice
 import scala.swing.event.ValueChanged
-import javax.swing.border.LineBorder
 
 class PrisonerDilemma extends AbstractDeterministicGame{
   type Utility = Int
@@ -356,13 +355,14 @@ class PrisonerDilemmaApp(implicit val actorSystem: ActorSystem = ActorSystem.cre
   title = "Prisoner Dilemma Game"
 
   val gameTitle = <h3><b>{title}</b></h3>
+  def grayI(str: String) = <i><font color="gray">{str}</font></i>
   val description =
     <html>
       in order to make a decision each agent
       <ol>
-        <li>calculates expected utility for each available choice</li>
-        <li>???</li>
-        <li>PROFIT</li>
+        <li>calculates expected utility for each available choice, taking in accont previous opponent's moves</li>
+        <li>selects a {grayI("random")} strategy with probability set in the interface</li>
+        <li>chooses the {grayI("random")} strategy with preference, set in the interface</li>
       </ol>
     </html>
 

@@ -6,7 +6,7 @@ Agents Project
 To build and run the project one would need the <a href="http://www.scala-sbt.org/">sbt</a> building tool
 
 * Execute <code>sbt update</code> in project directory to fetch the library dependencies 
-* To run tests run <code>sbt test</code>
+* # running tests from sbt temporary broken # To run tests run <code>sbt test</code>
 * To run the 'plug-hole' application run <code>sbt run-plug-hole</code>
   * To run with agent execution frequency specified, run <code> sbt "run-plug-hole execution_frequency"</code>
     where <i>execution_frequency</i> is a string, composed of duration and unit, for example:
