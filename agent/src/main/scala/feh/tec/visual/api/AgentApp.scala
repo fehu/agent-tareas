@@ -32,4 +32,5 @@ trait AppBasicControlApi {
   //  def pause()
   //  def resume()
   def stop()
+  def isRunning: Boolean
 }

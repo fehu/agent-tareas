@@ -214,6 +214,8 @@ trait SwingFrameAppCreation extends FormCreation{
   implicit class FlowPanelBuilderOps(builder: FlowPanelBuilder) extends DSLFormBuilderOps[FlowPanelBuilder](builder)
   implicit class BoxPanelBuilderOps(builder: BoxPanelBuilder) extends DSLFormBuilderOps[BoxPanelBuilder](builder)
 
+  implicit def buildBoxPanelMeta: BoxPanelBuilder => BuildMeta = _.meta
+
   trait PanelBuilder extends LayoutSetting with AbstractDSLBuilder{
     type Panel <: scala.swing.Panel
     type Comp = Panel

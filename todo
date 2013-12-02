@@ -1,6 +1,38 @@
 * fix artifacts on text rendering
 * string render markup for easel
 * analyse criteria failures in fail-example-02.png, fail-example-03.png, fail-example-04-*.png
-* ? maybe build Floyd-Warshall distances map only for a piece of map, that participates in criteria in order of performance enhancement
 * repair showLabels
 * see https://github.com/mattdesl/lwjgl-basics for tips on 2d rendering
+* transform ExecutableBuilder to a script
+* windows set control: (*1)
+* cleanup Tarea1App singleton dependencies - pause doesn't work if launched from AppsRunner
+* dynamic game creation
+* implement mini-max
+
+
+(*1) * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * (*1)
+// ! no MainFrame's
+
+trait SwingAppFrame extends Frame with AppBasicControlApi with SwingFrameAppCreation{
+  self: SwingFrameAppCreation#LayoutDSL with SwingFrameAppCreation#LayoutBuilder =>
+
+  FramesControl.register(this)
+
+  override def closeOperation(): Unit = {
+    FramesControl.unregister(this)
+    super.closeOperation()
+  }
+}
+
+object FramesControl{
+  private val _frames = mutable.HashSet[SwingAppFrame]
+  def frames = _frames
+  protected[visual] def register(frame: SwingAppFrame){
+    _frames +=
+  }
+  protected[visual] def unregister(frame: SwingAppFrame){
+
+  }
+  var CloseOperation = () => {}
+
+}

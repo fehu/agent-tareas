@@ -229,12 +229,13 @@ class PrisonerDilemmaApp(implicit val actorSystem: ActorSystem = ActorSystem.cre
     frame.open()
     updateForms()
     println()
-//    app.start()
+//    build.start()
   }
   def stop(): Unit = {
-//    app.stop()
+//    build.stop()
     frame.close()
   }
+  def isRunning = visible
 
   def reset(){
     coordinator.reset()

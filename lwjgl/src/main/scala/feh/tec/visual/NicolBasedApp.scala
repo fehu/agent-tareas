@@ -25,8 +25,15 @@ trait NicolBasedAgentAppBasicControl extends AgentApp with NicolBasedApp with Ap
   def baseScene: Scene
   protected def render(): Unit = render(layout)
 
-  def start(): Unit = game.start
-  def stop(): Unit = game.stop
+  def start(): Unit = {
+    isRunning = true
+    game.start
+  }
+  def stop(): Unit = {
+    isRunning = false
+    game.stop
+  }
+  var isRunning = false
 }
 
 class NicolLikeBasicScene(render: () => Unit, exitScene: Lifted[Scene], terminatedScene: Lifted[Scene], terminated_? : () => Boolean, pauseScene: Scene => Scene)

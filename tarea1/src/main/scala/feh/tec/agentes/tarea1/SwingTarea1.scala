@@ -14,8 +14,8 @@ class SwingTarea1 extends SwingNicolApp with LayoutDSLDefaultImpl with Frame9Pos
 
   def criteriaMessage[CV](msg: CriteriaMessage[CV]) = msg.beforeOpt.map(_ + "\n").getOrElse("") + msg.afterOpt.getOrElse("")
 
-  def app: AgentApp with AppBasicControlApi = {
-    val a = Tarea1App.app
+  def build: AgentApp with AppBasicControlApi = {
+    val a = Tarea1App.build
     a.overrideInitScene(_ => Scene {
         bindDisplay()
     })

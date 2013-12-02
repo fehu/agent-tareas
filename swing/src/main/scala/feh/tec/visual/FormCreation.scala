@@ -9,6 +9,7 @@ import scala.collection.mutable
 import scala.collection.immutable.NumericRange
 import feh.tec.util._
 import scala.swing.GridBagPanel.{Anchor, Fill}
+import feh.tec.visual.SwingFrameAppCreation.BoxPanelBuilder
 
 
 object FormCreation{
@@ -44,7 +45,7 @@ trait FormCreation {
   implicit def intFormToComponent: DSLFormBuilder[Int] => Component = _.component
   implicit def stringFormToComponent: DSLFormBuilder[String] => Component = _.component
   implicit def mapFormToComponent: DSLKeyedListBuilder[_, _] => Component = _.form
-  implicit def unitFormToComponent: DSLFormBuilder[Unit] => Component = _.component
+  implicit def unitFormToComponent: DSLButtonBuilder => Component = _.component
   implicit def doubleSliderToComponent: DSLSliderBuilder[Double] => Slider = _.form
 
   implicit def componentToMeta(c: Component): BuildMeta = BuildMeta(c)

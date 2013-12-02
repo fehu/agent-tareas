@@ -280,16 +280,23 @@ trait Tarea1AppSetup{
     (ag: MyDummyAgent[Exec], perc: MyDummyAgent[Exec]#Perception): Set[Action]
 }
 
+object visual{
+  val tileSideSize = 50
+  val showLabels = false
 
-object Tarea1App {
+  implicit val easel = new NicolLike2DEasel
+  val mapDrawConfig = BasicSquareMapDrawOptions(visual.tileSideSize, showLabels, Color.yellow)
+}
+
+
+object Tarea1App extends Tarea1App
+class Tarea1App extends AppBasicControlApi{
   val CriteriaDebug = false
 
   import Tarea1._
   import Agent._
 
   implicit val actorSystem = ActorSystem()
-
-
 
   val setup: Tarea1AppSetup = new Tarea1AppSetup {
     def findPossibleActions[Exec <: ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, MyDummyAgent[Exec]]]
@@ -358,14 +365,6 @@ object Tarea1App {
     }.toList
   }
 
-  object visual{
-    val tileSideSize = 50
-    val showLabels = false
-
-    implicit val easel = new NicolLike2DEasel
-    val mapDrawConfig = BasicSquareMapDrawOptions(visual.tileSideSize, showLabels, Color.yellow)
-  }
-
 //  Tarea1.Debug() = true
 
 //  val env = environment(Option(Agents.Id.dummy), Maps.failExample1(Agents.Id.dummy))
@@ -422,6 +421,8 @@ object Tarea1App {
     app.start()
     agStop = ag.execution()
   }
+  def stop = terminate()
+  def isRunning = app.isRunning
 }
 
 object Tarea1Application extends App{

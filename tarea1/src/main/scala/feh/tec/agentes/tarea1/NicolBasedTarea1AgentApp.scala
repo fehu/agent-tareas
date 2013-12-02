@@ -25,7 +25,8 @@ trait AgentResolver{
   def byId(id: AgentId): Option[AgentRef]
 }
 
-class NicolBasedTarea1AgentApp(val env: Environment, val agentId: AgentId, xSize: Int = 900, ySize: Int = 600)(implicit agResolver: AgentResolver) extends NicolBasedAgentAppBasicControl{
+class NicolBasedTarea1AgentApp(val env: Environment, val agentId: AgentId, xSize: Int = 900, ySize: Int = 600)
+                              (implicit agResolver: AgentResolver) extends NicolBasedAgentAppBasicControl{
   type EaselTpe = NicolLike2DEasel
   type DrawSettings = BasicDrawEnvironmentSettings
 
@@ -89,7 +90,7 @@ class NicolBasedTarea1AgentApp(val env: Environment, val agentId: AgentId, xSize
 }
 
 object NicolBasedTarea1AgentApp{
-  def mapRenderer(mapDrawConfig: NicolLike2DEasel#MDrawOptions = Tarea1App.visual.mapDrawConfig) =
+  def mapRenderer(mapDrawConfig: NicolLike2DEasel#MDrawOptions = visual.mapDrawConfig) =
     new LwjglSquareMapRenderer[Map, SqTile, NicolLike2DEasel](
       LwjglTileRenderer.create,
       mapDrawConfig
