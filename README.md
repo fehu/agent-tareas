@@ -6,7 +6,7 @@ Agents Project
 To build and run the project one would need the <a href="http://www.scala-sbt.org/">sbt</a> building tool
 
 One-file executable <a href="https://drive.google.com/file/d/0B9XpukXOfywNeDBHUmFzZ3V0aGM/edit?usp=sharing">jar</a>, due to it's almost 20Mb size it already has all dependencies
-In order to run it simply execute <code>java -jar run-agents_...jar</code>
+<br/>In order to run it simply execute <code>java -jar run-agents_...jar</code>
 
 * Execute <code>sbt update</code> in project directory to fetch the library dependencies 
 * To run tests run <code>sbt test</code> <i><b>#</b> running tests from sbt temporary broken <b>#</b></i>
@@ -17,7 +17,7 @@ In order to run it simply execute <code>java -jar run-agents_...jar</code>
     where <i>execution_frequency</i> is a string, composed of duration and unit, for example:
     1 sec, 0.5 sec, 200 millis
   * The application is stopped by 'Escape' and paused/resumed by 'Space' keys
-   <i><b>#</b> pause/resume temporary doesn't work if launched from Apps Runner <i><b>#</b>
+   <br/><i><b>#</b> pause/resume temporary doesn't work if launched from Apps Runner <i><b>#</b>
 * To run prisoner dilemma game, run <code>sbt run-prisoner-dilemma</code>
 
 IDE Integration
