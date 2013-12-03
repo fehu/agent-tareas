@@ -288,7 +288,7 @@ trait AbstractGame{
   lazy val playerNameRegex = """.*\$(\w+)\$(\w+)\$.*""".r
 
   trait Player{
-    trait Strategy
+    type Strategy
     def availableStrategies: Set[Strategy]
 
     override def toString: String = playerNameRegex.findAllIn(getClass.getName).matchData.toSeq.head |> {

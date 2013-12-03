@@ -8,6 +8,7 @@
 * cleanup Tarea1App singleton dependencies - pause doesn't work if launched from AppsRunner
 * dynamic game creation
 * implement mini-max
+* runtime resolver for resources
 
 
 (*1) * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * (*1)

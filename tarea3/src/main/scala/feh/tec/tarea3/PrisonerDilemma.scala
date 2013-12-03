@@ -24,6 +24,8 @@ class PrisonerDilemma extends AbstractDeterministicGame{
   def nPlayers = 2
 
   trait PrisonerPlayer extends Player{
+    trait Choice
+    final type Strategy = Choice
     case object Betray extends Strategy
     case object Refuse extends Strategy
 
@@ -80,7 +82,7 @@ class PrisonerDilemmaGameCoordinator(environment: PrisonerDilemmaGameEnvironment
 
 class PrisonerPlayer(val executionLoop: PlayerAgent.Exec[PrisonerDilemma, PrisonerDilemmaGameEnvironment],
                      val env: PrisonerPlayer#EnvRef,
-                     val player: PrisonerDilemma#Player,
+                     val player: PrisonerDilemma#PrisonerPlayer,
                      decisionTaken: PrisonerPlayer#ActionExplanation => Unit = _ => {})
   extends DummyPlayer[PrisonerDilemma, PrisonerDilemmaGameEnvironment]
 {
@@ -122,8 +124,8 @@ class PrisonerPlayer(val executionLoop: PlayerAgent.Exec[PrisonerDilemma, Prison
 
   var randomChance = defaultRandomChoice
   var preference: Double = defaultPreference
-  val preferred1 = gPlayer.Betray
-  val preferred2 = gPlayer.Refuse
+  val preferred1 = player.Betray.asInstanceOf[player.Strategy]
+  val preferred2 = player.Refuse.asInstanceOf[player.Strategy]
 
   def irrationalBehaviour: I[StrategicChoice[PrisonerDilemma#Player]] =
     if(Random.nextDouble() < randomChance) {
@@ -218,7 +220,7 @@ class PrisonerDilemmaApp(implicit val actorSystem: ActorSystem = ActorSystem.cre
 
   def execTurn() = gameExec.execution.nextTurn()
 
-  def player(sel: (game.Prisoner.type => game.Player)*) = sel.map(s => new PrisonerPlayer(gameExec, coordinator.ref, s(game.Prisoner)))
+  def player(sel: (game.Prisoner.type => game.PrisonerPlayer)*) = sel.map(s => new PrisonerPlayer(gameExec, coordinator.ref, s(game.Prisoner)))
 
   val players = player(_.A, _.B)
   val Seq(playerA, playerB) = players

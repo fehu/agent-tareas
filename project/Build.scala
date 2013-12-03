@@ -29,7 +29,11 @@ object Build extends sbt.Build {
   )
 
   lazy val lwjglSettings = buildSettings ++ LWJGLPlugin.lwjglSettings /*Nicol.nicolSettings*/ ++ Seq(
-    LWJGLPlugin.lwjgl.version := "2.9.0"
+    LWJGLPlugin.lwjgl.version := "2.9.0",
+    LWJGLPlugin.lwjgl.os <<= LWJGLPlugin.lwjgl.os {
+      case ("macosx", "lib") => "osx" -> "jnilib"
+      case other => other
+    }
   )
 
   lazy val testsSettings = buildSettings ++ Seq(
