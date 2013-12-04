@@ -165,19 +165,112 @@ class PrisonersExec(val execControlTimeout: FiniteDuration,
                    (implicit val executionContext: ExecutionContext) extends ByTurnExec[PrisonerDilemma, PrisonerDilemmaGameEnvironment]
 
 class PrisonerDilemmaApp(implicit val actorSystem: ActorSystem = ActorSystem.create())
-  extends /*Main*/Frame with SwingAppFrame with SwingFrameAppCreation.Frame9PositionsLayoutBuilder
+  extends PrisonerDilemmaSwingFrame
 {
   frame =>
 
+//  implicit def executionContext = actorSystem.dispatcher
+
+//  val game = new PrisonerDilemma
+//  val env = new PrisonerDilemmaGameEnvironment(game)
+//  val coordinator = new PrisonerDilemmaGameCoordinator(env, actorSystem,
+//    awaitEndOfTurnTimeout = 100 millis,
+//    defaultFutureTimeout = 100,
+//    defaultBlockingTimeout = 100
+//    )
+//
+//  coordinator.listenToEndOfTurn{
+//    (turn, choices, utility) =>
+//      println("turn = " + turn)
+//      println("choices = " + choices)
+//      println("utility = " + utility)
+//      Messages.addHistory(turn, choices.asInstanceOf[game.PlayersChoices], utility.asInstanceOf[game.PlayersUtility])
+//      updateMsgs()
+//      println("Messages.scoreMessageA = " +  Messages.scoreMessageA)
+//      println("Messages.scoreMessageB = " +  Messages.scoreMessageB)
+//      updateForms()
+//  }
+//
+//  object Messages{
+//    var scoreMessageA = "0"
+//    var scoreMessageB = "0"
+//    val _history = mutable.HashMap.empty[Int, (String, String)]
+//    def history = _history.toMap
+//
+//    def addHistory(turn: Turn, choices: game.PlayersChoices, utility: game.PlayersUtility) ={
+//      assert(!_history.contains(turn.id))
+//
+//      def buildHistoryEntry(player: game.Prisoner.type => game.PrisonerPlayer) = {
+//        val pl = player(game.Prisoner)
+//        val (ch, ut) = choices(pl) -> utility(pl)
+//        s"$ch: $ut"
+//      }
+//
+//      _history += turn.id -> (buildHistoryEntry(_.A) -> buildHistoryEntry(_.B))
+//    }
+//  }
+//
+//
+//  def updateMsgs(): Unit = coordinator.ref.blocking.globalState.utility.map{
+//    case (p@game.Prisoner.A, u) => Messages.scoreMessageA =  u.toString
+//    case (p@game.Prisoner.B, u) => Messages.scoreMessageB =  u.toString
+//  }
+//
+//  val gameExec = new PrisonersExec(100 millis, () => {})
+//
+//  def execTurn() = gameExec.execution.nextTurn()
+//
+//  def player(sel: (game.Prisoner.type => game.PrisonerPlayer)*) = sel.map(s => new PrisonerPlayer(gameExec, coordinator.ref, s(game.Prisoner)))
+//
+//  val players = player(_.A, _.B)
+//  val Seq(playerA, playerB) = players
+//
+//  def start(): Unit = {
+//    buildLayout()
+//    frame.pack()
+//    frame.open()
+//    updateForms()
+//    println()
+////    build.start()
+//  }
+//  def stop(): Unit = {
+////    build.stop()
+//    frame.close()
+//  }
+//  def isRunning = visible
+//
+//  def reset(){
+//    coordinator.reset()
+//    playerA.reset()
+//    playerB.reset()
+//    Messages._history.clear()
+//    Messages.scoreMessageA = "0"
+//    Messages.scoreMessageB = "0"
+//    updateForms()
+//  }
+  type Game = Null
+  type Env = Null
+}
+
+trait PrisonerDilemmaSwingFrame extends /*Main*/Frame with SwingAppFrame with SwingFrameAppCreation.Frame9PositionsLayoutBuilder{
+  frame =>
+
+  implicit def actorSystem: ActorSystem
+
   implicit def executionContext = actorSystem.dispatcher
+
+  type Game <: AbstractGame
+  type Env <: GameEnvironment[Game, Env]
 
   val game = new PrisonerDilemma
   val env = new PrisonerDilemmaGameEnvironment(game)
+//  def game: Game
+//  val env: Env
   val coordinator = new PrisonerDilemmaGameCoordinator(env, actorSystem,
     awaitEndOfTurnTimeout = 100 millis,
     defaultFutureTimeout = 100,
     defaultBlockingTimeout = 100
-    )
+  )
 
   coordinator.listenToEndOfTurn{
     (turn, choices, utility) =>
@@ -231,10 +324,10 @@ class PrisonerDilemmaApp(implicit val actorSystem: ActorSystem = ActorSystem.cre
     frame.open()
     updateForms()
     println()
-//    build.start()
+    //    build.start()
   }
   def stop(): Unit = {
-//    build.stop()
+    //    build.stop()
     frame.close()
   }
   def isRunning = visible

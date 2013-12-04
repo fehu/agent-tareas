@@ -52,7 +52,9 @@ object AbstractGenericGame{
   }
 }
 
-object DeterministicGenericGame{
+trait GenericDeterministicGame extends GenericGame with AbstractDeterministicGame
+
+object GenericDeterministicGame{
   case class PayoffEntry2(choice1: String,
                           choice2: String,
                           utility1: Game2#Utility,
@@ -68,7 +70,7 @@ object DeterministicGenericGame{
               bStrategies1: Set[String],
               bStrategies2: Set[String])
              (payoffEntry: PayoffEntry2*)
-    extends AbstractGenericGame.Game2 with AbstractDeterministicGame
+    extends AbstractGenericGame.Game2 with GenericDeterministicGame
   {
     lazy val target = _target(this).asInstanceOf[Target]
 
@@ -80,9 +82,6 @@ object DeterministicGenericGame{
       case ((s1, s2), utils) => (A.GenericStrategy.byName(s1), B.GenericStrategy.byName(s2)) -> utils
     }.toMap
 
-//    def buildLayout:  ((Game2#GenericPlayer#GenericStrategy, Game2#GenericPlayer#GenericStrategy)) => (Game2#Utility, Game2#Utility) =
-//      payoffMap
-
     override lazy val layout: Map[PlayersChoices, PlayersUtility] = Map((
       for{
         a <- strategiesA
@@ -91,15 +90,4 @@ object DeterministicGenericGame{
       } yield ( Map(A -> a, B -> b) -> Map(A -> ua, B -> ub) ).asInstanceOf[(PlayersChoices, PlayersUtility)]
     ).toSeq: _*)
   }
-}
-
-
-object Game2Test extends App{
-  val strategiesNames = Set("Paper", "Scissors", "Stone")
-  val game = new DeterministicGenericGame.Game2(_.Max, "A", "B", strategiesNames, strategiesNames)(
-    ("Paper" -> "Paper") -> (0, 0),
-    ("Scissors" -> "Scissors") -> (0, 0),
-    ("Stone" -> "Stone") -> (0, 0)
-  )
-  println(game)
 }

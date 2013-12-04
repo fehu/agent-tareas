@@ -9,7 +9,7 @@
 * dynamic game creation
 * implement mini-max
 * runtime resolver for resources
-
+* external, implicit ref for environment
 
 (*1) * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * (*1)
 // ! no MainFrame's
