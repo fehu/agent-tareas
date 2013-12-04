@@ -406,6 +406,7 @@ class Tarea1App extends AppBasicControlApi{
   var agStop: Exec#StopFunc = _
 
   def terminate() = {
+    println("agStop = " + agStop)
     Await.ready(agStop(), 1 second)
     actorSystem.stop(ag.actorRef)
     actorSystem.stop(overseer.actorRef)
@@ -419,7 +420,9 @@ class Tarea1App extends AppBasicControlApi{
 
   def start() = {
     app.start()
-    agStop = ag.execution()
+    val ex = ag.execution()
+    println("ag.execution() = " + ex)
+    agStop = ex
   }
   def stop = terminate()
   def isRunning = app.isRunning

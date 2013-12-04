@@ -4,6 +4,7 @@ import scala.collection.{mutable, TraversableLike}
 import scala.concurrent.duration._
 import java.util.Calendar
 import scala.reflect.runtime.universe._
+import scala.util.{Failure, Success}
 
 package object util {
   type I[T] = T => T
@@ -30,6 +31,11 @@ package object util {
   implicit class PipeWrapper[T](t: => T){
     def pipe[R](f: T => R): R = f(t)
     def |>[R](f: T => R): R = f(t)
+  }
+
+  implicit class SeqPipeWrapper[C[_], T](t: => C[T]){
+    def |>>[Q](opt: Option[T => Q], sel: C[T] => ((T => Q) => C[T])): C[T] = opt.map(sel(t)).getOrElse(t)
+
   }
 
   implicit class LiftWrapper[T](t: =>T){
@@ -72,6 +78,8 @@ package object util {
       opt foreach u
       opt
     }
+    def getOrThrow(thr: Throwable): T = opt.getOrElse(throw thr)
+    def getOrThrow(msg: String): T = opt.getOrElse(sys.error(msg))
   }
 
   implicit class TripleBuilder[T1, T2](tuple: (T1, T2)){
@@ -91,5 +99,46 @@ package object util {
     def `if`[R](cond: T => Boolean)(then: T => R)(`else`: T => R): R = if(cond(t)) then(t) else `else`(t)
     def `case`(cond: T => Boolean)(f: T => T): T = if(cond(t)) f(t) else t
     def `case`(cond: Boolean)(f: T => T): T = if(cond) f(t) else t
+  }
+
+  implicit class SideEffectWrapper[T](t: T){
+    def $$ (eff: T => Unit): T = {
+      eff(t)
+      t
+    }
+    def $$ (eff: => Unit): T = {
+      eff
+      t
+    }
+  }
+
+  implicit class LogWrapper[T](any: T){
+    def log(msg: String): T = {
+      println(msg)
+      any
+    }
+    def log(msg: T => String): T = {
+      println(msg(any))
+      any
+    }
+  }
+
+  implicit class TrySeqWrapper[T](seq: Seq[scala.util.Try[T]]){
+    def flat = if(seq.isEmpty) Success(Nil) else ((Success(Seq()): scala.util.Try[Seq[T]]) /: seq){
+      case (f@Failure(_), _) => f
+      case (Success(acc), Success(next)) => Success(acc :+ next)
+      case (_, Failure(fail)) => Failure(fail)
+    }
+  }
+
+  implicit class SeqWrapper[A](tr: Seq[A]){
+    def zippingMap[B](f: A => B) = tr.map(t => t -> f(t))
+  }
+
+  implicit class TupleSeqWrapper[A, B](tr: Seq[(A, B)]){
+    def mapVals[R](f: B => R) = tr.map{case (k, v) => k-> f(v)}
+    def mapKeys[R](f: A => R) = tr.map{case (k, v) => f(k)-> v}
+    def map2[R](f: (A, B) => R) = tr.map(f.tupled)
+    def mapZipIn2[C, R](c: Seq[C])(f: (A, B, C) => R) = tr.zip(c).map{ case ((x, y), z) => f(x, y, z) }
   }
 }

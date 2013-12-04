@@ -1,7 +1,11 @@
+import java.io.File
+import LWJGLPlugin.lwjgl
 import sbt._
 import Keys._
+import sbt.std.Streams
 import sbtassembly.Plugin
 import sbtassembly.Plugin.AssemblyKeys._
+import sbtassembly.Plugin.{PathList, MergeStrategy, MappingSet}
 import sbtunidoc.Plugin._
 import org.sbtidea.SbtIdeaPlugin._
 
@@ -13,6 +17,9 @@ object Build extends sbt.Build {
   val runPlugHole = InputKey[Unit]("run-plug-hole", "[Tarea1] Runs Plug-Hole Agent Application")
   val runPrisonerDilemma = InputKey[Unit]("run-prisoner-dilemma", "[Tarea3] Runs Prisoner Dilemma Game")
 
+  val runResourceMapperWrite = TaskKey[Unit]("run-resource-mapper-write")
+  val execResourceMapperWrite = TaskKey[Unit]("exec-resource-mapper-write")
+  val copyAllLwjglResources = TaskKey[Unit]("copy-all-lwjgl-resources", "copy lwjgl resources for all platforms")
   // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // //
 
   import Resolvers._
@@ -50,8 +57,46 @@ object Build extends sbt.Build {
         IO.createDirectory(dir)
         dir / jar
     },
+    mergeStrategy in assembly <<= (mergeStrategy in assembly){ old =>
+      val unwanted = List(".dll", ".so", ".jnilib", ".dylib")
+
+    {
+      case PathList(file) if unwanted.exists(file.endsWith) => MergeStrategy.discard
+      case x => old(x)
+    }},
+
+    unmanagedResourceDirectories in Compile <+= baseDirectory (_ / "target" / "scala-2.10" / "resource_managed" / "main"),
+    assembly <<= assembly.dependsOn(copyAllLwjglResources, runResourceMapperWrite) ,
+    copyAllLwjglResources <<= (state, lwjgl.nativesDir, streams) map {
+      (state, natives, s) =>
+        s.log.info("copying lwjgl resources for all platforms")
+//      val oldOs = sys.props("os")
+      for{
+        (os, ext) <- List("linux"->"so", "osx"->"jnilib", "windows"->"dll")
+//          arch <- List("64", "32")
+        } yield {
+//          sys.props("os.arch") = arch
+          val extracted = Project.extract(state)
+          val setOs = lwjgl.os := os -> ext
+          Project.runTask(lwjgl.copyNatives, extracted.append(List(setOs), state))
+        }
+//      sys.props("os.name") = oldOs
+    },
+    runResourceMapperWrite <<=  (lwjgl.copyDir, streams, dependencyClasspath in Runtime, runner) map {
+      (dir, s, cp, run) =>
+        val p = dir.absolutePath.split(File.separatorChar)
+        val (baseSeq, glSeq) = p.toSeq.splitAt(p.size - 1)
+        val base = baseSeq.mkString(File.separator)
+        val gl = glSeq.head
+        s.log.debug(s"generating resource mapper: $base -> $gl")
+        Run.run("feh.tec.util.build.JsonResourceMapperExecutable", cp.files, base :: gl :: Nil, s.log)(run)
+    },
     mainClass in assembly <<= (mainClass in Compile)
   )
+
+  def myTask = Def.task {
+    runTask(Compile, "feh.tec.util.build.JsonResourceMapperExecutable?")
+  }
 
   lazy val runTasks = runPlugHoleTask :: runPrisonerDilemmaTask :: Nil
   // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // //
@@ -141,7 +186,9 @@ object Build extends sbt.Build {
   lazy val lwjglVisualization = Project(
     id = "lwjgl",
     base = file("lwjgl"),
-    settings = lwjglSettings
+    settings = lwjglSettings ++ Seq{
+      libraryDependencies += spray.json
+    }
   ) dependsOn agent
 
   lazy val swingVisualization = Project(

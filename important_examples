@@ -1,2 +1,9 @@
 http://www.arcsynthesis.org/gltut
     Example 3.4 - rosick.mckesson.II.tut03.VertCalcOffset03             - vertex offset
+
+* sbt: for{
+               (from, to) <- resourcesBase ** "*" x rebase(resourcesBase, managedBase / "lwjgl")
+             } yield {
+               Sync.copy(from, to)
+               to
+             }

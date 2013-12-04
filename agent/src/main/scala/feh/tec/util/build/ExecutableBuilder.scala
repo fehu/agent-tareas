@@ -2,9 +2,10 @@ package feh.tec.util.build
 
 import feh.tec.util.FileUtils
 import scala.util.Try
+import java.io.File
 
 trait ExecutableBuilder extends FileUtils{
-  def scriptFile(jar: Path): Try[JFile]
+  def scriptFile(jar: Path): Try[File]
 }
 
 object ExecutableBuilderApp extends App {
@@ -18,13 +19,14 @@ object ExecutableBuilderApp extends App {
 }
 
 class BashExecutableBuilder extends ExecutableBuilder{
-  def scriptFile(jar: Path): Try[JFile] = {
-    val filename = jar.reversedPath.head
+  def scriptFile(jar: Path): Try[File] = {
+    val filename = jar.reversed.head
     val scr = dropExt(filename) + ".sh"
     val f = file(jar.back / scr)
     val txt = scriptText(filename)
     Try{
-      f.withOutputStream(_.write(txt.getBytes("UTF-8"))).file
+      f.withOutputStream(_.write(txt.getBytes("UTF-8")))
+      f
     }
   }
 

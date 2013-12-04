@@ -16,14 +16,14 @@ class SwingAppsRunner(val _title: String, val applications: (String, () => AppBa
   def stop(): Unit = close()
   def isRunning = visible
 
-  val appMap = mutable.HashMap.empty[String, AppBasicControlApi]
+  val runningApps = mutable.HashMap.empty[String, AppBasicControlApi]
   
   def buildAppButton(name: String, build: () => AppBasicControlApi) =
     triggerFor{
-      val app = appMap.getOrElseUpdate(name, build())
+      val app = runningApps.getOrElseUpdate(name, build())
       if(app.isRunning){
         app.stop()
-        appMap -= name
+        runningApps -= name
       }
       else app.start()
     }
@@ -45,4 +45,9 @@ class SwingAppsRunner(val _title: String, val applications: (String, () => AppBa
   title = _title
 
   start()
+
+  override def closeOperation(){
+    runningApps.foreach(_._2.stop())
+    sys.exit()
+  }
 }

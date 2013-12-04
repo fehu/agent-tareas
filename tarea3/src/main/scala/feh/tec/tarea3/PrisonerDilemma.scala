@@ -165,7 +165,7 @@ class PrisonersExec(val execControlTimeout: FiniteDuration,
                    (implicit val executionContext: ExecutionContext) extends ByTurnExec[PrisonerDilemma, PrisonerDilemmaGameEnvironment]
 
 class PrisonerDilemmaApp(implicit val actorSystem: ActorSystem = ActorSystem.create())
-  extends MainFrame with SwingAppFrame with SwingFrameAppCreation.Frame9PositionsLayoutBuilder
+  extends /*Main*/Frame with SwingAppFrame with SwingFrameAppCreation.Frame9PositionsLayoutBuilder
 {
   frame =>
 
