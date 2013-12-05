@@ -98,7 +98,7 @@ trait MutableGameEnvironmentImpl[Game <: AbstractGame, Env <: MutableGameEnviron
   override def states = super[GameEnvironment].states
 }
 
-case class Turn(id: Int){
+case class Turn protected (id: Int){
   def next: Turn = copy(id+1)
 }
 
@@ -323,6 +323,11 @@ trait AbstractTurnBasedGame extends AbstractGame{
 
 object PlayerAgent {
   type Exec[Game <: AbstractGame, Env <: GameEnvironment[Game, Env]] = SimultaneousAgentsExecutor[Null, Null, GameScore[Game], GameAction, Env]
+  trait Resettable[Game <: AbstractGame, Env <: GameEnvironment[Game, Env]] extends PlayerAgent[Game, Env]{
+    agent: DecisiveAgent[Null, Null, GameScore[Game], GameAction, Env, PlayerAgent.Exec[Game, Env]] =>
+
+    def reset()
+  }
 }
 
 trait PlayerAgent[Game <: AbstractGame, Env <: GameEnvironment[Game, Env]]

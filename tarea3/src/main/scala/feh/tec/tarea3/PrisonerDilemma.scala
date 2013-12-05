@@ -1,14 +1,14 @@
-package feh.tec.tarea3
+ package feh.tec.tarea3
 
 import feh.tec.agent._
-import feh.tec.util.{PipeWrapper, I, ConditionalChainingWrapper, SideEffect}
+import feh.tec.util._
 import scala.math.Numeric.IntIsIntegral
 import akka.actor.{ActorSystem, Scheduler}
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import feh.tec.visual.{SwingFrameAppCreation, SwingAppFrame}
+import feh.tec.visual.{AbstractGameSwingFrame, SwingFrameAppCreation, SwingAppFrame}
 import scala.swing._
-import scala.util.Random
+import scala.util.{Try, Random}
 import scala.collection.mutable
 import scala.collection.immutable.NumericRange
 import scala.swing.GridBagPanel.{Anchor, Fill}
@@ -16,6 +16,8 @@ import java.awt.Font
 import feh.tec.agent.AgentDecision.ExplainedActionStub
 import feh.tec.agent.StrategicChoice
 import scala.swing.event.ValueChanged
+import feh.tec.agent.AgentDecision.ExplainedActionStub
+import feh.tec.agent.StrategicChoice
 
 class PrisonerDilemma extends AbstractDeterministicGame{
   type Utility = Int
@@ -164,10 +166,10 @@ class PrisonersExec(val execControlTimeout: FiniteDuration,
                     val onSuccess: () => Unit)
                    (implicit val executionContext: ExecutionContext) extends ByTurnExec[PrisonerDilemma, PrisonerDilemmaGameEnvironment]
 
-class PrisonerDilemmaApp(implicit val actorSystem: ActorSystem = ActorSystem.create())
-  extends PrisonerDilemmaSwingFrame
-{
-  frame =>
+//class PrisonerDilemmaApp(implicit val actorSystem: ActorSystem = ActorSystem.create())
+//  extends PrisonerDilemmaSwingFrame
+//{
+//  frame =>
 
 //  implicit def executionContext = actorSystem.dispatcher
 
@@ -248,75 +250,15 @@ class PrisonerDilemmaApp(implicit val actorSystem: ActorSystem = ActorSystem.cre
 //    Messages.scoreMessageB = "0"
 //    updateForms()
 //  }
-  type Game = Null
-  type Env = Null
-}
+//}
 
-trait PrisonerDilemmaSwingFrame extends /*Main*/Frame with SwingAppFrame with SwingFrameAppCreation.Frame9PositionsLayoutBuilder{
+
+trait PrisonerDilemmaSwingFrame extends AbstractGameSwingFrame{
   frame =>
 
-  implicit def actorSystem: ActorSystem
+//  def player(sel: (game.Prisoner.type => game.PrisonerPlayer)*) = sel.map(s => new PrisonerPlayer(gameExec, coordinator.ref, s(game.Prisoner))) todo: part of dsl
 
-  implicit def executionContext = actorSystem.dispatcher
-
-  type Game <: AbstractGame
-  type Env <: GameEnvironment[Game, Env]
-
-  val game = new PrisonerDilemma
-  val env = new PrisonerDilemmaGameEnvironment(game)
-//  def game: Game
-//  val env: Env
-  val coordinator = new PrisonerDilemmaGameCoordinator(env, actorSystem,
-    awaitEndOfTurnTimeout = 100 millis,
-    defaultFutureTimeout = 100,
-    defaultBlockingTimeout = 100
-  )
-
-  coordinator.listenToEndOfTurn{
-    (turn, choices, utility) =>
-      println("turn = " + turn)
-      println("choices = " + choices)
-      println("utility = " + utility)
-      Messages.addHistory(turn, choices.asInstanceOf[game.PlayersChoices], utility.asInstanceOf[game.PlayersUtility])
-      updateMsgs()
-      println("Messages.scoreMessageA = " +  Messages.scoreMessageA)
-      println("Messages.scoreMessageB = " +  Messages.scoreMessageB)
-      updateForms()
-  }
-
-  object Messages{
-    var scoreMessageA = "0"
-    var scoreMessageB = "0"
-    val _history = mutable.HashMap.empty[Int, (String, String)]
-    def history = _history.toMap
-
-    def addHistory(turn: Turn, choices: game.PlayersChoices, utility: game.PlayersUtility) ={
-      assert(!_history.contains(turn.id))
-
-      def buildHistoryEntry(player: game.Prisoner.type => game.PrisonerPlayer) = {
-        val pl = player(game.Prisoner)
-        val (ch, ut) = choices(pl) -> utility(pl)
-        s"$ch: $ut"
-      }
-
-      _history += turn.id -> (buildHistoryEntry(_.A) -> buildHistoryEntry(_.B))
-    }
-  }
-
-
-  def updateMsgs(): Unit = coordinator.ref.blocking.globalState.utility.map{
-    case (p@game.Prisoner.A, u) => Messages.scoreMessageA =  u.toString
-    case (p@game.Prisoner.B, u) => Messages.scoreMessageB =  u.toString
-  }
-
-  val gameExec = new PrisonersExec(100 millis, () => {})
-
-  def execTurn() = gameExec.execution.nextTurn()
-
-  def player(sel: (game.Prisoner.type => game.PrisonerPlayer)*) = sel.map(s => new PrisonerPlayer(gameExec, coordinator.ref, s(game.Prisoner)))
-
-  val players = player(_.A, _.B)
-  val Seq(playerA, playerB) = players
+//  val Seq(playerA, playerB) = players todo: depends on players number
 
   def start(): Unit = {
     buildLayout()
@@ -334,49 +276,14 @@ trait PrisonerDilemmaSwingFrame extends /*Main*/Frame with SwingAppFrame with Sw
 
   def reset(){
     coordinator.reset()
-    playerA.reset()
-    playerB.reset()
+//    playerA.reset()    todo: depends on players number
+//    playerB.reset()
     Messages._history.clear()
     Messages.scoreMessageA = "0"
     Messages.scoreMessageB = "0"
     updateForms()
   }
 
-  class HistoryListEntry extends GridBagPanel{
-    val turn = new Label()
-    val playerA = new Label()
-    val playerB = new Label()
-
-    def set(a: (Int, (String, String))){
-      val (turn, (playerA, playerB)) = a
-      this.turn.text = turn.toString
-      this.playerA.text = playerA
-      this.playerB.text = playerB
-    }
-
-    turn.font = new Font(turn.font.getName, Font.BOLD, turn.font.getSize * 2)
-
-    layout ++= Map(
-      turn -> (1 -> 0 : Constraints).pipe{
-        c =>
-          c.anchor = Anchor.Center
-          c.weightx = 0
-          c
-      },
-      playerA -> (0 -> 0 : Constraints).pipe{
-        c =>
-          c.anchor = Anchor.West
-          c.weightx = 0.5
-          c
-      },
-      playerB -> (2 -> 0 : Constraints).pipe{
-        c =>
-          c.anchor = Anchor.East
-          c.weightx = 0.5
-          c
-      }
-    )
-  }
 
   val historyListRenderer = new ListView.AbstractRenderer[(Int, (String, String)), HistoryListEntry](new HistoryListEntry) {
     def configure(list: ListView[_], isSelected: Boolean, focused: Boolean, a: (Int, (String, String)), index: Int){
@@ -403,7 +310,7 @@ trait PrisonerDilemmaSwingFrame extends /*Main*/Frame with SwingAppFrame with Sw
 
   def irrationalityControl(get: => Double, set: Double => Unit) = sliderControl(get, set).defaultLabels(0.1)
 
-  val irrationalityA = irrationalityControl(playerA.randomChance, playerA.randomChance = _)
+  val irrationalityA = irrationalityControl(playerA.randomChance, playerA.randomChance = _)                             //todo: depends on players number
   val irrationalityB = irrationalityControl(playerB.randomChance, playerB.randomChance = _)
 
   def preferenceControl(get: => Double, set: Double => Unit) =
@@ -427,8 +334,8 @@ trait PrisonerDilemmaSwingFrame extends /*Main*/Frame with SwingAppFrame with Sw
   val scorePanel = panel.box(_.Horizontal)(scoreLabelA -> "score-A", scoreLabelB -> "score-B")
     .layout(_.fill = Fill.Horizontal, _.weightx = 1)
 
-  def referLabel = label(<html><center>random action<br/>preference<br/><br/>Betray/Refuse</center></html>)
-  def randLabel = label(<html>random<br/>action<br/>chance</html>)
+  def referLabel = html(<html><center>random action<br/>preference<br/><br/>Betray/Refuse</center></html>)
+  def randLabel = html(<html>random<br/>action<br/>chance</html>)
 
   val setupA = panel.gridBag(
     place(irrationalityA, "rand-A") in theCenter,
@@ -472,7 +379,7 @@ trait PrisonerDilemmaSwingFrame extends /*Main*/Frame with SwingAppFrame with Sw
     place(appPanel, "app") in theCenter,
     place(label(gameTitle), "title") on Top of "app",
     place(
-      panel.box(_.Horizontal)(resetButton.component -> "reset", label(description).form -> "description").width(3).fillBoth
+      panel.box(_.Horizontal)(resetButton.component -> "reset", html(description).form -> "description").width(3).fillBoth
     ) to SouthWest of "app"
   )
 
@@ -480,7 +387,7 @@ trait PrisonerDilemmaSwingFrame extends /*Main*/Frame with SwingAppFrame with Sw
   frame.preferredSize = 900 -> 600
 }
 
-object PrisonerDilemmaExecutable extends App{
-  val app = new PrisonerDilemmaApp
-  app.start()
-}
+//object PrisonerDilemmaExecutable extends App{
+//  val app = new PrisonerDilemmaApp
+//  app.start()
+//}

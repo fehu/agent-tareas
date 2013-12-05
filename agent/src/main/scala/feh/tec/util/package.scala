@@ -95,6 +95,16 @@ package object util {
     }
   }
 
+  implicit class MutableMapZipperWrapper[A, B](map: mutable.Map[A, B]){
+    def zipByKey[C](m2: mutable.Map[A, C]): Map[A, (B, C)] = zipByKey(m2.toMap)
+    def zipByKey[C](m2: Map[A, C]): Map[A, (B, C)] = {
+      assert(map.keySet == m2.keySet, s"maps have different keys: ${m2.keySet &~ map.keySet }")
+      map.map{
+        case (k, v) => k -> (v, m2(k))
+      }
+    }.toMap
+  }
+
   implicit class ConditionalChainingWrapper[T](t: T){
     def `if`[R](cond: T => Boolean)(then: T => R)(`else`: T => R): R = if(cond(t)) then(t) else `else`(t)
     def `case`(cond: T => Boolean)(f: T => T): T = if(cond(t)) f(t) else t
@@ -131,8 +141,12 @@ package object util {
     }
   }
 
+  implicit class SetWrapper[A](tr: Set[A]){
+    def zipMap[B](f: A => B) = tr.map(t => t -> f(t))
+  }
+
   implicit class SeqWrapper[A](tr: Seq[A]){
-    def zippingMap[B](f: A => B) = tr.map(t => t -> f(t))
+    def zipMap[B](f: A => B) = tr.map(t => t -> f(t))
   }
 
   implicit class TupleSeqWrapper[A, B](tr: Seq[(A, B)]){
@@ -140,5 +154,20 @@ package object util {
     def mapKeys[R](f: A => R) = tr.map{case (k, v) => f(k)-> v}
     def map2[R](f: (A, B) => R) = tr.map(f.tupled)
     def mapZipIn2[C, R](c: Seq[C])(f: (A, B, C) => R) = tr.zip(c).map{ case ((x, y), z) => f(x, y, z) }
+  }
+
+  implicit class MapWrapper[A, B](tr: Map[A, B]){
+    def mapKeys[R](f: A => R) = tr.map{case (k, v) => f(k)-> v}
+  }
+
+
+
+  implicit class MutableMapWrapper[K, V](map: mutable.Map[K, V]){
+//    def <<=(key: K)(upd: V => V): Unit  = map(key) = upd(map(key))
+    def <<=(key: K, upd: V => V): Unit  = map(key) = upd(map(key))
+  }
+
+  implicit class CastWrapper(a: Any){
+    def cast[R] = a.asInstanceOf[R]
   }
 }

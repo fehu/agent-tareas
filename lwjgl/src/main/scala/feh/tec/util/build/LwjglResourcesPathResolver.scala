@@ -34,12 +34,12 @@ trait LwjglResourcesPathResolver {
     println("resources: " + resources)
     val tmpDir = File.temporaryDir(desiredTempDir)
     resources.map{
-      case (file, bytes) =>
-        val files = tmpDir.createFile(Path.absolute(file), `override` = true)
-        val f = files.flatMap{
+      case (filename, bytes) =>
+        val file = tmpDir.createFile(Path.absolute(filename), `override` = true)
+        val f = file.flatMap{
           _.withOutputStream(File.write(bytes))
         }
-        println(s"created $file in $tmpDir - $f, $files")
+        println(s"created $filename in $tmpDir - $f, $file")
         f
     }.flat
 
@@ -89,7 +89,7 @@ object JsonResourceMapper extends ResourceMapper with JsonImplicits{
     println("resourcesBasePrefix = " + resourcesBasePrefix)
     val origPaths = map(platform)
     val paths = origPaths.map(resourcesBasePrefix / base / platform /)
-    val (names, fileTries) = paths.zippingMap(Resource(_)(File.read[Array[Byte]]))
+    val (names, fileTries) = paths.zipMap(Resource(_)(File.read[Array[Byte]]))
       .mapZipIn2(origPaths)((k, tr, orig) => orig -> tr.orElse(k.file.withInputStream(File.read[Array[Byte]])))
       .unzip
     val files = fileTries.flat.get

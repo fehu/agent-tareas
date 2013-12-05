@@ -6,6 +6,8 @@ abstract class GenericGame extends AbstractGame{
   type Utility = Int
   implicit def utilityIsNumeric = implicitly[Numeric[Int]]
 
+  def name: String
+
   trait GenericPlayer extends Player{
     def name: String
     case class NonexistentStrategyException(name: String) extends Exception(s"${this.name} player has no strategy named '$name'")
@@ -64,7 +66,8 @@ object GenericDeterministicGame{
   implicit def tuplesToPayoffEntry2Wrapper(p: ((String, String), (Game2#Utility, Game2#Utility))): PayoffEntry2 =
     PayoffEntry2(p._1._1, p._1._2, p._2._1, p._2._2)
 
-  class Game2(_target: Game2 => Game2#Target,
+  class Game2(val name: String,
+              _target: Game2 => Game2#Target,
               protected val nameA: String,
               protected val nameB: String,
               bStrategies1: Set[String],

@@ -5,13 +5,14 @@ import scala.swing.Frame
 import feh.tec.agent.GenericDeterministicGame.Game2
 import feh.tec.agent.DeterministicMutableGenericGameEnvironment.Env2
 import feh.tec.agent.GenericMutableActorGameCoordinator.Coordinator2
+import feh.tec.agent.conf.DefaultAppConfig
 
 trait GenericGameTest{
-  implicit def config = DefaultConfig.create("GenericGameTest")
+  implicit def config = DefaultAppConfig.create("GenericGameTest")
 
   val strategiesNames = Set("Paper", "Scissors", "Stone")
 
-  val game = new Game2(_.Max, "A", "B", strategiesNames, strategiesNames)(
+  val game = new Game2("Paper-Scissors-Stone", _.Max, "A", "B", strategiesNames, strategiesNames)(
     // draw
     ("Paper" -> "Paper") -> (0, 0),
     ("Scissors" -> "Scissors") -> (0, 0),

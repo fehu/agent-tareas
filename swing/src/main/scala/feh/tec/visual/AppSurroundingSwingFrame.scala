@@ -52,11 +52,15 @@ trait SwingFrameAppCreation extends FormCreation{
     protected def place(meta: GridBagMeta, id: String): DSLPlacing = DSLPlacing(meta, id)
     protected def make(s: LayoutGlobalSetting) = s
 
-    protected def label(html: NodeSeq): DSLLabelBuilder[Any] = label((html match{
-      case <html>{_*}</html> => html
-      case _ => <html>{html}</html>
-    }).toString)
-    protected def label(text: String): DSLLabelBuilder[Any] = new DSLLabelBuilder[Any](() => text)
+    private def surroundHtml(in: NodeSeq) = in match{
+      case <html>{_*}</html> => in
+      case _ => <html>{in}</html>
+    }
+
+    protected def html[T](t: => T)(build: T => NodeSeq): DSLLabelBuilder[T] = label(t)
+      .stringExtractor(t => surroundHtml(<html>{build(t)}</html>).toString)
+    protected def html(html: NodeSeq): DSLLabelBuilder[NodeSeq] = label(surroundHtml(html))
+    protected def label[T](text: => T): DSLLabelBuilder[T] = new DSLLabelBuilder[T](() => text)
 
     protected case class DSLPlacing(what: BuildMeta, id: String){
       def at(pos: DSLAbsolutePosition): LayoutElem = LayoutElem(what, id, pos).register

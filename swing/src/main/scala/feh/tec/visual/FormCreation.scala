@@ -137,7 +137,8 @@ trait FormCreation {
   protected case class DSLLabelBuilder[T] protected[visual] (protected[FormCreation] val get: () => T,
                                                              protected[FormCreation] val effects: List[DSLLabelBuilder[T]#Form => Unit] = Nil,
                                                              protected[FormCreation] val layout: List[Constraints => Unit] = Nil,
-                                                             protected[FormCreation] val color: Color = Color.black)
+                                                             protected[FormCreation] val color: Color = Color.black,
+                                                             protected[FormCreation] val extractString: T => String = (t: T) => t.toString)
     extends DSLFormBuilder[T]
   {
     type Form = Label with UpdateInterface
@@ -145,7 +146,7 @@ trait FormCreation {
     def form = new Label() with UpdateInterface{
       foreground = color
       def updateForm(): Unit = {
-        text = get().toString
+        text = extractString(get())
       }
       effects.foreach(_(this))
     }
@@ -156,7 +157,8 @@ trait FormCreation {
     def layout(effects: (Constraints => Unit)*) = copy(layout = layout ++ effects)
 
     def color(c: Color): DSLLabelBuilder[T]  = copy(color = c)
-    def withColor(c: Color): DSLLabelBuilder[T]  = color(c)
+    def withColor(c: Color): DSLLabelBuilder[T] = color(c)
+    def stringExtractor(f: T => String): DSLLabelBuilder[T] = copy(extractString = f)
   }
 
   protected class DSLTextFormBuilder[T](get: => T) extends DSLFormBuilder[T]{

@@ -10,6 +10,7 @@
 * implement mini-max
 * runtime resolver for resources
 * external, implicit ref for environment
+* rename DSLButtonBuilder => ButtonBuilder etc
 
 (*1) * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * (*1)
 // ! no MainFrame's
