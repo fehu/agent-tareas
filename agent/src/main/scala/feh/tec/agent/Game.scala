@@ -187,7 +187,7 @@ trait GameCoordinatorWithActor[Game <: AbstractGame, Env <: GameEnvironment[Game
 
   def lastScore: Option[GameScore[Game]]
 
-  def reset(): Unit = actorRef ! Reset
+  def reset(): Unit = Await.ready((actorRef ? Reset)(defaultFutureTimeout), defaultFutureTimeout millis)
 }
 
 object GameCoordinatorActor{
@@ -260,14 +260,15 @@ class GameCoordinatorActor[Game <: AbstractGame, Env <: GameEnvironment[Game, En
       }
     case msg@AwaitEndOfTurn() => awaiting(sender, msg.uuid)
     case Reset =>
+      notifyAwaiting()
       turn = Turn.first
       currentTurnChoicesMap.clear()
       awaitingEndOfTurn.clear()
       history.clear()
       lastHistory = null
       coordinator.env.setScore(GameScore.zero(coordinator.env.game))
-      notifyAwaiting()
       notifyEndOfTurnListeners()
+      sender ! Reset
   }
 }
 

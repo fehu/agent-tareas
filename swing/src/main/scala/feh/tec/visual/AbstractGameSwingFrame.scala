@@ -1,13 +1,12 @@
 package feh.tec.visual
 
-import scala.swing.{ListView, Component, Frame}
+import scala.swing.Frame
 import feh.tec.agent._
 import akka.actor.ActorSystem
 import scala.concurrent.ExecutionContext
 import feh.tec.util._
-import scala.util.Try
+import scala.util.{Success, Failure, Try}
 import scala.collection.mutable
-import scala.swing.event.ButtonClicked
 import scala.xml.NodeSeq
 
 abstract class AbstractGameSwingFrame extends /*Main*/Frame with SwingAppFrame with SwingFrameAppCreation.Frame9PositionsLayoutBuilder{
@@ -49,11 +48,13 @@ object AbstractGameSwingFrame{
     def start(): Unit = Try{
       running = true
       startSeq.foreach(_())
-    }.recover{
-      case ex =>
+    } match {
+      case Success(_) =>
+      case Failure(ex) =>
         stop()
         throw ex
     }
+
     def stop(){
       running = false
       stopSeq.foreach(_())
@@ -70,7 +71,7 @@ object AbstractGameSwingFrame{
     def resetSeq: List[Lifted[Unit]] = Nil
   }
 
-  trait History extends AbstractGameSwingFrame{
+  trait History extends AbstractGameSwingFrame with Execution {
     def messages: Messages
 
     case class HistoryEntry(player: Game#Player, choice: Game#Player#Strategy, score: Game#Utility, scoreAcc: Game#Utility)
@@ -83,6 +84,8 @@ object AbstractGameSwingFrame{
         messages.appendHistory(turn, choices, score)
         updateForms()
     }
+
+    override def startSeq = listenTurnUpdates.lift :: super.startSeq
 
     trait Messages{
       def score: mutable.Map[Game#Player, Game#Utility]

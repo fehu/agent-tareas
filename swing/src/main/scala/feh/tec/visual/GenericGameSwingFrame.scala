@@ -40,21 +40,21 @@ object GenericGameSwingFrame{
 
     import Description._
 
-    lazy val titleElem: Elem[LabelBuilder[String]] = label(game.name)
-    lazy val turnButton: Elem[ButtonBuilder] = triggerFor(execTurn()).button("")
+    def titleElem: Elem[LabelBuilder[String]] = label(game.name)
+    def turnButton: Elem[ButtonBuilder] = triggerFor(execTurn()).button("Play Turn")
 
-    lazy val history: Elem[KeyedListBuilder[Int, List[HistoryEntry]]] =
+    def history: Elem[KeyedListBuilder[Int, List[HistoryEntry]]] =
       monitorFor(messages.history.toMap).list(Ordering.Int.reverse).renderKeys(historyRenderer)
 
-    lazy val playerLabels: Map[Game#Player, Elem[LabelBuilder[Game#Player]]] =
+    def playerLabels: Map[Game#Player, Elem[LabelBuilder[Game#Player]]] =
       game.players.map(_.asInstanceOf[Game#Player]).zipMap{
         q =>
           Elem(html(q)(p => <center><b>{p.toString}</b><br/>{messages.score(p).toString}</center>))
       }.toMap //: Map[Game#Player, Elem[LabelBuilder[Game#Player]]]
 
 
-    lazy val resetButton = Elem(triggerFor(reset()).button("Reset"))
-    lazy val description = Elem(html(messages.description))
+    def resetButton = Elem(triggerFor(reset()).button("Reset"))
+    def description = Elem(html(messages.description))
 
     lazy val messages: Messages = new Messages{
       val score = mutable.HashMap[Game#Player, Game#Utility](initScore: _*)
@@ -84,9 +84,9 @@ object GenericGameSwingFrame{
     override def stopSeq = super.stopSeq ::: List(frame.close().lift)
 
     override def resetSeq = super.resetSeq ::: List(
-      coordinator.reset().lift,
       agents.foreach(_.reset()).lift,
       messages.reset().lift,
+      coordinator.reset().lift,
       updateForms().lift)
   }
 
@@ -139,7 +139,7 @@ object GenericGameSwingFrame{
         val name = ag.player.name
         Elem(panel.gridBag(
         place(numericControlFor[Double](ag.randomChance)(ag.randomChance = _)
-            .slider(new UnitInterval(0.01)).vertical, s"$name-rand-chance") in theCenter,
+            .slider(new UnitInterval(0.01)).vertical.defaultLabels(0.1), s"$name-rand-chance") in theCenter,
         place(html(<html>random<br/>action<br/>chance</html>), noId) in theWest,
         place(playerPreferenceControl(ag)) in theSouth
       ).layout(_.gridheight = 2).insets(20)().maxYWeight
@@ -167,15 +167,29 @@ object GenericGameSwingFrame{
     final type Exec = Ex
 
     protected lazy val historyRenderer = new EntryRenderer2(game)
-    
+
+
+    override val titleElem = super.titleElem
+    override val turnButton = super.turnButton.reconfigure(
+      _.sizes(min = 50 -> 20, max = Int.MaxValue -> 100, preferred = 200 -> 30),
+      _.fillHorizontally
+    )
+    override def history = super.history.reconfigure( _.fillBoth.maxXWeight.maxYWeight )
+    override val playerLabels = super.playerLabels
+    override val resetButton = super.resetButton.reconfigure(
+      _.sizes(min = 50 -> 20),
+      _.anchor(_.West)
+    )
+    override val description = super.description
+
     lazy val mainPanel = List(
   		place(turnButton, "turn") in theCenter,
 //  		place(titleElem, noId) to theNorth from "turn",
   		place(scrollable()(history, "history")) to theSouth of "turn",
   		place(playerLabels(game.A), "label-A") to theNorthWest of "turn",
   		place(playerLabels(game.B), "label-B") to theNorthEast of "turn",
-  		place(playerControls(game.A), "controls-A") to theWest of "turn",
-  		place(playerControls(game.B), "controls-B") to theEast of "turn"
+  		place(playerControls(game.A).reconfigure(_.fillBoth), "controls-A") to theWest of "turn",
+  		place(playerControls(game.B).reconfigure(_.fillBoth), "controls-B") to theEast of "turn"
     )
 
 //    layout
@@ -183,9 +197,7 @@ object GenericGameSwingFrame{
     lazy val layout = List(
     	place(panel.gridBag(mainPanel: _*), noId) in theCenter,
     	place(titleElem, noId) at theNorth,
-      place(panel.box(_.Horizontal)(resetButton -> "reset", description -> "description")) in theSouthWest
-    //panel.box(_.Horizontal)(resetButton.component -> "reset", html(description).form -> "description").width(3).fillBoth
-//    	place(resetButton, "reset") in SouthWest
+      place(panel.box(_.Horizontal)(resetButton -> "reset", description -> "description").width(3).fillBoth) in theSouthWest
 		)
   }
 
@@ -218,8 +230,6 @@ object GenericGameSwingFrame{
           case e => e.player.asInstanceOf[Game#Player] -> (e.choice + ": " + e.score)
         }.toMap)
       }
-
-      println("")
     }
 
     class Entry2[Game <: Game2](game: Game) extends Entry[Game](game){

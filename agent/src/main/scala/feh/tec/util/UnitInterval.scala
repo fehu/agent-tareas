@@ -33,8 +33,11 @@ trait ValueSumInUnitInterval[K]{
   assertInUnitInterval(self.map(_._2).sum)
 }
 
-class MutableHashMapValueSumInUnitInterval[K] extends mutable.HashMap[K, Double] with ValueSumInUnitInterval[K]{
+class MutableHashMapValueSumInUnitInterval[K](init: (K, Double)*) extends mutable.HashMap[K, Double] with ValueSumInUnitInterval[K]{
   hmap =>
+
+  this ++= init
+
 //  override protected def clearTable(): Unit = super.clearTable().assertingSum()
   override protected def removeEntry(key: K): mutable.DefaultEntry[K, Double] = super.removeEntry(key).assertingSum()
   override protected def findOrAddEntry[B](key: K, value: B): mutable.DefaultEntry[K, Double] = super.findOrAddEntry(key, value).assertingSum()

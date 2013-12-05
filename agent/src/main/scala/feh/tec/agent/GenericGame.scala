@@ -19,7 +19,9 @@ abstract class GenericGame extends AbstractGame{
       def getByName(name: String) = strategies.get(name)
       def byName(name: String) = getByName(name).getOrElse(throw NonexistentStrategyException(name))
     }
-    case class GenericStrategy(name: String)
+    case class GenericStrategy(name: String) {
+      GenericStrategy.register(this)
+    }
     type Strategy = GenericStrategy
   }
 

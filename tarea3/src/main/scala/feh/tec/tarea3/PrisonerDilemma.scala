@@ -245,7 +245,8 @@ class PrisonersExec(val execControlTimeout: FiniteDuration,
 //}
 
 
-/*trait PrisonerDilemmaSwingFrame extends AbstractGameSwingFrame{
+/*
+trait PrisonerDilemmaSwingFrame extends AbstractGameSwingFrame{
   frame =>
 
 //  def player(sel: (game.Prisoner.type => game.PrisonerPlayer)*) = sel.map(s => new PrisonerPlayer(gameExec, coordinator.ref, s(game.Prisoner))) todo: part of dsl
@@ -377,7 +378,8 @@ class PrisonersExec(val execControlTimeout: FiniteDuration,
 
   frame.minimumSize = 740 -> 520
   frame.preferredSize = 900 -> 600
-}*/
+}
+*/
 
 //object PrisonerDilemmaExecutable extends App{
 //  val app = new PrisonerDilemmaApp

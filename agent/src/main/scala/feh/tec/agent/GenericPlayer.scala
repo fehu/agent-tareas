@@ -29,14 +29,14 @@ abstract class GenericPlayer[Game <: GenericGame, Env <: GenericGameEnvironment[
     preference setFrom pref
   }
 
-  var preference = new MutableHashMapValueSumInUnitInterval[Strategy] $$ {
-      map => player.availableStrategies.foreach(map += _ -> 0d)
-    }
+  var preference = new MutableHashMapValueSumInUnitInterval[Strategy](initPreference: _*)
+  protected def initPreference = player.availableStrategies.zipMap(_ => 0d).toSeq
+
   def updatePreference(strategy: Strategy, prob: Double){ preference <<= (strategy, _ + prob) }
 
   def reset(): Unit = {
     randomChance = 0
-    preference.clear()
+    preference ++= initPreference
   }
 }
 
@@ -48,16 +48,15 @@ class GenericExecutor[Game <: GenericGame, Env <: GenericGameEnvironment[Game, E
 object GenericPlayer{
   trait DummyBestStrategyChooser2[Game <: Game2] extends GenericPlayer[Game, Env2[Game]]{
     lazy val game = sense(env)
-    lazy val opponent = game.players.filter(this !=).head.asInstanceOf[Player]
+    lazy val opponent = game.players.filter(player !=).head.asInstanceOf[Player]
 
     def probableUtility: Map[Strategy, Double] ={
       player.availableStrategies.map{
         myStrategy => myStrategy ->
           (.0 /: opponent.availableStrategies){
             case (acc, opStrategy) =>
-              val utility = game.layout.asInstanceOf[Map[Player, Strategy] => Map[Player, Utility]](
-                Map(player -> myStrategy, opponent -> opStrategy)
-              )(player)
+              val k = Map(player -> myStrategy, opponent -> opStrategy)
+              val utility = game.layout.asInstanceOf[Map[Player, Strategy] => Map[Player, Utility]](k)(player)
               acc + utility
           }
       }.toMap
