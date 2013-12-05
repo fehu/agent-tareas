@@ -1,10 +1,7 @@
 package feh.tec.visual
 
 import feh.tec.agent._
-import feh.tec.agent.conf.AppConfig
 import feh.tec.visual.AbstractGameSwingFrame._
-import scala.swing.ListView.AbstractRenderer
-import scala.swing.event.ButtonClicked
 import scala.swing.{Label, GridBagPanel, ListView}
 import java.awt.Font
 import feh.tec.util._
@@ -14,6 +11,9 @@ import scala.xml.NodeSeq
 import scala.collection.mutable
 import feh.tec.agent.conf.AppConfig
 import feh.tec.visual.GenericGameSwingFrame.HistoryList.{EntryRenderer2, EntryRenderer}
+import scala.swing.Slider
+import scala.swing.Reactor
+import scala.swing.event.ValueChanged
 
 abstract class GenericGameSwingFrame extends AbstractGameSwingFrame {
   type Game <: GenericGame
@@ -77,7 +77,8 @@ object GenericGameSwingFrame{
       buildLayout().lift,
       frame.pack().liftUnit,
       frame.open().lift,
-      updateForms().lift
+      updateForms().lift,
+      println("Started").lift
     )
 
     override def stopSeq = super.stopSeq ::: List(frame.close().lift)
@@ -89,17 +90,73 @@ object GenericGameSwingFrame{
       updateForms().lift)
   }
 
+  trait RandomnessPlayerControls extends App{
+    self: Execution =>
+    import Description._
+
+    type Agent <: PlayerAgent[Game, Env] with PlayerAgent.Resettable[Game, Env] with PlayerAgent.RandomBehaviour[Game, Env]
+
+    type PlayerControlsBuilder = GridBagBuilder
+    
+    class ConnectedSliders(val max: Int){
+      protected var listener: Reactor = _
+      protected[GenericGameSwingFrame] def setListener(r: Reactor){
+        listener = r
+        sliders.foreach(listener listenTo _)
+        listener.reactions += {
+          case ValueChanged(el: Slider) if !el.adjusting && sliders.contains(el) =>
+            currentSum += el.value
+            assert(currentSum <= max)
+            updateExtent(max - currentSum)
+        }
+      }
+
+    	private var _sliders: Seq[Slider] = Nil
+      def sliders = _sliders
+      protected[GenericGameSwingFrame] def register(s: Slider) = _sliders :+= s
+      
+      private var currentSum: Int = sliders.map(_.value).sum
+      def updateExtent(m: Int) = sliders.foreach(_.extent = m)
+  	}
+    
+    def step = 0.01
+
+    protected val slidersConnectors = new ConnectedSliders((1/step).toInt)
+
+    protected def playerPreferenceControl(ag: Agent) = {
+      val sliders = ag.player.availableStrategies.toSeq.map{
+	      s => panel.box(_.Vertical)( 
+	        numericControlFor(ag.preference(s))(ag.updatePreference(s, _)).slider(new UnitInterval(step)).vertical
+	      		.affect(slidersConnectors.register).toComponent -> s"${ag.player.name}-$s-preference", 
+      		label(s.toString).component -> noId
+      		)
+	      }
+      panel.box(_.Horizontal)(sliders.withoutIds: _*).affect(slidersConnectors.setListener)
+    }
+    
+    lazy val playerControls: Map[Game#Player, Elem[GridBagBuilder]] = playersRef.mapValues{
+      ag => 
+        val name = ag.player.name
+        Elem(panel.gridBag(
+        place(numericControlFor[Double](ag.randomChance)(ag.randomChance = _)
+            .slider(new UnitInterval(0.01)).vertical, s"$name-rand-chance") in theCenter,
+        place(html(<html>random<br/>action<br/>chance</html>), noId) in theWest,
+        place(playerPreferenceControl(ag)) in theSouth
+      ).layout(_.gridheight = 2).insets(20)().maxYWeight
+      )}.toMap
+  }
+
   case class App2[G <: Game2,
                   E <: GenericMutableGameEnvironment[G, E],
                   C <: GenericMutableActorGameCoordinator[G, E],
-                  A <: PlayerAgent[G, E] with PlayerAgent.Resettable[G, E],
+                  A <: PlayerAgent[G, E] with PlayerAgent.Resettable[G, E] with PlayerAgent.RandomBehaviour[G, E],
                   Ex <: ByTurnExec[G, E]](game: G,
                                           env: E,
                                           coordinator: C,
                                           exec: Ex,
                                           agentsRef: Map[A, G#Player])
                                          (implicit protected val config: AppConfig)
-    extends App with Exec
+    extends App with Exec with RandomnessPlayerControls
   {
     frame =>
 
@@ -109,9 +166,27 @@ object GenericGameSwingFrame{
     final type Agent = A
     final type Exec = Ex
 
-    protected def historyRenderer = new EntryRenderer2(game)
+    protected lazy val historyRenderer = new EntryRenderer2(game)
+    
+    lazy val mainPanel = List(
+  		place(turnButton, "turn") in theCenter,
+//  		place(titleElem, noId) to theNorth from "turn",
+  		place(scrollable()(history, "history")) to theSouth of "turn",
+  		place(playerLabels(game.A), "label-A") to theNorthWest of "turn",
+  		place(playerLabels(game.B), "label-B") to theNorthEast of "turn",
+  		place(playerControls(game.A), "controls-A") to theWest of "turn",
+  		place(playerControls(game.B), "controls-B") to theEast of "turn"
+    )
 
-    val layout = null
+//    layout
+
+    lazy val layout = List(
+    	place(panel.gridBag(mainPanel: _*), noId) in theCenter,
+    	place(titleElem, noId) at theNorth,
+      place(panel.box(_.Horizontal)(resetButton -> "reset", description -> "description")) in theSouthWest
+    //panel.box(_.Horizontal)(resetButton.component -> "reset", html(description).form -> "description").width(3).fillBoth
+//    	place(resetButton, "reset") in SouthWest
+		)
   }
 
   object HistoryList{
@@ -120,7 +195,7 @@ object GenericGameSwingFrame{
       val turn = new Label() $$ {
         c => c.font = new Font(c.font.getName, Font.BOLD, c.font.getSize * 2)
       }
-      val playerInfo = game.players.asInstanceOf[Seq[Game#Player]].zipMap(buildPlayerLabel).toMap
+      val playerInfo = game.players.asInstanceOf[Set[Game#Player]].zipMap(buildPlayerLabel).toMap
 
       protected def buildPlayerLabel(player: Game#Player) = new Label()
 
@@ -139,11 +214,12 @@ object GenericGameSwingFrame{
       extends ListView.AbstractRenderer[(Int, List[History#HistoryEntry]), HistoryList.Entry[Game]](new Entry2[Game](game)) with EntryRenderer[Game]
     {
       def configure(list: ListView[_], isSelected: Boolean, focused: Boolean, a: (Int, List[History#HistoryEntry]), index: Int) = {
-        val textMap = 0
         component.set(a._1, a._2.map{
           case e => e.player.asInstanceOf[Game#Player] -> (e.choice + ": " + e.score)
         }.toMap)
       }
+
+      println("")
     }
 
     class Entry2[Game <: Game2](game: Game) extends Entry[Game](game){

@@ -1,10 +1,11 @@
 package feh.tec.agent
 
 import scala.collection.mutable
+import scala.math.Numeric.IntIsIntegral
 
 abstract class GenericGame extends AbstractGame{
   type Utility = Int
-  implicit def utilityIsNumeric = implicitly[Numeric[Int]]
+  implicit def utilityIsNumeric = IntIsIntegral
 
   def name: String
 

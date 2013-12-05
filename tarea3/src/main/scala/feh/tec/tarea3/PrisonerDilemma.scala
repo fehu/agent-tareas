@@ -6,16 +6,8 @@ import scala.math.Numeric.IntIsIntegral
 import akka.actor.{ActorSystem, Scheduler}
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import feh.tec.visual.{AbstractGameSwingFrame, SwingFrameAppCreation, SwingAppFrame}
-import scala.swing._
-import scala.util.{Try, Random}
+import scala.util.Random
 import scala.collection.mutable
-import scala.collection.immutable.NumericRange
-import scala.swing.GridBagPanel.{Anchor, Fill}
-import java.awt.Font
-import feh.tec.agent.AgentDecision.ExplainedActionStub
-import feh.tec.agent.StrategicChoice
-import scala.swing.event.ValueChanged
 import feh.tec.agent.AgentDecision.ExplainedActionStub
 import feh.tec.agent.StrategicChoice
 
@@ -25,7 +17,7 @@ class PrisonerDilemma extends AbstractDeterministicGame{
 
   def nPlayers = 2
 
-  trait PrisonerPlayer extends Player{
+  abstract class PrisonerPlayer(val name: String) extends Player{
     trait Choice
     final type Strategy = Choice
     case object Betray extends Strategy
@@ -35,8 +27,8 @@ class PrisonerDilemma extends AbstractDeterministicGame{
   }
 
   object Prisoner{
-    object A extends PrisonerPlayer
-    object B extends PrisonerPlayer
+    object A extends PrisonerPlayer("A")
+    object B extends PrisonerPlayer("B")
   }
   import Prisoner._
 
@@ -253,7 +245,7 @@ class PrisonersExec(val execControlTimeout: FiniteDuration,
 //}
 
 
-trait PrisonerDilemmaSwingFrame extends AbstractGameSwingFrame{
+/*trait PrisonerDilemmaSwingFrame extends AbstractGameSwingFrame{
   frame =>
 
 //  def player(sel: (game.Prisoner.type => game.PrisonerPlayer)*) = sel.map(s => new PrisonerPlayer(gameExec, coordinator.ref, s(game.Prisoner))) todo: part of dsl
@@ -385,7 +377,7 @@ trait PrisonerDilemmaSwingFrame extends AbstractGameSwingFrame{
 
   frame.minimumSize = 740 -> 520
   frame.preferredSize = 900 -> 600
-}
+}*/
 
 //object PrisonerDilemmaExecutable extends App{
 //  val app = new PrisonerDilemmaApp

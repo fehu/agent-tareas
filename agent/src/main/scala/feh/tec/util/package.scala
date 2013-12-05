@@ -170,4 +170,6 @@ package object util {
   implicit class CastWrapper(a: Any){
     def cast[R] = a.asInstanceOf[R]
   }
+  
+  type ->[A, B] = (A, B)
 }

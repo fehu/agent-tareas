@@ -52,10 +52,7 @@ trait SwingFrameAppCreation extends FormCreation{
     protected def place(meta: GridBagMeta, id: String): DSLPlacing = DSLPlacing(meta, id)
     protected def make(s: LayoutGlobalSetting) = s
 
-    private def surroundHtml(in: NodeSeq) = in match{
-      case <html>{_*}</html> => in
-      case _ => <html>{in}</html>
-    }
+    protected def noId: String = null
 
     protected def html[T](t: => T)(build: T => NodeSeq): DSLLabelBuilder[T] = label(t)
       .stringExtractor(t => surroundHtml(<html>{build(t)}</html>).toString)
@@ -72,6 +69,8 @@ trait SwingFrameAppCreation extends FormCreation{
     protected case class DSLRelativelyOf(what: BuildMeta, id: String, dir: DSLRelativePositionDirection){
       def of(rel: String): LayoutElem = LayoutElem(what, id, DSLRelativePosition(dir, rel)).register
       def of[C <% Component](c: C) = LayoutElem(what, id, DSLRelativePosition(dir, componentAccess.id(c))).register
+      def from(rel: String): LayoutElem = of(rel)
+      def from[C <% Component](c: C) = of(c)
     }
 
     protected implicit class AbstractLayoutSettingWrapper(list: List[AbstractLayoutSetting]){
@@ -101,6 +100,18 @@ trait SwingFrameAppCreation extends FormCreation{
       def withoutRegistering = LayoutElem.unplaced(BuildMeta(c), null)
     }
 
+    implicit class ExplicitToComponentWrapper[C <% Component](c: C){
+      def toComponent: Component = c
+    }
+    
+    implicit class WithoutIdWrapper[C <% Component](c: C){
+      def withoutId: UnplacedLayoutElem = c -> noId
+    }
+    
+    implicit class WithoutIdSeqWrapper[C <% Component](c: Seq[C]){
+      def withoutIds: Seq[UnplacedLayoutElem] = c.map(k => (k, noId): UnplacedLayoutElem)
+    }
+    
     protected class PanelChooser{
       def flow[E <% UnplacedLayoutElem](alignment: FlowPanel.Alignment.type => FlowPanel.Alignment.Value)(elems: E*) =
         FlowPanelBuilder(alignment(FlowPanel.Alignment), elems.toList.map(x => x: UnplacedLayoutElem))
@@ -129,6 +140,10 @@ trait SwingFrameAppCreation extends FormCreation{
       }
       def all: Seq[LayoutElem] = componentsMap.values.toSeq
     }
+    private def surroundHtml(in: NodeSeq) = in match{
+      case <html>{_*}</html> => in
+      case _ => <html>{in}</html>
+    }
   }
 
   sealed trait AbstractLayoutSetting
@@ -154,12 +169,21 @@ trait SwingFrameAppCreation extends FormCreation{
 
   // // //// // //// // //// // //// // //  Layout Settings  // // //// // //// // //// // //// // //
 
-  case class LayoutElem(meta: BuildMeta, id: String, pos: DSLPosition) extends LayoutSetting{
+  class LayoutElem private (val meta: BuildMeta, val id: String, val pos: DSLPosition) extends LayoutSetting{
     override def toString: String = s"LayoutElem($id, $pos, $meta)"
+    def copy(meta: BuildMeta = this.meta, id: String = this.id, pos: DSLPosition = this.pos) = LayoutElem(meta, id, pos)
   }
   object LayoutElem{
-    def unplaced(c: BuildMeta, id: String): UnplacedLayoutElem = new LayoutElem(c, id, null) with UnplacedLayoutElem 
-  } 
+    def apply(meta: BuildMeta, id: String, pos: DSLPosition): LayoutElem =
+      new LayoutElem(meta, Option(id) getOrElse randomId(meta), pos)
+    def unplaced(c: BuildMeta, id: String): UnplacedLayoutElem = new LayoutElem(c, id, null) with UnplacedLayoutElem
+    def unapply(el: LayoutElem): Option[(BuildMeta, String, DSLPosition)] = Some(el.meta, el.id, el.pos)
+
+    def randomId = (_: BuildMeta) match{
+      case _: GridBagMeta => "#GridBag-" + UUID.randomUUID()
+      case meta => "#" + meta.component.hashCode()
+    }
+  }
   
   trait UnplacedLayoutElem extends LayoutElem{
     override val pos = Undefined  
@@ -203,7 +227,7 @@ trait SwingFrameAppCreation extends FormCreation{
   }
 
   case class GridBagMeta(settings: List[LayoutSetting], layout: List[(Constraints) => Unit] = Nil)
-    extends AbstractLayoutSetting with BuildMeta with AbstractDSLBuilder
+    extends BuildMeta with AbstractDSLBuilder
   {
     def component: Component = null
     def layout(effects: (Constraints => Unit)*): GridBagMeta = copy(layout = layout ++ effects)
@@ -227,6 +251,7 @@ trait SwingFrameAppCreation extends FormCreation{
     def elems: List[LayoutSetting]
     def panel: Panel
     def meta = BuildMeta(panel, layout: _*)
+    def component = panel
 
     def id: String = s"$panelName: ${UUID.randomUUID().toString}"
 

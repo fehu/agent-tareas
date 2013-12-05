@@ -38,6 +38,6 @@ object DeterministicMutableGenericGameEnvironment{
   import AbstractGenericGameEnvironment._
   import GenericDeterministicGame._
 
-  case class Env2(game: Game2) extends Environment2[Game2, Env2] with GenericDeterministicMutableGameEnvironment[Game2, Env2]
+  case class Env2[Game <: Game2](game: Game) extends Environment2[Game, Env2[Game]] with GenericDeterministicMutableGameEnvironment[Game, Env2[Game]]
 }
 

@@ -288,6 +288,7 @@ trait AbstractGame{
   lazy val playerNameRegex = """.*\$(\w+)\$(\w+)\$.*""".r
 
   trait Player{
+    def name: String
     type Strategy
     def availableStrategies: Set[Strategy]
 
@@ -328,6 +329,16 @@ object PlayerAgent {
 
     def reset()
   }
+
+  trait RandomBehaviour[Game <: AbstractGame, Env <: GameEnvironment[Game, Env]] extends PlayerAgent[Game, Env]{
+    agent: DecisiveAgent[Null, Null, GameScore[Game], GameAction, Env, PlayerAgent.Exec[Game, Env]] =>
+
+    def randomChance: InUnitInterval
+    def randomChance_=(p: InUnitInterval)
+    def preference: collection.Map[Game#Player#Strategy, Double] with ValueSumInUnitInterval[Game#Player#Strategy]
+    def preference_=(pref: collection.Map[Game#Player#Strategy, Double] with ValueSumInUnitInterval[Game#Player#Strategy])
+    def updatePreference(strategy: Game#Player#Strategy, prob: Double)
+  }
 }
 
 trait PlayerAgent[Game <: AbstractGame, Env <: GameEnvironment[Game, Env]]
@@ -336,6 +347,8 @@ trait PlayerAgent[Game <: AbstractGame, Env <: GameEnvironment[Game, Env]]
 {
   agent: DecisiveAgent[Null, Null, GameScore[Game], GameAction, Env, PlayerAgent.Exec[Game, Env]] =>
 
+  def player: Game#Player    
+    
   executionLoop.register(this)
 
   override def act(a: GameAction): SideEffect[Env#Ref] = SideEffect{

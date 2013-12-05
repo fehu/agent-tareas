@@ -1,9 +1,9 @@
 package feh.tec.visual
 
-import scala.swing.event.{ValueChanged, ButtonClicked, Event}
+import scala.swing.event.Event
+import scala.swing.Component
 
 trait AbstractGUI extends SwingFrameAppCreation with SwingFrameAppCreation.LayoutDSL{
-
   object Description{
     sealed trait Conf
 
@@ -48,12 +48,17 @@ trait AbstractGUI extends SwingFrameAppCreation with SwingFrameAppCreation.Layou
     }
 
     implicit def builderToElem[Builder <: SwingFrameAppCreation.AbstractDSLBuilder](b: Builder): Elem[Builder] = Elem(b)
+		implicit def elemToBuilder[Builder <: SwingFrameAppCreation.AbstractDSLBuilder](el: Elem[Builder]): Builder = el.builder
+		implicit def elemToComponent(el: Elem[_ <: SwingFrameAppCreation.AbstractDSLBuilder]): Component = el.builder.component
+		implicit def formElemToBuildMeta[B <: SwingFrameAppCreation.DSLFormBuilder[_]](el: Elem[B]): SwingFrameAppCreation.BuildMeta = el.builder.formMeta
+		implicit def elemToGridBagMeta(el: Elem[GridBagBuilder]): SwingFrameAppCreation.BuildMeta = el.builder
 
+		
     type AbstractBuilder = SwingFrameAppCreation.AbstractDSLBuilder
     type LabelBuilder[T] = SwingFrameAppCreation.DSLLabelBuilder[T]
     type ButtonBuilder = SwingFrameAppCreation.DSLButtonBuilder
     type KeyedListBuilder[K, V] = SwingFrameAppCreation.DSLKeyedListBuilder[K, V]
-
+    type GridBagBuilder = SwingFrameAppCreation.GridBagMeta
   }
 
 //  implicit def builderWrapper[Builder <: SwingFrameAppCreation.AbstractDSLBuilder](b: Builder): AbstractDSLBuilder = b.asInstanceOf[AbstractDSLBuilder]

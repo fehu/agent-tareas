@@ -49,8 +49,8 @@ object AbstractGameSwingFrame{
     def start(): Unit = Try{
       running = true
       startSeq.foreach(_())
-    }.failed.map{
-      ex =>
+    }.recover{
+      case ex =>
         stop()
         throw ex
     }

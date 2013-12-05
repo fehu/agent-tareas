@@ -9,7 +9,6 @@ import scala.collection.mutable
 import scala.collection.immutable.NumericRange
 import feh.tec.util._
 import scala.swing.GridBagPanel.{Anchor, Fill}
-import feh.tec.visual.SwingFrameAppCreation.BoxPanelBuilder
 
 
 object FormCreation{
@@ -23,7 +22,7 @@ trait FormCreation {
     protected def monitorFor[K, V](get: => Map[K, V])(implicit chooser:  (=> Map[K, V]) => MapMonitorComponentChooser[K, V]) = chooser(get)
     protected def monitorFor[T](get: => T)(implicit chooser:  (=> T) => MonitorComponentChooser[T]) = chooser(get)
     protected def controlFor[T](get: => T)(set: T => Unit)(implicit chooser: (=> T, T => Unit) => ControlComponentChooser[T]) = chooser(get, set)
-    protected def numericControlFor[N](get: => N)(set: N => Unit)
+    protected def numericControlFor[N](get: => N)(set: N => Unit) // todo: sould it exist?
                                       (implicit chooser: (=> N, N => Unit) => NumericControlComponentChooser[N], num: Numeric[N]) = chooser(get, set)
     protected def triggerFor(action: => Unit)(implicit chooser: (=> Unit) => TriggerComponentChooser) = chooser(action)
 
@@ -91,8 +90,8 @@ trait FormCreation {
 
   object BuildMeta{
     def apply(_component: Component, _layout: (Constraints => Unit)*): BuildMeta = new BuildMeta{
-      def component: Component = _component
-      def layout: List[(FormCreation.Constraints) => Unit] = _layout.toList
+      lazy val component: Component = _component
+      lazy val layout: List[(FormCreation.Constraints) => Unit] = _layout.toList
     }
 
     def build(_component: Component): BuildMeta = apply(_component)
@@ -109,6 +108,8 @@ trait FormCreation {
   protected trait AbstractDSLBuilder{
     type Comp <: Component
 
+    def component: Component
+
     def affect(effects: (Comp => Unit)*): AbstractDSLBuilder
     def layout(effects: (Constraints => Unit)*): AbstractDSLBuilder
   }
@@ -124,6 +125,7 @@ trait FormCreation {
 
     def formMeta: FormBuildMeta
 
+    def component = formMeta.component
 
     override def affect(effects: (Form => Unit)*): DSLFormBuilder[T]
     override def layout(effects: (Constraints => Unit)*): DSLFormBuilder[T]
@@ -221,6 +223,7 @@ trait FormCreation {
 
       min = 0
       max = toInt(range.max)
+      value = toInt(get())
 
       effects.foreach(_(slider))
 
@@ -242,7 +245,9 @@ trait FormCreation {
         if (d < range.step.toDouble) 1
         else (d / range.step.toDouble).toInt
     }
-
+    
+    def vertical = affect(_.orientation = Orientation.Vertical)
+    def horizontal = affect(_.orientation = Orientation.Horizontal)
     def showLabels = affect(_.paintLabels = true)
     def labels(step: N, build: N => String): DSLSliderBuilder[N] = ???
     def labels(map: Map[Int, Label]): DSLSliderBuilder[N] = affect(_.labels = map).showLabels
