@@ -1,5 +1,7 @@
 package feh.tec.visual.api
 
+import scala.collection.mutable.ListBuffer
+
 trait AgentApp{
   type EaselTpe <: Easel with EaselAffineTransforms
   type DrawSettings <: DrawEnvironmentSettings
@@ -33,4 +35,13 @@ trait AppBasicControlApi {
   //  def resume()
   def stop()
   def isRunning: Boolean
+}
+
+trait StopNotifications extends AppBasicControlApi{
+  val stopNotifications = ListBuffer.empty[() => Unit]
+
+  abstract override def stop(): Unit = {
+    stopNotifications.foreach(_())
+    super.stop()
+  }
 }

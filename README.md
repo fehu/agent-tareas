@@ -17,7 +17,6 @@ One-file executable <a href="https://drive.google.com/file/d/0B9XpukXOfywNeDBHUm
     where <i>execution_frequency</i> is a string, composed of duration and unit, for example:
     1 sec, 0.5 sec, 200 millis
   * The application is stopped by 'Escape' and paused/resumed by 'Space' keys
-   <br/><i><b>#</b> pause/resume temporary doesn't work if launched from Apps Runner <i><b>#</b>
 * To run prisoner dilemma game, run <code>sbt run-prisoner-dilemma</code>
 
 IDE Integration

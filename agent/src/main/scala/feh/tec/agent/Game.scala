@@ -389,9 +389,8 @@ trait ByTurnExec[Game <: AbstractGame, Env <: GameEnvironment[Game, Env]] extend
     exc =>
 
     def nextTurn(): Future[Exec] = {
-      println("nextTurn")
       if (executing_?) return Promise.failed[Exec](GameException("still waiting for all players to finish the previous turn")).future
-      println("nextTurn: executing")
+      println("executing next turn")
       executing_? = true
       val f = exec()
       f onComplete {

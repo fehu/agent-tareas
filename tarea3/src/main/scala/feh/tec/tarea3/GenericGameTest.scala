@@ -3,12 +3,35 @@ package feh.tec.tarea3
 import feh.tec.agent.GenericDeterministicGame.Game2
 import feh.tec.agent.DeterministicMutableGenericGameEnvironment.Env2
 import feh.tec.agent.GenericMutableActorGameCoordinator.Coordinator2
-import feh.tec.agent.conf.DefaultAppConfig
+import feh.tec.agent.conf.{AppConfig, DefaultAppConfig}
 import feh.tec.visual.GenericGameSwingFrame.App2
 import feh.tec.agent.{GenericPlayer, GenericExecutor}
 import feh.tec.agent.GenericPlayer.DummyBestStrategyChooser2
+import scala.collection.mutable
+import scala.xml.NodeSeq
 
-trait GenericGameTest{
+trait Game2AppEnvironment{
+  implicit def config: AppConfig
+//  type Game <: Game2
+  def game: Game2
+  def description: NodeSeq
+
+  lazy val environment = new Env2(game)
+  lazy val coordinator = new Coordinator2[Game2, Env2[Game2]](environment)
+  lazy val executor = new GenericExecutor[Game2, Env2[Game2]](config.awaitEndOfTurnTimeout)(config.executionContext)
+
+  private val playersMap = mutable.Map.empty[GenericPlayer[Game2, Env2[Game2]], Game2#Player]
+
+  def dummyPlayer(sel: Game2 => Game2#Player) = {
+    val p = sel(game)
+    val pl = new GenericPlayer[Game2, Env2[Game2]](p, executor, coordinator.ref) with DummyBestStrategyChooser2[Game2]
+    playersMap += pl -> p
+  }
+
+  lazy val app = new App2(game, environment, coordinator, executor, playersMap.toMap, description)
+}
+
+class GenericGameTest extends Game2AppEnvironment{
   implicit val config = DefaultAppConfig.create("GenericGameTest")
 
   val strategiesNames = Set("Paper", "Scissors", "Stone")
@@ -28,17 +51,15 @@ trait GenericGameTest{
     ("Stone" -> "Paper") -> (-1, 1)
   )
 
-  val environment = new Env2(game)
-  val coordinator = new Coordinator2[Game2, Env2[Game2]](environment)
-  val executor = new GenericExecutor(config.awaitEndOfTurnTimeout)(config.executionContext)
+  def description: NodeSeq = Nil
 
-//  val player1 =
+  val player1 = dummyPlayer(_.A)
+  val player2 = dummyPlayer(_.B)
 
-//  val app = new App2(game, environment, coordinator, executor, )
 }
 
 
-object PrisonerDilemmaTest{
+class PrisonerDilemmaTest{
   implicit val config = DefaultAppConfig.create("GenericGameTest")
 
   val strategiesNames = Set("Betray", "Refuse")
@@ -79,5 +100,7 @@ object PrisonerDilemmaTest{
 }
 
 object PrisonerDilemmaTestApplication extends App{
-  PrisonerDilemmaTest.app.start()
+  val a = new PrisonerDilemmaTest
+  a.app.isMain = true
+  a.app.start()
 }

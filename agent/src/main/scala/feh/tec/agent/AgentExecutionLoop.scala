@@ -109,6 +109,7 @@ trait AgentExecutionStopPauseImplementation[Position, EnvState, EnvGlobal, Actio
       stoppedFlag = false
       pausedFlag = false
       agent.actorRef ! Exec
+      println("'Exec' message sent to the exec loop")
       stopExec
     }
 

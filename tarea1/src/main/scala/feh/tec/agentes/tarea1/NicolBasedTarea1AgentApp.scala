@@ -26,27 +26,29 @@ trait AgentResolver{
 }
 
 class NicolBasedTarea1AgentApp(val env: Environment, val agentId: AgentId, xSize: Int = 900, ySize: Int = 600)
-                              (implicit agResolver: AgentResolver) extends NicolBasedAgentAppBasicControl{
+                              (implicit agResolver: AgentResolver, tarea1: Tarea1App) extends NicolBasedAgentAppBasicControl{
   type EaselTpe = NicolLike2DEasel
   type DrawSettings = BasicDrawEnvironmentSettings
 
   protected val pauseEndApi: PauseEndAppInnerApi = new PauseEndAppInnerApi{
-    lazy val pauseScene = new Tarea1PauseScene(render().lifted)
+    lazy val pauseScene = new Tarea1PauseScene(tarea1, render().lifted)
 
     def pauseScene(resume: Scene): Scene = {
-      Tarea1App.ag.executionLoop.pause()
+      tarea1.ag.executionLoop.pause()
       Tarea1LastSceneKeeper.scene = resume
       pauseScene
     }
 
-    def endScene = Tarea1EndScene
+    def endScene = Tarea1EndScene(tarea1)
   }
 
-  protected def newGame(scene: => Scene): Game = new Game(scene) {}
+  protected def newGame(scene: => Scene): Game = new Game(scene) {
+    override protected def onGameStop(): Unit = {}
+  }
 
-  def appExecutionFinished(): Boolean = Tarea1App.isFinished
+  def appExecutionFinished(): Boolean = tarea1.isFinished
 
-  def finishedScene = new FinishedScene(render)
+  def finishedScene = new FinishedScene(tarea1, render)
 
   protected def defaultInitScene = new Init("Agent Closing Hole With Plugs \t v. 0.2", xSize, ySize)
   private var _initScene: Scene = defaultInitScene

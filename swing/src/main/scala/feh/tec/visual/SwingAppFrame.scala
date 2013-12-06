@@ -331,9 +331,9 @@ trait SwingFrameAppCreation extends FormCreation{
             rec => {
               case Nil => Nil
               case x :: Nil => List(x)
-              case x :: y :: tail if y.peer.isInstanceOf[Filler] => println(s"1: x=$x y=$y"); x :: y :: rec(tail)
-              case x :: y :: tail if x.peer.isInstanceOf[Filler] && y.peer.isInstanceOf[Filler] => println(s"2: x=$x y=$y"); x :: createGlue :: y :: rec(tail)
-              case x :: y :: tail => println(s"3: x=$x y=$y"); x :: createGlue :: y :: rec(y :: tail)
+              case x :: y :: tail if y.peer.isInstanceOf[Filler] => x :: y :: rec(tail)
+              case x :: y :: tail if x.peer.isInstanceOf[Filler] && y.peer.isInstanceOf[Filler] => x :: createGlue :: y :: rec(tail)
+              case x :: y :: tail => x :: createGlue :: y :: rec(y :: tail)
             }
           )(elems.map(_.meta.component))
         else elems.map(_.meta.component)
@@ -350,12 +350,9 @@ trait SwingFrameAppCreation extends FormCreation{
     def affect(effects: (DSLBoxPanelBuilder#Panel => Unit) *): DSLBoxPanelBuilder = copy(effects = this.effects ++ effects)
     def layout(effects: (Constraints => Unit) *): DSLBoxPanelBuilder = copy(layout = layout ++ effects)
 
-    protected def createGlue = {
-     println("createGlue")
-      alignment match {
-        case Orientation.Horizontal => Swing.HGlue
-        case Orientation.Vertical => Swing.VGlue
-      }
+    protected def createGlue = alignment match {
+      case Orientation.Horizontal => Swing.HGlue
+      case Orientation.Vertical => Swing.VGlue
     }
 
     protected def createStrut(i: Int) = alignment match{

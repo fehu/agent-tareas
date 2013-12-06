@@ -202,5 +202,5 @@ object Build extends sbt.Build {
   // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // //
 
   lazy val runPlugHoleTask = fullRunInputTask(runPlugHole, Runtime, "feh.tec.agentes.tarea1.Tarea1Application")
-  lazy val runPrisonerDilemmaTask = fullRunInputTask(runPrisonerDilemma, Runtime, "feh.tec.tarea3.PrisonerDilemmaExecutable")
+  lazy val runPrisonerDilemmaTask = fullRunInputTask(runPrisonerDilemma, Runtime, "feh.tec.tarea3.PrisonerDilemmaTestApplication")
 }

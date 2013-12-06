@@ -86,11 +86,21 @@ trait FileUtils {
   object Resource{
     private def streamOpt(path: Path) = Option(getClass.getResourceAsStream(path.toString))
 
+    /**
+     * less safe then apply
+     */
     def source(path: Path) = Option(getClass.getResource(path.toString)).map(Source.fromURL)
     def apply[R](path: Path)(f: InputStream => R): Try[R] = {
       val s = streamOpt(path)
-      Try{ s.getOrElse(sys.error(s"no resource found: $path ")) |> f } $$ {s.foreach(_.close())}
+        .orElse(streamOpt(path.toAbsolute.internal))
+      Try{
+        s.getOrElse(sys.error(s"no resource found: $path ")) |> f
+      } $$ {
+        s.foreach(_.close())
+      }
     }
+
+
   }
 
   object File{
@@ -113,7 +123,7 @@ trait FileUtils {
 
     implicit def fileBuilderToFileWrapper(b: FileBuilder) = b.dir
     case class FileBuilder(dirPath: Path, isTemporary: Boolean)(val dir: JFile = dirPath.file){
-      assert(dir.exists() && dir.isDirectory && dir.canWrite)
+      assert(dir.exists() && dir.isDirectory && dir.canWrite, "directory doesn't exist or isn't accessible")
       if(isTemporary) dir.deleteOnExit()
 
       def createFile(path: Path, `override`: Boolean = isTemporary): Try[JFile] = File.createFile(path append dirPath)
@@ -150,7 +160,7 @@ trait FileUtils {
       if(dir.exists()) assert(dir.delete(), "couldn't remove old temp directory")
       dir.mkdir()
       dir.mv(name)
-      FileBuilder(Path.absolute(dir), deleteOnExit)(dir)
+      FileBuilder(Path.relative(dir), deleteOnExit)(dir)
     }
 
     def temporary(path: Path, deleteOnExit: Boolean = true): JFile = path match {
@@ -379,6 +389,7 @@ trait FileUtils {
     protected def cpy(path: List[String]) = new AbsolutePath(reversed = path)
 
     override def toString: String = path.mkString(separator, separator, "")
+    def internal = path.mkString("/", "/", "")
 
     def toAbsolute = this
     def toRelative = new RelativePath(reversed)

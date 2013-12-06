@@ -14,6 +14,7 @@ import feh.tec.visual.GenericGameSwingFrame.HistoryList.{EntryRenderer2, EntryRe
 import scala.swing.Slider
 import scala.swing.Reactor
 import scala.swing.event.ValueChanged
+import feh.tec.visual.api.StopNotifications
 
 abstract class GenericGameSwingFrame extends AbstractGameSwingFrame {
   type Game <: GenericGame
@@ -68,9 +69,16 @@ object GenericGameSwingFrame{
 
       protected def initScore = players.zipMap(_ => utilityIsNumeric.zero).toSeq
     }
+
+    var isMain = false
+
+    override def closeOperation(): Unit = {
+      if(isMain) sys.exit()
+      super.closeOperation()
+    }
   }
 
-  trait Exec extends Execution with Resettable{
+  trait Exec extends Execution with Resettable with StopNotifications{
     frame: App =>
 
     override def startSeq = super.startSeq ::: List(
@@ -202,13 +210,13 @@ object GenericGameSwingFrame{
     override val description = super.description.reconfigure(_.insets(10)())
 
     lazy val mainPanel = panel.gridBag(
-      place(scrollable()(history, "history").fillBoth.xWeight(.8)/*.sizes(min = 400 -> 200)*/) in theCenter,
+      place(scrollable()(history, "history").fillBoth.xWeight(.8)) in theCenter,
       place(turnButton, "turn") to theNorth of "history",
   		place(playerLabels(game.A), "label-A") to theNorthWest of "history",
   		place(playerLabels(game.B), "label-B") to theNorthEast of "history",
-  		place(playerControls(game.A).reconfigure(_.fillBoth, _.height(2), _.insets(10)()/*, _.xWeight(.1)*/), "controls-A") to theWest of "history",
-  		place(playerControls(game.B).reconfigure(_.fillBoth, _.height(2), _.insets(10)()/*, _.xWeight(.1)*/), "controls-B") to theEast of "history"
-    ).fillBoth.maxXWeight./*maxYWeight*/yWeight(.9)
+  		place(playerControls(game.A).reconfigure(_.fillBoth, _.height(2), _.insets(10)()), "controls-A") to theWest of "history",
+  		place(playerControls(game.B).reconfigure(_.fillBoth, _.height(2), _.insets(10)()), "controls-B") to theEast of "history"
+    ).fillBoth.maxXWeight.yWeight(.9)
 
 //    layout
 

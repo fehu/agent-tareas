@@ -84,8 +84,10 @@ object Tarea1 {
       case class PauseBetweenExecs(dur: FiniteDuration)
       
       implicit def infinite(implicit pause: PauseBetweenExecs, actorSystem: ActorSystem): ExecLoopBuilder[AbstractAgent[InfExec], InfExec] = InfExecBuilder(pause.dur, execControlTimeout)
-      implicit def environmentCondition(implicit pause: PauseBetweenExecs, actorSystem: ActorSystem): ExecLoopBuilder[AbstractAgent[ConditionalExec], ConditionalExec] =
-        ConditionalExecBuilder(pause.dur, execControlTimeout, Set(stopEnvCondition), Tarea1App.setFinishedScene.lifted)
+      implicit def environmentCondition(implicit pause: PauseBetweenExecs,
+                                        actorSystem: ActorSystem,
+                                        setFinishedScene: () => Unit): ExecLoopBuilder[AbstractAgent[ConditionalExec], ConditionalExec] =
+        ConditionalExecBuilder(pause.dur, execControlTimeout, Set(stopEnvCondition), setFinishedScene)
     }
 
 
@@ -289,7 +291,6 @@ object visual{
 }
 
 
-object Tarea1App extends Tarea1App
 class Tarea1App extends AppBasicControlApi{
   val CriteriaDebug = false
 
@@ -378,6 +379,8 @@ class Tarea1App extends AppBasicControlApi{
     }
   }
 
+  implicit def tarea1: Tarea1App = this
+
   lazy val app = new NicolBasedTarea1AgentApp(env, Agents.Id.dummy)
 
 
@@ -389,6 +392,8 @@ class Tarea1App extends AppBasicControlApi{
   var argsForTimeSpan: Option[FiniteDuration] = None
   implicit lazy val pauseBetweenExecs = PauseBetweenExecs(argsForTimeSpan getOrElse defaultPauseBetweenExecs)
 
+  implicit def _setFinishedScene: () => Unit = setFinishedScene().lift
+
   type Exec = ConditionalExec
   lazy val ag: MyDummyAgent[Exec] = new MyDummyAgent[Exec](
     overseer.ref,
@@ -399,14 +404,13 @@ class Tarea1App extends AppBasicControlApi{
     foreseeingDepth,
     app.mapRenderer)
 
-  lazy val finishedScene = new FinishedScene(renderMap.lifted)
+  lazy val finishedScene = new FinishedScene(this, renderMap.lifted)
 
   def renderMap(implicit easel: NicolLike2DEasel) = app.mapRenderer.render(env)
 
   var agStop: Exec#StopFunc = _
 
   def terminate() = {
-    println("agStop = " + agStop)
     Await.ready(agStop(), 1 second)
     actorSystem.stop(ag.actorRef)
     actorSystem.stop(overseer.actorRef)
@@ -421,14 +425,15 @@ class Tarea1App extends AppBasicControlApi{
   def start() = {
     app.start()
     val ex = ag.execution()
-    println("ag.execution() = " + ex)
     agStop = ex
   }
-  def stop = terminate()
+  override def stop = terminate()
   def isRunning = app.isRunning
 }
 
 object Tarea1Application extends App{
+  val app = new Tarea1App
+
   def processArgsForTimeSpan(): Option[FiniteDuration] =
     if(args.nonEmpty) {
       val dur = Duration(args.mkString(" ")).ensuring(_.isFinite())
@@ -436,11 +441,11 @@ object Tarea1Application extends App{
     }
     else None
 
-  Tarea1App.argsForTimeSpan = processArgsForTimeSpan()
-  Tarea1App.start()
+  app.argsForTimeSpan = processArgsForTimeSpan()
+  app.start()
 }
 
-object Tarea1EndScene extends End(Tarea1App.terminate())
+case class Tarea1EndScene(app: Tarea1App) extends End(app.terminate())
 
 protected object Finished{
   var flag = false
@@ -454,20 +459,20 @@ object Tarea1PauseSceneKeeper{
   def sceneOpt = Option(scene)
 }
 
-class Tarea1PauseScene(render: () => Unit)(implicit easel: NicolLike2DEasel) extends PauseScene[NicolLike2DEasel](
+class Tarea1PauseScene(app: Tarea1App, render: () => Unit)(implicit easel: NicolLike2DEasel) extends PauseScene[NicolLike2DEasel](
   onPause = render,
-  onResume = Tarea1App.ag.executionLoop.resume().lifted,
-  endScene = Tarea1EndScene.lifted,
+  onResume = app.ag.executionLoop.resume().lifted,
+  endScene = Tarea1EndScene(app).lifted,
   resumeScene = Tarea1LastSceneKeeper.scene.lifted,
   pausedMessage = "Agent Execution Paused" -> BasicStringDrawOps[NicolLike2DEasel](StringAlignment.Left, Color.lightGray, "Arial", 20F, 5)
 ){
   override def messagePosition = (530, 300)
  }
 
-class FinishedScene(render: () => Unit)(implicit easel: NicolLike2DEasel) extends PauseScene[NicolLike2DEasel] (
+class FinishedScene(app: Tarea1App, render: () => Unit)(implicit easel: NicolLike2DEasel) extends PauseScene[NicolLike2DEasel] (
   onPause = render,
   onResume = {}.lifted,
-  endScene = Tarea1EndScene.lifted,
+  endScene = Tarea1EndScene(app).lifted,
   resumeScene = () => null,
   pausedMessage = "Agent Execution Finished" -> BasicStringDrawOps[NicolLike2DEasel](StringAlignment.Left, Color.green, "Arial", 20F, 5)
 ){
