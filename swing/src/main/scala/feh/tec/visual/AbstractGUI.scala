@@ -51,26 +51,18 @@ trait AbstractGUI extends SwingFrameAppCreation with SwingFrameAppCreation.Layou
 		implicit def elemToBuilder[Builder <: SwingFrameAppCreation.AbstractDSLBuilder](el: Elem[Builder]): Builder = el.builder
 		implicit def elemToComponent(el: Elem[_ <: SwingFrameAppCreation.AbstractDSLBuilder]): Component = el.builder.component
 		implicit def formElemToBuildMeta[B <: SwingFrameAppCreation.DSLFormBuilder[_]](el: Elem[B]): SwingFrameAppCreation.BuildMeta = el.builder.formMeta
-		implicit def elemToGridBagMeta(el: Elem[GridBagBuilder]): SwingFrameAppCreation.BuildMeta = el.builder
+
+    implicit def panelElemToBuildMeta(el: Elem[PanelBuilder]): SwingFrameAppCreation.BuildMeta = el.builder.meta
+    implicit def boxPanelElemToBuildMeta(el: Elem[BoxPanelBuilder]): SwingFrameAppCreation.BuildMeta = el.builder.meta
+    implicit def elemToGridBagMeta(el: Elem[GridBagBuilder]): SwingFrameAppCreation.BuildMeta = el.builder
 
 		
     type AbstractBuilder = SwingFrameAppCreation.AbstractDSLBuilder
     type LabelBuilder[T] = SwingFrameAppCreation.DSLLabelBuilder[T]
     type ButtonBuilder = SwingFrameAppCreation.DSLButtonBuilder
     type KeyedListBuilder[K, V] = SwingFrameAppCreation.DSLKeyedListBuilder[K, V]
+    type PanelBuilder = SwingFrameAppCreation.DSLPanelBuilder
     type GridBagBuilder = SwingFrameAppCreation.GridBagMeta
+    type BoxPanelBuilder = SwingFrameAppCreation.DSLBoxPanelBuilder
   }
-
-//  implicit def builderWrapper[Builder <: SwingFrameAppCreation.AbstractDSLBuilder](b: Builder): AbstractDSLBuilder = b.asInstanceOf[AbstractDSLBuilder]
-
 }
-
-//trait GuiTst extends AbstractGUI {
-//  import Description._
-//
-//  trait ButtonApi{
-//    def click()
-//  }
-//
-//  def button: Elem[DSLButtonBuilder] with  ButtonApi with Handles2Events[ButtonClicked, ValueChanged]
-//}

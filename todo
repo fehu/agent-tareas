@@ -6,12 +6,11 @@
 * transform ExecutableBuilder to a script
 * windows set control: (*1)
 * cleanup Tarea1App singleton dependencies - pause doesn't work if launched from AppsRunner
-* dynamic game creation
 * implement mini-max
 * runtime resolver for resources
 * external, implicit ref for environment
-* rename DSLButtonBuilder => ButtonBuilder etc
 * refactor actor usages
+* MutableHashMapValueSumInUnitInterval
 
 (*1) * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * (*1)
 // ! no MainFrame's

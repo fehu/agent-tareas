@@ -21,8 +21,11 @@ abstract class GenericGame extends AbstractGame{
     }
     case class GenericStrategy(name: String) {
       GenericStrategy.register(this)
+      override def toString: String = name
     }
     type Strategy = GenericStrategy
+
+    override def toString = s"Player#$name"
   }
 
 }

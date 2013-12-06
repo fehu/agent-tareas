@@ -72,11 +72,10 @@ object PrisonerDilemmaTest{
     </html>
   def grayI(str: String) = <i><font color="gray">{str}</font></i>
 
-//  val app = new App2/*[Game, Env, Coordinator2[Game, Env], Agent, GenericExecutor[Game, Env]]*/()
   val app = new App2(PrisonerDilemma, environment, coordinator, executor, Map(
     player1 -> PrisonerDilemma.A,
     player2 -> PrisonerDilemma.B
-  ))
+  ), description)
 }
 
 object PrisonerDilemmaTestApplication extends App{

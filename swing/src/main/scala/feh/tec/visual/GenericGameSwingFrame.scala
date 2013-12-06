@@ -96,7 +96,7 @@ object GenericGameSwingFrame{
 
     type Agent <: PlayerAgent[Game, Env] with PlayerAgent.Resettable[Game, Env] with PlayerAgent.RandomBehaviour[Game, Env]
 
-    type PlayerControlsBuilder = GridBagBuilder
+    type PlayerControlsBuilder = BoxPanelBuilder
     
     class ConnectedSliders(val max: Int){
       protected var listener: Reactor = _
@@ -104,10 +104,16 @@ object GenericGameSwingFrame{
         listener = r
         sliders.foreach(listener listenTo _)
         listener.reactions += {
-          case ValueChanged(el: Slider) if !el.adjusting && sliders.contains(el) =>
-            currentSum += el.value
-            assert(currentSum <= max)
-            updateExtent(max - currentSum)
+          case ev@ValueChanged(el: Slider) if !el.adjusting && sliders.contains(el) =>
+            val t = el.value - oldValue(el)
+            if(currentSum + t > max) {
+              el.value = oldValue(el)
+            }
+            else{
+              currentSum += t
+              oldValue(el) = el.value
+              updateExtents(currentSum)
+            }
         }
       }
 
@@ -116,34 +122,44 @@ object GenericGameSwingFrame{
       protected[GenericGameSwingFrame] def register(s: Slider) = _sliders :+= s
       
       private var currentSum: Int = sliders.map(_.value).sum
-      def updateExtent(m: Int) = sliders.foreach(_.extent = m)
+      private val oldValue = mutable.HashMap.empty[Slider, Int].withDefaultValue(0)
+      def updateExtents(m: Int) = sliders.foreach{ sl => sl.extent = m - sl.value }
   	}
     
     def step = 0.01
 
-    protected val slidersConnectors = new ConnectedSliders((1/step).toInt)
+    protected def slidersConnector = new ConnectedSliders((1/step).toInt)
 
-    protected def playerPreferenceControl(ag: Agent) = {
-      val sliders = ag.player.availableStrategies.toSeq.map{
-	      s => panel.box(_.Vertical)( 
-	        numericControlFor(ag.preference(s))(ag.updatePreference(s, _)).slider(new UnitInterval(step)).vertical
-	      		.affect(slidersConnectors.register).toComponent -> s"${ag.player.name}-$s-preference", 
-      		label(s.toString).component -> noId
-      		)
-	      }
-      panel.box(_.Horizontal)(sliders.withoutIds: _*).affect(slidersConnectors.setListener)
+    protected def playerPreferenceControl(ag: Agent, connector: ConnectedSliders): BoxPanelBuilder = {
+      val sliders = (panel.box(_.Vertical)() /: ag.player.availableStrategies.toSeq){
+        (pBuilder, s) => pBuilder
+          .appendStrut(30)
+          .append(label(s.toString).component -> noId)
+//          .doNotGlue
+          .appendStrut(10)
+          .append{
+            numericControlFor(ag.preference(s))(ag.updatePreference(s, _)).slider(new UnitInterval(step))
+              .horizontal.defaultLabels(0.25)
+              .affect(connector.register).toComponent ->
+            s"${ag.player.name}-$s-preference"
+          }
+        }
+      sliders.affect(connector.setListener)
     }
-    
-    lazy val playerControls: Map[Game#Player, Elem[GridBagBuilder]] = playersRef.mapValues{
+
+    lazy val playerControls: Map[Game#Player, Elem[BoxPanelBuilder]] = playersRef.mapValues{
       ag => 
         val name = ag.player.name
-        Elem(panel.gridBag(
-        place(numericControlFor[Double](ag.randomChance)(ag.randomChance = _)
-            .slider(new UnitInterval(0.01)).vertical.defaultLabels(0.1), s"$name-rand-chance") in theCenter,
-        place(html(<html>random<br/>action<br/>chance</html>), noId) in theWest,
-        place(playerPreferenceControl(ag)) in theSouth
-      ).layout(_.gridheight = 2).insets(20)().maxYWeight
-      )}.toMap
+        val conn = slidersConnector
+        Elem(playerPreferenceControl(ag, conn)
+          .prepend(
+            numericControlFor[Double](ag.randomChance)(ag.randomChance = _)
+              .slider(new UnitInterval(0.01)).horizontal.defaultLabels(0.25).toComponent -> s"$name-rand-chance"
+          )
+          .prependStrut(10)
+          .prepend(label("random action chance").toComponent -> noId)
+          .prependStrut(10).appendStrut(10).prependGlue.appendGlue
+        )}.toMap
   }
 
   case class App2[G <: Game2,
@@ -154,7 +170,8 @@ object GenericGameSwingFrame{
                                           env: E,
                                           coordinator: C,
                                           exec: Ex,
-                                          agentsRef: Map[A, G#Player])
+                                          agentsRef: Map[A, G#Player],
+                                          descriptionHtml: NodeSeq)
                                          (implicit protected val config: AppConfig)
     extends App with Exec with RandomnessPlayerControls
   {
@@ -168,11 +185,13 @@ object GenericGameSwingFrame{
 
     protected lazy val historyRenderer = new EntryRenderer2(game)
 
+    messages.description = descriptionHtml
 
-    override val titleElem = super.titleElem
+    override val titleElem = super.titleElem.reconfigure(_.insets(20)())
     override val turnButton = super.turnButton.reconfigure(
       _.sizes(min = 50 -> 20, max = Int.MaxValue -> 100, preferred = 200 -> 30),
-      _.fillHorizontally
+      _.fillHorizontally,
+      _.maxXWeight
     )
     override def history = super.history.reconfigure( _.fillBoth.maxXWeight.maxYWeight )
     override val playerLabels = super.playerLabels
@@ -180,25 +199,29 @@ object GenericGameSwingFrame{
       _.sizes(min = 50 -> 20),
       _.anchor(_.West)
     )
-    override val description = super.description
+    override val description = super.description.reconfigure(_.insets(10)())
 
-    lazy val mainPanel = List(
-  		place(turnButton, "turn") in theCenter,
-//  		place(titleElem, noId) to theNorth from "turn",
-  		place(scrollable()(history, "history")) to theSouth of "turn",
-  		place(playerLabels(game.A), "label-A") to theNorthWest of "turn",
-  		place(playerLabels(game.B), "label-B") to theNorthEast of "turn",
-  		place(playerControls(game.A).reconfigure(_.fillBoth), "controls-A") to theWest of "turn",
-  		place(playerControls(game.B).reconfigure(_.fillBoth), "controls-B") to theEast of "turn"
-    )
+    lazy val mainPanel = panel.gridBag(
+      place(scrollable()(history, "history").fillBoth.xWeight(.8)/*.sizes(min = 400 -> 200)*/) in theCenter,
+      place(turnButton, "turn") to theNorth of "history",
+  		place(playerLabels(game.A), "label-A") to theNorthWest of "history",
+  		place(playerLabels(game.B), "label-B") to theNorthEast of "history",
+  		place(playerControls(game.A).reconfigure(_.fillBoth, _.height(2), _.insets(10)()/*, _.xWeight(.1)*/), "controls-A") to theWest of "history",
+  		place(playerControls(game.B).reconfigure(_.fillBoth, _.height(2), _.insets(10)()/*, _.xWeight(.1)*/), "controls-B") to theEast of "history"
+    ).fillBoth.maxXWeight./*maxYWeight*/yWeight(.9)
 
 //    layout
 
     lazy val layout = List(
-    	place(panel.gridBag(mainPanel: _*), noId) in theCenter,
+    	place(mainPanel, noId) in theCenter,
     	place(titleElem, noId) at theNorth,
-      place(panel.box(_.Horizontal)(resetButton -> "reset", description -> "description").width(3).fillBoth) in theSouthWest
+      place(panel.box(_.Horizontal)(resetButton -> "reset", description -> "description").width(3).fillBoth.insets(10)(bottom = 0)) in theSouthWest
 		)
+
+    override def startSeq: List[() => Unit] = List(
+      (frame.minimumSize = 700 -> 500).lift,
+      (frame.preferredSize = 900 -> 600).lift
+    ) ::: super.startSeq
   }
 
   object HistoryList{
@@ -227,7 +250,7 @@ object GenericGameSwingFrame{
     {
       def configure(list: ListView[_], isSelected: Boolean, focused: Boolean, a: (Int, List[History#HistoryEntry]), index: Int) = {
         component.set(a._1, a._2.map{
-          case e => e.player.asInstanceOf[Game#Player] -> (e.choice + ": " + e.score)
+          case e => e.player.asInstanceOf[Game#Player] -> (e.choice + ": " + e.score + "  Σ: " + e.scoreAcc)
         }.toMap)
       }
     }

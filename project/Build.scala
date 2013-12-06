@@ -164,7 +164,7 @@ object Build extends sbt.Build {
           |import Swing._
           |import java.awt.Color
           |import feh.tec.util._
-          |val app = new PrisonerDilemmaApp
+          |val app = PrisonerDilemmaTest.app
         """.stripMargin
     )
   ) dependsOn (agent, swingVisualization)

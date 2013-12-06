@@ -26,13 +26,15 @@ abstract class GenericPlayer[Game <: GenericGame, Env <: GenericGameEnvironment[
   var randomChance: InUnitInterval = 0
 
   def preference_=(pref: collection.Map[Strategy, Double] with ValueSumInUnitInterval[Strategy]){
-    preference setFrom pref
+    ??? // todo
   }
 
   var preference = new MutableHashMapValueSumInUnitInterval[Strategy](initPreference: _*)
   protected def initPreference = player.availableStrategies.zipMap(_ => 0d).toSeq
 
-  def updatePreference(strategy: Strategy, prob: Double){ preference <<= (strategy, _ + prob) }
+  def updatePreference(strategy: Strategy, prob: Double){
+    preference(strategy) = prob
+  }
 
   def reset(): Unit = {
     randomChance = 0
@@ -40,8 +42,7 @@ abstract class GenericPlayer[Game <: GenericGame, Env <: GenericGameEnvironment[
   }
 }
 
-class GenericExecutor[Game <: GenericGame, Env <: GenericGameEnvironment[Game, Env]](
-                                                                                      val execControlTimeout: FiniteDuration,
+class GenericExecutor[Game <: GenericGame, Env <: GenericGameEnvironment[Game, Env]]( val execControlTimeout: FiniteDuration,
                                                                                       val onSuccess: () => Unit = () => {})
                                                                                     (implicit val executionContext: ExecutionContext) extends ByTurnExec[Game, Env]
 
