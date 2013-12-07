@@ -1,4 +1,4 @@
-package feh.tec.agent
+package feh.tec.agent.game
 
 import feh.tec.util.SideEffect
 

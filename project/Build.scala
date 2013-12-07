@@ -12,7 +12,7 @@ import org.sbtidea.SbtIdeaPlugin._
 object Build extends sbt.Build {
 
   val ScalaVersion = "2.10.3"
-  val Version = "0.3"
+  val Version = "0.3.2"
 
   val runPlugHole = InputKey[Unit]("run-plug-hole", "[Tarea1] Runs Plug-Hole Agent Application")
   val runPrisonerDilemma = InputKey[Unit]("run-prisoner-dilemma", "[Tarea3] Runs Prisoner Dilemma Game")

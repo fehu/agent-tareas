@@ -2,7 +2,7 @@ package feh.tec.agentes.tarea1
 
 import feh.tec.world._
 import java.util.UUID
-import feh.tec.util.RangeWrapper._
+import feh.tec.util.RandomWrappers._
 import scala.{Predef, collection, Some}
 import feh.tec.agent.{Route, AgentId}
 import scala.collection.mutable

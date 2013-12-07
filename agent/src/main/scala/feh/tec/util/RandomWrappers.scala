@@ -17,6 +17,13 @@ trait RandomWrappers {
   implicit class SetLikeWrapper[A, Repr <: collection.SetLike[A, Repr] with Set[A]](set: collection.SetLike[A, Repr]){
     def randomChoose: A = set.toSeq.randomChoice
   }
+
+  implicit class RangeWrapper(r: Range){
+    def randomSelect: Int = {
+      val n = Random.nextInt(r.length)
+      r.min + r.step*n
+    }
+  }
 }
 
 object RandomWrappers extends RandomWrappers

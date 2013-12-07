@@ -1,21 +1,20 @@
 package feh.tec.visual
 
-import feh.tec.agent._
 import feh.tec.visual.AbstractGameSwingFrame._
 import scala.swing._
 import java.awt.{GridBagLayout, Font}
 import feh.tec.util._
 import scala.swing.GridBagPanel.Anchor
-import feh.tec.agent.AbstractGenericGame.Game2
+import feh.tec.agent.game._
+import AbstractGenericGame.Game2
 import scala.xml.NodeSeq
 import scala.collection.mutable
-import feh.tec.agent.conf.AppConfig
-import feh.tec.visual.GenericGameSwingFrame.HistoryList.{EntryRenderer2, EntryRenderer}
+import feh.tec.visual.GenericGameSwingFrame.HistoryList.EntryRenderer
 import scala.swing.event.ValueChanged
 import feh.tec.visual.api.StopNotifications
-import feh.tec.agent.conf.AppConfig
 import Swing._
 import java.awt
+import feh.tec.agent.conf.AppConfig
 
 abstract class GenericGameSwingFrame extends AbstractGameSwingFrame {
   type Game <: GenericGame
@@ -37,6 +36,8 @@ abstract class GenericGameSwingFrame extends AbstractGameSwingFrame {
 object GenericGameSwingFrame{
   abstract class App extends GenericGameSwingFrame with GUI with ResettableGUI{
     self: Execution =>
+
+    println(s"application for ${game.name} created")
 
     import Description._
 
@@ -292,12 +293,14 @@ object GenericGameSwingFrame{
         },
         playerInfo(game.A) -> (0 -> 0 : Constraints).pipe{
           c =>
+            c.insets = new Insets(0, 5, 0, 5)
             c.anchor = Anchor.West
             c.weightx = 0.4
             c
         },
         playerInfo(game.B) -> (2 -> 0 : Constraints).pipe{
           c =>
+            c.insets = new Insets(0, 5, 0, 5)
             c.anchor = Anchor.East
             c.weightx = 0.4
             c

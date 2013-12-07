@@ -3,6 +3,7 @@ package feh.tec.agent.conf
 import akka.actor.{Scheduler, ActorSystem}
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
+import java.util.UUID
 
 case class AppConfig(actorSystem: ActorSystem,
                      executionContext: ExecutionContext,
@@ -28,5 +29,5 @@ trait AppConfigBuilder {
 }
 
 object DefaultAppConfig{
-  def create(nme: String = "default") = new AppConfigBuilder{ def actorSystemName = nme }.config
+  def create(nme: String = "default" + UUID.randomUUID()) = new AppConfigBuilder{ def actorSystemName = nme }.config
 }

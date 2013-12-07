@@ -1,4 +1,4 @@
-package feh.tec.agent
+package feh.tec.agent.game
 
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.ExecutionContext
@@ -7,7 +7,7 @@ import feh.tec.agent.AgentDecision.ExplainedActionStub
 import scala.collection
 import scala.util.Random
 import scala.collection.mutable
-import feh.tec.agent.AbstractGenericGame.Game2
+import feh.tec.agent.game.AbstractGenericGame.Game2
 
 abstract class GenericPlayer[Game <: GenericGame, Env <: GenericGameEnvironment[Game, Env]](
                              val player: Game#Player,
@@ -138,8 +138,9 @@ object GenericPlayer{
       case (`player`, _) =>
       case (pl, str) => adversaryChoiceFrequency(pl)(str) += 1
     }
-    protected def fetchLastTurnInfo() {
-      env.lastChoices.map(updateProbabilities)
+
+    env.listenToEndOfTurn{
+      case (_, choices, _) => updateProbabilities(choices)
     }
 
     override def resetSeq: List[() => Unit] = super.resetSeq ::: List({
@@ -147,26 +148,9 @@ object GenericPlayer{
     }.liftUnit)
   }
 
-  /**
-   * Should be mixed in <b>before</b> [[feh.tec.agent.GenericPlayer.RandomBehaviour]]
-   *    and <b>after</b> [[feh.tec.agent.GenericPlayer.SimpleStatistics]] using decision implementation
-   */
-  trait SimpleStatisticsGathering [Game <: GenericGame, Env <: GenericGameEnvironment[Game, Env]]
-    extends DummyBestStrategyChooser[Game, Env]
-  {
-    self: SimpleStatistics[Game, Env] =>
-    
-    override def decide(currentPerception: Perception): ActionExplanation = {
-      fetchLastTurnInfo()
-      super.decide(currentPerception)
-    }
-  }
-
   trait SimpleExpectedUtility[Game <: GenericGame, Env <: GenericGameEnvironment[Game, Env]] 
     extends SimpleStatistics[Game, Env]
   {
-    self: SimpleStatisticsGathering[Game, Env] =>
-
     protected def probabilityByCount(c: Int) = InUnitInterval(env.turn match{ // returns count as probability on first move, this can be used to setup 1 move
       case Turn(0) if c <= 1 => c.toDouble
       case Turn(x) => c.toDouble / (x + 1)
@@ -204,7 +188,6 @@ object GenericPlayer{
   trait SimpleExpectedUtility2[Game <: Game2, Env <: GenericGameEnvironment[Game, Env]]
     extends DummyBestStrategyChooser2[Game, Env]  with  SimpleExpectedUtility[Game, Env]
   {
-    self: SimpleStatisticsGathering[Game, Env] =>
 
     def opponentsStrategiesCombinations: Set[Set[(Player, Player#Strategy)]] =
       opponent.availableStrategies.map(s => Set(opponent -> s.asInstanceOf[Strategy]))

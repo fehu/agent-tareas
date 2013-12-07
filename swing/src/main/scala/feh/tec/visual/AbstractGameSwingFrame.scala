@@ -1,15 +1,17 @@
 package feh.tec.visual
 
 import scala.swing.Frame
-import feh.tec.agent._
 import akka.actor.ActorSystem
 import scala.concurrent.ExecutionContext
 import feh.tec.util._
-import scala.util.{Success, Failure, Try}
+import scala.util.Try
 import scala.collection.mutable
 import scala.xml.NodeSeq
+import feh.tec.agent.game._
+import scala.util.Failure
+import scala.util.Success
 
-abstract class AbstractGameSwingFrame extends /*Main*/Frame with SwingAppFrame with SwingFrameAppCreation.Frame9PositionsLayoutBuilder{
+abstract class AbstractGameSwingFrame extends Frame with SwingAppFrame with SwingFrameAppCreation.Frame9PositionsLayoutBuilder{
   frame =>
 
   type Game <: AbstractGame
@@ -116,7 +118,7 @@ object AbstractGameSwingFrame{
 
     def titleElem: Elem[LabelBuilder[String]]
     def turnButton: Elem[ButtonBuilder]
-    def history: Elem[KeyedListBuilder[Int, List[HistoryEntry]]] //with HistoryApi with Needs[ListView.AbstractRenderer[(Int, List[HistoryEntry]), _]]
+    def history: Elem[KeyedListBuilder[Int, List[HistoryEntry]]]
     def playerLabels: Map[Game#Player, Elem[LabelBuilder[Game#Player]]]
     def playerControls: Map[Game#Player, Elem[PlayerControlsBuilder]]
     def description: Elem[LabelBuilder[NodeSeq]]

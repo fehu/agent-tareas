@@ -1,11 +1,12 @@
 package feh.tec.visual.build
 
 import feh.tec.util.build.AppsRunner
-import scala.swing.{Orientation, Frame}
+import scala.swing.Frame
 import feh.tec.visual.{SwingFrameAppCreation, SwingAppFrame}
 import feh.tec.visual.api.{StopNotifications, AppBasicControlApi}
 import scala.collection.mutable
 import feh.tec.util.LiftWrapper
+import scala.collection.immutable.ListMap
 
 object SwingAppsRunner{
   type Control = AppBasicControlApi with StopNotifications
@@ -18,7 +19,7 @@ class SwingAppsRunner(val _title: String, val applications: (String, () => Contr
 {
 
 
-  val apps: Map[String, () => Control] = applications.toMap
+  val apps = ListMap(applications: _*)
 
   def start(): Unit = open()
   def stop(): Unit = {
@@ -57,15 +58,20 @@ class SwingAppsRunner(val _title: String, val applications: (String, () => Contr
     .button(name) /*todo: toggle()*/
 
 
-  val buttons = panel.flow(_.Center)(apps.map{
+  val buttons = panel.flow(_.Leading)(apps.map{
     case (name, app) => componentIdPairToUnplacedLayoutElem(buildAppButton(name, app).component -> name)
     }.toSeq: _*)
 
   val layout = List(
     place(buttons) in theCenter
-//    place(scrollable()(buttons, "scroll")) in theCenter
   )
-  preferredSize = 250 -> 140
+
+  private def getButtons = buttons.elems.map(_.meta.component)
+  private def maxWidth = getButtons.map(_.preferredSize.width).max
+  private def heightSum = getButtons.map(_.preferredSize.height).sum
+  private def percent(v: Int, p: Double) = (v * p).toInt
+
+  preferredSize = percent(maxWidth, 1.1) -> percent(heightSum, 1.5)
 
   buildLayout()
 

@@ -12,7 +12,6 @@ package object util extends RandomWrappers{
    */
   def Y[A, B](rec: (A => B) => (A => B)): A => B = rec(Y(rec))(_: A)
 
-  case class CYResult[A, B](result: B, cache: Map[A, B])
   def CY[A, B](rec: (A => B) => (A => B)): A => CYResult[A, B] = {
     val cache = mutable.HashMap.empty[A, B]
     def YY(f: (A => B) => (A => B)): A => B = {
@@ -174,4 +173,8 @@ package object util extends RandomWrappers{
   }
   
   type ->[A, B] = (A, B)
+}
+
+package util {
+  case class CYResult[A, B](result: B, cache: Map[A, B])
 }

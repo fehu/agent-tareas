@@ -1,9 +1,5 @@
-package feh.tec.agent
+package feh.tec.agent.game
 
-import feh.tec.util.SideEffect
-import akka.actor.{Scheduler, ActorSystem}
-import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.ExecutionContext
 import feh.tec.agent.conf.AppConfig
 
 abstract class GenericGameCoordinator[Game <: GenericGame, Env <: GenericGameEnvironment[Game, Env]]

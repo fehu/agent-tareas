@@ -1,17 +1,18 @@
-package feh.tec.agent
+package feh.tec.agent.game
 
 import feh.tec.util._
 import concurrent.{Promise, ExecutionContext, Future, Await}
 import java.util.UUID
 import akka.pattern._
 import scala.concurrent.duration._
-import akka.util.Timeout
 import scala.collection.mutable
 import akka.actor.{ActorSystem, Props, Actor, ActorRef}
 import feh.tec.util.HasUUID.AsyncSendMsgHasUUIDWrapper
 import akka.event.Logging
+import feh.tec.agent._
+import scala.Some
 import feh.tec.agent.AgentDecision.ExplainedActionStub
-import util.{Success, Failure}
+import feh.tec.agent.AgentId
 
 trait GameEnvironment[Game <: AbstractGame, Env <: GameEnvironment[Game, Env]] extends Environment[Null, Null, GameScore[Game], GameAction, Env]{
   self : Env =>
@@ -63,7 +64,7 @@ trait DeterministicGameEnvironment[Game <: AbstractDeterministicGame, Env <: Det
   //
   final type Player = Game#Player
 
-  private def strategies = game.layout.asInstanceOf[Map[Map[Player, Player#Strategy], Map[Player, Game#Utility]]]
+  private def strategies = game.layout.asInstanceOf[PartialFunction[Map[Player, Player#Strategy], Map[Player, Game#Utility]]]
 
   def play(choices: StrategicChoices[Game#Player]): Score = GameScore(strategies(choices.toMap))
 }
@@ -113,7 +114,7 @@ trait GameRef[Game <: AbstractGame, Env <: GameEnvironment[Game, Env]] extends E
   def choose(choice: StrategicChoice[Game#Player])
   def awaitEndOfTurn()
   def strategies: Game
-  def lastChoices: Option[Game#PlayersChoices]
+  def listenToEndOfTurn(f: (Turn, Game#PlayersChoices, Game#PlayersUtility) => Unit)
 
 //  def blocking: BlockingApi = ???
 //  def async: AsyncApi = ???
@@ -151,11 +152,6 @@ trait GameCoordinatorWithActor[Game <: AbstractGame, Env <: GameEnvironment[Game
 
   def registerChoice(choice: StrategicChoice[Game#Player]): Unit = actorRef ! RegisterChoice(choice)
 
-  protected[agent] var _lastChoices: Game#PlayersChoices = null
-  def lastChoices: Option[Game#PlayersChoices] = Option(_lastChoices)
-
-//  protected def allChoicesRegistered(): SideEffect[G] = updateEnvironment(_.updateScores())
-
   def awaitEndOfTurn(): Unit = AwaitEndOfTurn() |> {
     msg => Await
       .result((actorRef ? msg)(awaitEndOfTurnTimeout), awaitEndOfTurnTimeout)
@@ -167,10 +163,7 @@ trait GameCoordinatorWithActor[Game <: AbstractGame, Env <: GameEnvironment[Game
     def choose(choice: StrategicChoice[Game#Player]): Unit = registerChoice(choice)
     def awaitEndOfTurn(): Unit = coordinator.awaitEndOfTurn()
     def strategies: Game = coordinator.env.game
-    def lastChoices: Option[Game#PlayersChoices] = coordinator.lastChoices
-
-//    override lazy val blocking: BlockingApi = ???
-//    override lazy val async: AsyncApi = ???
+    def listenToEndOfTurn(f: (Turn, Game#PlayersChoices, Game#PlayersUtility) => Unit): Unit = coordinator.listenToEndOfTurn(f)
   }
 
   def listenToEndOfTurn(f: (Turn, Game#PlayersChoices, Game#PlayersUtility) => Unit) {
@@ -238,7 +231,6 @@ class GameCoordinatorActor[Game <: AbstractGame, Env <: GameEnvironment[Game, En
   protected def guardHistory(score: GameScore[Game]){
     val choices = currentTurnChoicesMap.toMap.asInstanceOf[Game#PlayersChoices]
     val utility = score.utility.asInstanceOf[Game#PlayersUtility]
-    coordinator._lastChoices = choices
     history += turn-> ( choices -> utility)
     lastHistory = (turn, choices, utility)
   }
@@ -315,7 +307,7 @@ trait AbstractGame{
 }
 
 trait AbstractDeterministicGame extends AbstractGame{
-  override val layout: Map[PlayersChoices, PlayersUtility]
+//  override val layout: Map[PlayersChoices, PlayersUtility]
 }
 
 trait AbstractTurnBasedGame extends AbstractGame{

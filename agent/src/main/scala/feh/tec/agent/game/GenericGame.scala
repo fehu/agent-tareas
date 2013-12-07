@@ -1,4 +1,4 @@
-package feh.tec.agent
+package feh.tec.agent.game
 
 import scala.collection.mutable
 import scala.math.Numeric.IntIsIntegral
@@ -76,27 +76,47 @@ object GenericDeterministicGame{
               _target: Game2 => Game2#Target,
               protected val nameA: String,
               protected val nameB: String,
-              bStrategies1: Set[String],
-              bStrategies2: Set[String])
-             (payoffEntry: PayoffEntry2*)
+              bStrategiesA: Set[String],
+              bStrategiesB: Set[String])
+             (payoff: Either[Seq[PayoffEntry2], PartialFunction[(String, String), (Game2#Utility, Game2#Utility)]])
     extends AbstractGenericGame.Game2 with GenericDeterministicGame
   {
+    def this(name: String,
+             _target: Game2 => Game2#Target,
+             nameA: String,
+             nameB: String,
+             strategies: Set[String])
+            (payoffEntry: PayoffEntry2*) = this(name, _target, nameA, nameB, strategies, strategies)(Left(payoffEntry))
+    def this(_target: Game2 => Game2#Target,
+             name: String,
+             nameA: String,
+             nameB: String,
+             strategies: Set[String])
+            (payoff: PartialFunction[(String, String), (Game2#Utility, Game2#Utility)]) =
+      this(name, _target, nameA, nameB, strategies, strategies)(Right(payoff))
+
     lazy val target = _target(this).asInstanceOf[Target]
 
-    protected lazy val strategiesA = bStrategies1.map(A.GenericStrategy.apply)
-    protected lazy val strategiesB = bStrategies2.map(B.GenericStrategy.apply)
+    protected lazy val strategiesA = bStrategiesA.map(A.GenericStrategy.apply)
+    protected lazy val strategiesB = bStrategiesB.map(B.GenericStrategy.apply)
 
-    
-    protected lazy val payoffMap = payoffEntry.map(_.toTuple).map{
-      case ((s1, s2), utils) => (A.GenericStrategy.byName(s1), B.GenericStrategy.byName(s2)) -> utils
-    }.toMap
+    override lazy val layout: PartialFunction[PlayersChoices, PlayersUtility] = payoff match{
+      case Right(pf) =>
+        PartialFunction[PlayersChoices, (String, String)](ch => ch(A).toString -> ch(B).toString)
+        .andThen(pf)
+        .andThen{ case (u1, u2) => Map(A -> u1, B -> u2): PlayersUtility }
+      case Left(entries) =>
+        val payoffMap = entries.map(_.toTuple).map{
+          case ((s1, s2), utils) => (A.GenericStrategy.byName(s1), B.GenericStrategy.byName(s2)) -> utils
+        }.toMap
 
-    override lazy val layout: Map[PlayersChoices, PlayersUtility] = Map((
-      for{
-        a <- strategiesA
-        b <- strategiesB
-        (ua, ub) = payoffMap(a, b)
-      } yield ( Map(A -> a, B -> b) -> Map(A -> ua, B -> ub) ).asInstanceOf[(PlayersChoices, PlayersUtility)]
-    ).toSeq: _*)
+        Map((
+          for{
+            a <- strategiesA
+            b <- strategiesB
+            (ua, ub) = payoffMap(a, b)
+          } yield ( Map(A -> a, B -> b) -> Map(A -> ua, B -> ub) ).asInstanceOf[(PlayersChoices, PlayersUtility)]
+          ).toSeq: _*)
+    }
   }
 }
