@@ -2,8 +2,6 @@ package feh.tec.agent
 
 import feh.tec.agent.AgentDecision._
 import feh.tec.agent.AgentDecision.CriteriaReasonedDecision
-import feh.tec.util.RandomWrappers
-import RandomWrappers._
 import scala.collection.mutable
 import feh.tec.util._
 
@@ -84,7 +82,7 @@ object IdealForeseeingAgentDecisionStrategies{
             compar =>
               EnvironmentSnapshot.withStateComparator[EnvState, Map[Seq[Action], Env#Prediction]](compar){
                 ops.groupBy(_._2).map{
-                  case (prediction, map) => map.keys.toSeq.randomChoose -> prediction
+                  case (prediction, map) => map.keys.toSeq.randomChoice -> prediction
                 }
               }
           } getOrElse ops

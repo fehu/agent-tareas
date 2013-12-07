@@ -159,10 +159,31 @@ object GenericGameSwingFrame{
       ag => 
         val name = ag.player.name
         val conn = slidersConnector
-        Elem(playerPreferenceControl(ag, conn)
+        val controls = playerPreferenceControl(ag, conn)
+        var randChanceDisabled = true
+        Elem(controls
           .prepend(
             numericControlFor[Double](ag.randomChance)(ag.randomChance = _)
-              .slider(new UnitInterval(0.01)).horizontal.defaultLabels(0.25).toComponent -> s"$name-rand-chance"
+              .slider(new UnitInterval(0.01)).horizontal.defaultLabels(0.25)
+              .affect(
+                e => e.listenTo(e),
+                e => e.reactions += {
+                  case ValueChanged(`e`) if !e.adjusting =>
+                        def setEnabled(on: Boolean) = controls.elems.collect{
+                          case SwingFrameAppCreation.LayoutElem(SwingFrameAppCreation.BuildMeta(c, _), _, _) =>
+                            c.enabled = on
+                        }
+
+                    if(e.value == 0) {
+                      randChanceDisabled = true
+                      setEnabled(false)
+                    }
+                    else if(randChanceDisabled){
+                      randChanceDisabled = false
+                      setEnabled(true)
+                    }
+                })
+              .toComponent -> s"$name-rand-chance"
           )
           .prependStrut(10)
           .prepend(label("random action chance").toComponent -> noId)

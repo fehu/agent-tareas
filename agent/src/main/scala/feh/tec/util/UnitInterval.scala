@@ -7,7 +7,7 @@ import scala.collection.{mutable, immutable}
 class UnitInterval(step: Double) extends NumericRange.Inclusive[Double](0, 1, step)(DoubleAsIfIntegral)
 
 object UnitInterval{
-  
+
   def inUnitInterval(d: Double) = d >= 0 && d <= 1
   def assertInUnitInterval(d: Double) = assert(inUnitInterval(d), s"$d is not in [0, 1] interval")
 }
@@ -15,6 +15,8 @@ object UnitInterval{
 import UnitInterval._
 
 object InUnitInterval{
+  implicit object IsNumeric extends NumericProxy[Double, InUnitInterval](_.d, InUnitInterval.apply)
+
   implicit def inUnitIntervalToDoubleWrapper(u: InUnitInterval) = u.d
 	implicit def DoubleToInUnitIntervalToWrapper(d: Double) = InUnitInterval(d)
 }

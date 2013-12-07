@@ -20,7 +20,7 @@ object Agents {
       new MyDummyAgent[InfExec](ref, Nil, Nil, _ => _ => Set(), agentId, -1, null) { agent =>
 
         override def decide(currentPerception: Perception): ActionExplanation =
-          CriteriaReasonedDecision[Position, EnvState, EnvGlobal, Action, Env, InfExec, Measure](Move.all.toSeq.randomChoose, Set(RandomlyChosenCriteriaValue), 0)
+          CriteriaReasonedDecision[Position, EnvState, EnvGlobal, Action, Env, InfExec, Measure](Move.all.toSeq.randomChoice, Set(RandomlyChosenCriteriaValue), 0)
       }
     }
   }

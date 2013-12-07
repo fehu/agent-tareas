@@ -17,6 +17,11 @@ import Swing._
 
 trait SwingAppFrame extends Frame with AppBasicControlApi with SwingFrameAppCreation{
   self: SwingFrameAppCreation#LayoutDSL with SwingFrameAppCreation#LayoutBuilder =>
+
+  override def closeOperation(): Unit = {
+    stop()
+    super.closeOperation()
+  }
 }
 
 object SwingFrameAppCreation extends SwingFrameAppCreation

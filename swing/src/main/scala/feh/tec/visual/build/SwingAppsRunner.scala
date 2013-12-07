@@ -34,7 +34,7 @@ class SwingAppsRunner(val _title: String, val applications: (String, () => Contr
     runningApps.find(_._2 == app).foreach{
       case (name, _) =>
         runningApps -= name
-        println(s"'$name' ahs stopped")
+        println(s"'$name' has stopped")
     }
   }
 

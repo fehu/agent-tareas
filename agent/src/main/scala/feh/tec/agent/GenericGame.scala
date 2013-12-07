@@ -52,10 +52,10 @@ object AbstractGenericGame{
 
     def players: Set[Player] = Set(A, B)
 
-    protected def strategicLayoutBuilder2[P1 <: Player, P2 <: Player](p1: P1, p2: P2)
-                                                                     (strategy1: P1 => P1#Strategy, strategy2: P2 => P2#Strategy)
-                                                                     (utility1: Utility, utility2: Utility): (PlayersChoices, PlayersUtility) =
-      Map(p1 -> strategy1(p1), p2 -> strategy2(p2)) -> Map(p1 -> utility1, p2 -> utility2)
+//    protected def strategicLayoutBuilder2[P1 <: Player, P2 <: Player](p1: P1, p2: P2)
+//                                                                     (strategy1: P1 => P1#Strategy, strategy2: P2 => P2#Strategy)
+//                                                                     (utility1: Utility, utility2: Utility): (PlayersChoices, PlayersUtility) =
+//      Map(p1 -> strategy1(p1), p2 -> strategy2(p2)) -> Map(p1 -> utility1, p2 -> utility2)
 
   }
 }

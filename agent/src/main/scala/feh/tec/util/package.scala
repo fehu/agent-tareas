@@ -2,11 +2,10 @@ package feh.tec
 
 import scala.collection.{mutable, TraversableLike}
 import scala.concurrent.duration._
-import java.util.Calendar
 import scala.reflect.runtime.universe._
 import scala.util.{Failure, Success}
 
-package object util {
+package object util extends RandomWrappers{
   type I[T] = T => T
   /**
    *  The fixed point combinator
@@ -37,6 +36,9 @@ package object util {
     def |>>[Q](opt: Option[T => Q], sel: C[T] => ((T => Q) => C[T])): C[T] = opt.map(sel(t)).getOrElse(t)
 
   }
+
+  def lift[T](t: => T): Lifted[T] = () => t
+  def liftUnit(t: => Any): Lifted[Unit] = () => t
 
   implicit class LiftWrapper[T](t: =>T){
     def lift = () => t
