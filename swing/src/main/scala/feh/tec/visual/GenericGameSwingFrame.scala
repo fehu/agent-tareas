@@ -2,8 +2,8 @@ package feh.tec.visual
 
 import feh.tec.agent._
 import feh.tec.visual.AbstractGameSwingFrame._
-import scala.swing.{Label, GridBagPanel, ListView}
-import java.awt.Font
+import scala.swing._
+import java.awt.{GridBagLayout, Font}
 import feh.tec.util._
 import scala.swing.GridBagPanel.Anchor
 import feh.tec.agent.AbstractGenericGame.Game2
@@ -11,10 +11,11 @@ import scala.xml.NodeSeq
 import scala.collection.mutable
 import feh.tec.agent.conf.AppConfig
 import feh.tec.visual.GenericGameSwingFrame.HistoryList.{EntryRenderer2, EntryRenderer}
-import scala.swing.Slider
-import scala.swing.Reactor
 import scala.swing.event.ValueChanged
 import feh.tec.visual.api.StopNotifications
+import feh.tec.agent.conf.AppConfig
+import Swing._
+import java.awt
 
 abstract class GenericGameSwingFrame extends AbstractGameSwingFrame {
   type Game <: GenericGame
@@ -37,8 +38,6 @@ object GenericGameSwingFrame{
   abstract class App extends GenericGameSwingFrame with GUI with ResettableGUI{
     self: Execution =>
 
-    protected def historyRenderer: EntryRenderer[Game]
-
     import Description._
 
     def titleElem: Elem[LabelBuilder[String]] = label(game.name)
@@ -56,6 +55,8 @@ object GenericGameSwingFrame{
 
     def resetButton = Elem(triggerFor(reset()).button("Reset"))
     def description = Elem(html(messages.description))
+
+    protected lazy val historyRenderer = EntryRenderer(game)
 
     lazy val messages: Messages = new Messages{
       val score = mutable.HashMap[Game#Player, Game#Utility](initScore: _*)
@@ -212,8 +213,6 @@ object GenericGameSwingFrame{
     final type Agent = A
     final type Exec = Ex
 
-    protected lazy val historyRenderer = new EntryRenderer2(game)
-
     messages.description = descriptionHtml
 
     override val titleElem = super.titleElem.reconfigure(_.insets(20)())
@@ -255,7 +254,9 @@ object GenericGameSwingFrame{
 
   object HistoryList{
 
-    abstract class Entry[Game <: GenericGame](game: Game) extends GridBagPanel{
+    trait Entry[Game <: GenericGame] extends Panel{
+      def game: Game
+
       val turn = new Label() $$ {
         c => c.font = new Font(c.font.getName, Font.BOLD, c.font.getSize * 2)
       }
@@ -272,6 +273,45 @@ object GenericGameSwingFrame{
 
     }
 
+    class Entry2[Game <: Game2](val game: Game) extends GridBagPanel with Entry[Game]{
+
+      val l = new GridBagLayout{
+        override def layoutContainer(parent: awt.Container){
+          super.layoutContainer(parent)
+          turn.peer setLocation (parent.getWidth - turn.size.width)/2 -> turn.location.y
+        }
+      }
+      peer.setLayout(l)
+
+      layout ++= Map(
+        turn -> (1 -> 0 : Constraints).pipe{
+          c =>
+            c.anchor = Anchor.Center
+            c.weightx = 0.2
+            c
+        },
+        playerInfo(game.A) -> (0 -> 0 : Constraints).pipe{
+          c =>
+            c.anchor = Anchor.West
+            c.weightx = 0.4
+            c
+        },
+        playerInfo(game.B) -> (2 -> 0 : Constraints).pipe{
+          c =>
+            c.anchor = Anchor.East
+            c.weightx = 0.4
+            c
+        }
+      )
+      peer.getLayout.removeLayoutComponent(turn.peer)
+    }
+
+
+    object EntryRenderer{
+      def apply[Game <: GenericGame](game: Game): EntryRenderer[Game] = game match{
+        case g: Game2 => new EntryRenderer2(g).asInstanceOf[EntryRenderer[Game]]
+      }
+    }
     trait EntryRenderer[Game <: GenericGame] extends ListView.AbstractRenderer[(Int, List[History#HistoryEntry]), HistoryList.Entry[Game]]
 
     class EntryRenderer2 [Game <: Game2](game: Game)
@@ -283,30 +323,6 @@ object GenericGameSwingFrame{
         }.toMap)
       }
     }
-
-    class Entry2[Game <: Game2](game: Game) extends Entry[Game](game){
-      layout ++= Map(
-        turn -> (1 -> 0 : Constraints).pipe{
-          c =>
-            c.anchor = Anchor.Center
-            c.weightx = 0
-            c
-        },
-        playerInfo(game.A) -> (0 -> 0 : Constraints).pipe{
-          c =>
-            c.anchor = Anchor.West
-            c.weightx = 0.5
-            c
-        },
-        playerInfo(game.B) -> (2 -> 0 : Constraints).pipe{
-          c =>
-            c.anchor = Anchor.East
-            c.weightx = 0.5
-            c
-        }
-      )
-    }
-
   }
 
 
