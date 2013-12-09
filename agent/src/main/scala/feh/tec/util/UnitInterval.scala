@@ -19,9 +19,14 @@ object InUnitInterval{
 
   implicit def inUnitIntervalToDoubleWrapper(u: InUnitInterval) = u.d
 	implicit def DoubleToInUnitIntervalToWrapper(d: Double) = InUnitInterval(d)
+
+  def apply(d: Double) = {
+    assertInUnitInterval(d)
+    new InUnitInterval(d)
+  }
 }
 
-case class InUnitInterval(d: Double){ assertInUnitInterval(d) }
+class InUnitInterval protected (val d: Double) extends AnyVal
 
 trait SumInUnitInterval{
   self: TraversableOnce[Double] =>
