@@ -3,8 +3,6 @@ Agents Project
 
 <i>An agents project for master studies in tec de monterrey</i>
 
-To build and run the project one would need the <a href="http://www.scala-sbt.org/">sbt</a> building tool
-
 <a href="https://googledrive.com/host/0B9XpukXOfywNYUVlQ0xJS3NGcXM/index.html#package">Scaladoc API documentation</a>
 
 <a href="https://drive.google.com/file/d/0B9XpukXOfywNZ3lMdWFPZ28zaVU/edit?usp=sharing">One-file executable jar</a>, due to it's almost 20Mb size it already has all dependencies<br/>
@@ -12,6 +10,7 @@ To build and run the project one would need the <a href="http://www.scala-sbt.or
 
     * Linux: OpenSUSE 3.7.10-1.1-desktop with GNOME Shell 3.6.3.1
     * OS X 10.8.4
+To build and run the project one would need the <a href="http://www.scala-sbt.org/">sbt</a> building tool
 <br/>In order to run it simply execute <code>java -jar run-agents_...jar</code>, 
 <i>note that there are problems with hole-plug game rerunning </i>
 

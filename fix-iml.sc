@@ -13,11 +13,9 @@ val brokenUrl = "file://$MODULE_DIR$/../"
 
 val xml = XML.loadFile(xmlPath)
 
-val urls = xml \\ "sourceFolder" map { k => k -> k \ "@url" }
-
-val brk = urls.map(k => k -> k._2.headOption.map(_.text))
-
-val brokenOpt = brk.find(_._2 == Some(brokenUrl)).map(_._1._1)
+//val urls = xml \\ "sourceFolder" map { k => k -> k \ "@url" }
+//val brk = urls.map(k => k -> k._2.headOption.map(_.text))
+//val brokenOpt = brk.find(_._2 == Some(brokenUrl)).map(_._1._1)
 
 def remove(node: NodeSeq): NodeSeq = node match {
   case elem @ Elem(_, "sourceFolder", meta, _, child @ _*) if meta.get("url").map(_.text) == Some(brokenUrl) =>

@@ -2,10 +2,9 @@ import java.io.File
 import LWJGLPlugin.lwjgl
 import sbt._
 import Keys._
-import sbt.std.Streams
 import sbtassembly.Plugin
 import sbtassembly.Plugin.AssemblyKeys._
-import sbtassembly.Plugin.{PathList, MergeStrategy, MappingSet}
+import sbtassembly.Plugin.{PathList, MergeStrategy}
 import sbtunidoc.Plugin._
 import org.sbtidea.SbtIdeaPlugin._
 
@@ -18,7 +17,6 @@ object Build extends sbt.Build {
   val runPrisonerDilemma = InputKey[Unit]("run-prisoner-dilemma", "[Tarea3] Runs Prisoner Dilemma Game")
 
   val runResourceMapperWrite = TaskKey[Unit]("run-resource-mapper-write")
-  val execResourceMapperWrite = TaskKey[Unit]("exec-resource-mapper-write")
   val copyAllLwjglResources = TaskKey[Unit]("copy-all-lwjgl-resources", "copy lwjgl resources for all platforms")
   // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // //
 
@@ -117,6 +115,7 @@ object Build extends sbt.Build {
     lazy val akka = "com.typesafe.akka" %% "akka-actor" % "2.2.1"
     lazy val reflectApi = "org.scala-lang" % "scala-reflect" % ScalaVersion
     lazy val scalaSwing = "org.scala-lang" % "scala-swing" % ScalaVersion
+    lazy val scalaCompiler = "org.scala-lang" % "scala-compiler" % ScalaVersion
     lazy val shapeless = "com.chuusai" % "shapeless_2.10.2" % "2.0.0-M1"
 
     object Apache{
@@ -173,7 +172,7 @@ object Build extends sbt.Build {
     id = "agent",
     base = file("agent"),
     settings = buildSettings ++ Seq(
-      libraryDependencies ++= Seq(akka, reflectApi, Apache.ioCommons)
+      libraryDependencies ++= Seq(akka, reflectApi, Apache.ioCommons, scalaCompiler)
     )
   )
 
