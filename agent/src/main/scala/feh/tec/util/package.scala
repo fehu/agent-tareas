@@ -65,7 +65,7 @@ package object util extends RandomWrappers{
     res -> dur
   }
 
-  def tryo[R](f: => R): Either[R, Throwable] = try Left(f) catch { case th: Throwable => Right(th) }
+  def tryo[R](f: => R) = scala.util.Try(f) //try Left(f) catch { case th: Throwable => Right(th) }
 
   implicit class TryAsWrapper[T](t: T){
     def tryAs[A: TypeTag]: Option[A] = t match {

@@ -1,30 +1,28 @@
 package feh.tec.agent
 
-import scala.reflect.runtime.universe._
 import feh.tec.util.SideEffect
 import SideEffect._
 
-trait Environment[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]]{ self: Env =>
-  type Ref <: EnvironmentRef[Coordinate, State, Global, Action, Env]
+trait Environment[Env <: Environment[Env]]{
+  self: Env =>
+  
+  type Coordinate
+  type State
+  type Global
+  type Action <: AbstractAction
+  
+  type Ref <: EnvironmentRef[Env]
 
-  def states: PartialFunction[Coordinate, State]
-  def effects: PartialFunction[Action, Env => Env]
-  def definedAt: Seq[Coordinate]
+  def states: PartialFunction[Env#Coordinate, Env#State]
+  def effects: PartialFunction[Env#Action, Env => Env]
+  def definedAt: Seq[Env#Coordinate]
 
-  def globalState: Global
-  def stateOf(c: Coordinate): Option[State]
-  def visibleStates: Map[Coordinate, State]
-  def agentPosition(ag: AgentId): Option[Coordinate]
+  def globalState: Env#Global
+  def stateOf(c: Env#Coordinate): Option[Env#State]
+  def visibleStates: Map[Env#Coordinate, Env#State]
+  def agentPosition(ag: AgentId): Option[Env#Coordinate]
 
-  def affected(act: Action): SideEffect[Env] //Environment[Coordinate, State, Global, Action]
-
-  protected trait TypeTags{
-    implicit def coordinate: TypeTag[Coordinate]
-    implicit def state: TypeTag[State]
-    implicit def global: TypeTag[Global]
-    implicit def action: TypeTag[Action]
-    implicit def environment: TypeTag[Env]
-  }
+  def affected(act: Env#Action): SideEffect[Env] //Environment[Coordinate, State, Global, Action]
 }
 
 // it shouldn't be possible to mix in traits that have same method defined due to self type definition
@@ -36,21 +34,21 @@ trait Environment[Coordinate, State, Global, Action <: AbstractAction, Env <: En
   accessible environment is convenient because the agent need not maintain any internal state
   to keep track of the world.
  */
-trait FullyAccessible[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]] {
-  self: Environment[Coordinate, State, Global, Action, Env] with Env =>
+trait FullyAccessible[Env <: Environment[Env] with FullyAccessible[Env]] {
+  self: Env =>
 
   def isFullyAccessible = true
-  def stateOf(c: Coordinate): Option[State] = states lift c
-  def visibleStates: Map[Coordinate, State] = definedAt.map(c => c -> states(c)).toMap // todo override in case Map `states` implementation
+  def stateOf(c: Env#Coordinate): Option[Env#State] = states lift c
+  def visibleStates: Map[Env#Coordinate, Env#State] = definedAt.map(c => c -> states(c)).toMap // todo override in case Map `states` implementation
 }
 
-trait Restricted[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]]{
-  self: Environment[Coordinate, State, Global, Action, Env] with Env =>
+trait Restricted[Env <: Environment[Env] with Restricted[Env]]{
+  self: Env =>
 
   def isFullyAccessible = false
-  def stateOf(c: Coordinate): Option[State] = if(canAccess(c)) states lift c else None
-  def visibleStates: Map[Coordinate, State] = definedAt.withFilter(canAccess).map(c => c -> states(c)).toMap // todo override in case Map `states` implementation
-  def canAccess(c: Coordinate): Boolean
+  def stateOf(c: Env#Coordinate): Option[Env#State] = if(canAccess(c)) states lift c else None
+  def visibleStates: Map[Env#Coordinate, Env#State] = definedAt.withFilter(canAccess).map(c => c -> states(c)).toMap // todo override in case Map `states` implementation
+  def canAccess(c: Env#Coordinate): Boolean
 }
 
 
@@ -64,36 +62,32 @@ trait Restricted[Coordinate, State, Global, Action <: AbstractAction, Env <: Env
   nondeterministic from the point of view of the agent.
  */
 
-trait Determinism[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]]{
-  self: Environment[Coordinate, State, Global, Action, Env] with Env  =>
+trait Determinism[Env <: Environment[Env] with Determinism[Env]]{
+  self: Env  =>
 
-  def affected(act: Action): SideEffect[Env] = ??? // stub for abstract override
+  def affected(act: Env#Action): SideEffect[Env] = ??? // stub for abstract override
 }
 
-trait Deterministic[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]]
-  extends Determinism[Coordinate, State, Global, Action, Env]
-{
-  self: Environment[Coordinate, State, Global, Action, Env] with Env =>
+trait Deterministic[Env <: Environment[Env] with Deterministic[Env]] extends Determinism[Env]{
+  self: Env =>
 
   def isDeterministic = true
 
-  override def affected(act: Action) = sideEffect{ effects lift act map (_ apply self) getOrElse this }
+  override def affected(act: Env#Action) = sideEffect{ effects lift act map (_ apply self) getOrElse self }
 }
 
-trait NonDeterministic[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]]
-  extends Determinism[Coordinate, State, Global, Action, Env]
-{
-  self: Environment[Coordinate, State, Global, Action, Env] with Env  =>
+trait NonDeterministic[Env <: Environment[Env] with NonDeterministic[Env]] extends Determinism[Env]{
+  self: Env =>
 
   def isDeterministic = false
 
-  def uncertainty: Uncertainty[Coordinate, State, Global, Action, Env]
+  def uncertainty: Uncertainty[Env]
 
-  override def affected(act: Action) = sideEffect{ uncertainty.influence(act, effects lift act, this) }
+  override def affected(act: Env#Action) = sideEffect{ uncertainty.influence(act, effects lift act, this) }
 }
 
-trait Uncertainty[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]]{
-  def influence(act: Action, uneffected: Option[Env => Env], env: Env): Env
+trait Uncertainty[Env <: Environment[Env]]{
+  def influence(act: Env#Action, uneffected: Option[Env => Env], env: Env): Env
 }
 
 /**
@@ -103,44 +97,44 @@ trait Uncertainty[Coordinate, State, Global, Action <: AbstractAction, Env <: En
   nor need it worry about the passage of time.
  */
 
-trait Static[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]]{
-  self: Environment[Coordinate, State, Global, Action, Env] with Env =>
+trait Static[Env <: Environment[Env] with Static[Env]]{
+  self: Env =>
 
   def isDynamic = false
 }
 
-sealed trait Dynamic[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]]{
-  self: Environment[Coordinate, State, Global, Action, Env] with Env  =>
+sealed trait Dynamic[Env <: Environment[Env] with Dynamic[Env]]{
+  self: Env =>
 
   def isDynamic = true
 
   def dynamicChange(env: Env): SideEffect[Env]
 }
 
-trait DynamicChangeAfterAction[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]]
-  extends Dynamic[Coordinate, State, Global, Action, Env] with Determinism[Coordinate, State, Global, Action, Env]
+trait DynamicChangeAfterAction[Env <: Environment[Env] with DynamicChangeAfterAction[Env]]
+  extends Dynamic[Env] with Determinism[Env]
 {
-  self: Environment[Coordinate, State, Global, Action, Env] with Env  =>
+  self: Env =>
 
-  abstract override def affected(act: Action) = dynamicChange _ flatCompose super.affected apply act
+  abstract override def affected(act: Env#Action) = dynamicChange _ flatCompose super.affected apply act
   //new SideEffectResultingFunction1Wrapper(dynamicChange)
 }
 
-trait DynamicChangeBeforeAction[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]]
-  extends Dynamic[Coordinate, State, Global, Action, Env] with Determinism[Coordinate, State, Global, Action, Env]
+trait DynamicChangeBeforeAction[Env <: Environment[Env] with DynamicChangeBeforeAction[Env]]
+  extends Dynamic[Env] with Determinism[Env]
 {
-  self: Environment[Coordinate, State, Global, Action, Env] with Env  =>
+  self: Env =>
 
-  abstract override def affected(act: Action) = dynamicChange(this) flatThen (_ affected act)
+  abstract override def affected(act: Env#Action) = dynamicChange(self) flatThen (_ affected act)
 }
 
 /**
  * should be used with caution ...
  */
-trait AnyTimeDynamicChange[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]]
-  extends Dynamic[Coordinate, State, Global, Action, Env] with Determinism[Coordinate, State, Global, Action, Env]
+trait AnyTimeDynamicChange[Env <: Environment[Env] with AnyTimeDynamicChange[Env]]
+  extends Dynamic[Env] with Determinism[Env]
 {
-  self: Environment[Coordinate, State, Global, Action, Env] with Env  =>
+  self: Env =>
 
   def change(func: Env => Env): Env = func(this)
 }
@@ -149,74 +143,68 @@ trait AnyTimeDynamicChange[Coordinate, State, Global, Action <: AbstractAction, 
  * an environment that has a behavior prediction interface
  * i think  actual prediction should be handled by [[feh.tec.agent.PredictingEnvironmentOverseer]]
  */
-trait PredictableEnvironment[Coordinate, State, Global, Action <: AbstractAction,
-                             Env <: Environment[Coordinate, State, Global, Action, Env] with PredictableEnvironment[Coordinate, State, Global, Action, Env]]
-  extends Determinism[Coordinate, State, Global, Action, Env]
+trait PredictableEnvironment[Env <: Environment[Env] with PredictableEnvironment[Env]]
+  extends Determinism[Env]
 {
-  self: Environment[Coordinate, State, Global, Action, Env] with Env =>
+  self: Env =>
 
-  type Ref <: EnvironmentRef[Coordinate, State, Global, Action, Env] with PredictableEnvironmentRef[Coordinate, State, Global, Action, Env]
+  type Ref <: EnvironmentRef[Env] with PredictableEnvironmentRef[Env]
 
   type Prediction
 }
 
-trait ForeseeableEnvironment[Coordinate, State, Global, Action <: AbstractAction,
-                             Env <: Environment[Coordinate, State, Global, Action, Env] with ForeseeableEnvironment[Coordinate, State, Global, Action, Env]]
-  extends PredictableEnvironment[Coordinate, State, Global, Action, Env]
+trait ForeseeableEnvironment[Env <: Environment[Env] with ForeseeableEnvironment[Env]]
+  extends PredictableEnvironment[Env]
 {
-  self: Environment[Coordinate, State, Global, Action, Env] with Env =>
+  self: Env =>
 
-  type Ref <: EnvironmentRef[Coordinate, State, Global, Action, Env] with ForeseeableEnvironmentRef[Coordinate, State, Global, Action, Env]
+  type Ref <: EnvironmentRef[Env] with ForeseeableEnvironmentRef[Env]
 }
 
-trait PredictableDeterministicEnvironment[Coordinate, State, Global, Action <: AbstractAction,
-                                          Env <: Environment[Coordinate, State, Global, Action, Env] with PredictableEnvironment[Coordinate, State, Global, Action, Env]]
-  extends PredictableEnvironment[Coordinate, State, Global, Action, Env]
+trait PredictableDeterministicEnvironment[Env <: Environment[Env] with PredictableDeterministicEnvironment[Env] with Deterministic[Env]]
+  extends PredictableEnvironment[Env]
 {
-  self: Environment[Coordinate, State, Global, Action, Env] with Env with Deterministic[Coordinate, State, Global, Action, Env] =>
+  self: Env =>
 
-  type Prediction = EnvironmentSnapshot[Coordinate, State, Global, Action, Env]
+  type Prediction = EnvironmentSnapshot[Env]
 }
 
-trait PredictableNonDeterministicEnvironment[Coordinate, State, Global, Action <: AbstractAction,
-                                             Env <: Environment[Coordinate, State, Global, Action, Env] with PredictableEnvironment[Coordinate, State, Global, Action, Env]]
-  extends PredictableEnvironment[Coordinate, State, Global, Action, Env]
+trait PredictableNonDeterministicEnvironment[Env <: Environment[Env] with PredictableNonDeterministicEnvironment[Env] with NonDeterministic[Env]]
+  extends PredictableEnvironment[Env]
 {
-  self: Environment[Coordinate, State, Global, Action, Env] with Env with NonDeterministic[Coordinate, State, Global, Action, Env] =>
+  self: Env =>
 
   /**
    * map probability -> Environment Snapshot in of that case
    */
-  type Prediction = Map[Double, EnvironmentSnapshot[Coordinate, State, Global, Action, Env]]
+  type Prediction = Map[Double, EnvironmentSnapshot[Env]]
 }
 
-trait EnvironmentImplementation[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]]
-  extends Environment[Coordinate, State, Global, Action, Env]
-{
+trait EnvironmentImplementation[Env <: EnvironmentImplementation[Env]] extends Environment[Env]{
   self: Env =>
 }
 
-trait MutableEnvironment[Coordinate, State, Global, Action <: AbstractAction, Env <: MutableEnvironment[Coordinate, State, Global, Action, Env]]
-  extends EnvironmentImplementation[Coordinate, State, Global, Action, Env]
+trait MutableEnvironment[Env <: Environment[Env] with MutableEnvironment[Env]]
+  extends EnvironmentImplementation[Env]
 {
   self: Env =>
 
-  def initStates: PartialFunction[Coordinate, State]
+  def initStates: PartialFunction[Env#Coordinate, Env#State]
   private var _states = initStates
-  def states: PartialFunction[Coordinate, State] = _states
-  def states_=(pf: PartialFunction[Coordinate, State]) = _states = pf
+  def states: PartialFunction[Env#Coordinate, Env#State] = _states
+  def states_=(pf: PartialFunction[Env#Coordinate, Env#State]) = _states = pf
 
-  def initGlobalState: Global
+  def initGlobalState: Env#Global
   private var _globalState = initGlobalState
-  def globalState: Global = _globalState
-  def globalState_=(g: Global) = _globalState = g
+  def globalState: Env#Global = _globalState
+  def globalState_=(g: Env#Global) = _globalState = g
 }
 
-trait ImmutableEnvironment[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]]
-  extends EnvironmentImplementation[Coordinate, State, Global, Action, Env]
+trait ImmutableEnvironment[Env <: Environment[Env] with ImmutableEnvironment[Env]]
+  extends EnvironmentImplementation[Env]
 {
   self: Env =>
 
-  override val states: PartialFunction[Coordinate, State]
-  override val globalState: Global
+  override val states: PartialFunction[Env#Coordinate, Env#State]
+  override val globalState: Env#Global
 }

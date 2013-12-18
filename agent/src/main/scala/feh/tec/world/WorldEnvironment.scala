@@ -9,20 +9,16 @@ import HasUUID._
 import scala.collection.mutable
 import feh.tec.util._
 
-trait WorldEnvironment[World <: AbstractWorld[Atom, Coordinate],
-                       Atom <: WorldAtom[Atom, Coordinate],
-                       Coordinate,
-                       State <: AtomState[Coordinate, Atom, World],
-                       Global <: WorldState[Coordinate, Atom, World],
-                       Action <: WorldAction[Coordinate, Atom, World],
-                       Env <: WorldEnvironment[World, Atom, Coordinate, State, Global, Action, Env]]
-  extends Environment[Coordinate, State, Global, Action, Env] with AbstractWorld[Atom, Coordinate]
+trait WorldEnvironment[Env <: Environment[Env],
+                       World <: AbstractWorld[Atom, Env#Coordinate],
+                       Atom <: WorldAtom[Atom, Env#Coordinate]]
+  extends Environment[Env] with AbstractWorld[Atom, Env#Coordinate]
 {
   self: World with Env =>
 
-  override type Ref <: WorldEnvironmentRef[Coordinate, State, Global, Action, Env, Atom, World]
+  override type Ref <: WorldEnvironmentRef[Env, Atom, World]
 
-  def worldSnapshot: WorldSnapshot[World, Atom, Coordinate]
+  def worldSnapshot: WorldSnapshot[World, Atom, Env#Coordinate]
 }
 
 trait WorldAction[Coordinate, Atom <: WorldAtom[Atom, Coordinate], World <: AbstractWorld[Atom, Coordinate]] extends AbstractAction
@@ -30,29 +26,26 @@ trait WorldAction[Coordinate, Atom <: WorldAtom[Atom, Coordinate], World <: Abst
 trait WorldState[Coordinate, Atom <: WorldAtom[Atom, Coordinate], World <: AbstractWorld[Atom, Coordinate]]
 
 trait AtomState[Coordinate, Atom <: WorldAtom[Atom, Coordinate], World <: AbstractWorld[Atom, Coordinate]]
-trait WorldStateBuilder[Coordinate, Atom <: WorldAtom[Atom, Coordinate], World <: AbstractWorld[Atom, Coordinate],
-                      State <: AtomState[Coordinate, Atom, World]]{
-  def build(atom: Atom): State
-  def build(snapshot: AtomSnapshot[Atom, Coordinate]): State
+trait WorldStateBuilder[Env <: Environment[Env],
+                        Atom <: WorldAtom[Atom, Env#Coordinate],
+                        World <: AbstractWorld[Atom, Env#Coordinate]]{
+  def build(atom: Atom): Env#State
+  def build(snapshot: AtomSnapshot[Atom, Env#Coordinate]): Env#State
 }
 
-trait MutableWorldEnvironment[World <: AbstractWorld[Atom, Coordinate],
-                              Atom <: WorldAtom[Atom, Coordinate],
-                              Coordinate,
-                              State <: AtomState[Coordinate, Atom, World],
-                              Global <: WorldState[Coordinate, Atom, World],
-                              Action <: WorldAction[Coordinate, Atom, World],
-                              Env <: MutableWorldEnvironment[World, Atom, Coordinate, State, Global, Action, Env] with World]
-  extends WorldEnvironment[World, Atom, Coordinate, State, Global, Action, Env] with MutableEnvironment[Coordinate, State, Global, Action, Env]
-    with AgentsPositionsProvidingWorld[Atom, Coordinate]
+trait MutableWorldEnvironment[Env <: MutableEnvironment[Env] ,
+                              World <: AbstractWorld[Atom, Env#Coordinate],
+                              Atom <: WorldAtom[Atom, Env#Coordinate]]
+  extends WorldEnvironment[Env, World, Atom] with MutableEnvironment[Env]
+    with AgentsPositionsProvidingWorld[Atom, Env#Coordinate]
 {
-  self: Env =>
+  self: Env with World =>
 
   def initAtoms: Seq[Atom]
   private val _atomsMap = mutable.HashMap(zipAtomsWithCoords(initAtoms): _*)
   private val _agentsPositions = mutable.HashMap(calcAgentsPositions: _*)
 
-  def get: PartialFunction[Coordinate, Atom] = _atomsMap
+  def get: PartialFunction[Env#Coordinate, Atom] = _atomsMap
 
   private def zipAtomsWithCoords(atoms: Seq[Atom]) = atoms.map(t => t.coordinate -> t)
   private def setAtoms(atoms: Seq[Atom]) = _atomsMap ++= zipAtomsWithCoords(atoms)
@@ -62,10 +55,10 @@ trait MutableWorldEnvironment[World <: AbstractWorld[Atom, Coordinate],
 
   def atoms: Seq[Atom] = atomsMap.values.toSeq
 
-  def stateByAtom(atom: Atom): State
+  def stateByAtom(atom: Atom): Env#State
   def statesMap = atomsMap mapValues stateByAtom
-  override def states: PartialFunction[Coordinate, State] = PartialFunction(atomsMap.apply _ andThen stateByAtom)
-  override def states_=(pf: PartialFunction[Coordinate, State]): Unit = {}
+  override def states: PartialFunction[Env#Coordinate, Env#State] = PartialFunction(atomsMap.apply _ andThen stateByAtom)
+  override def states_=(pf: PartialFunction[Env#Coordinate, Env#State]): Unit = {}
 
   protected def updateAgentAtAtom(newAtom: Atom): Atom = {
     agentAtAtom(newAtom).foreach{
@@ -83,7 +76,7 @@ trait MutableWorldEnvironment[World <: AbstractWorld[Atom, Coordinate],
     this
   }
 
-  def transformAtom(pos: Coordinate)(f: Atom => Atom): Env = {
+  def transformAtom(pos: Env#Coordinate)(f: Atom => Atom): Env = {
     setAtom(get(pos) |> (updateAgentAtAtom _ compose f.ensuringSameCoordinates))
     this
   }
@@ -94,29 +87,25 @@ trait MutableWorldEnvironment[World <: AbstractWorld[Atom, Coordinate],
 
   def agentsPositions = _agentsPositions.toMap
 
-  def agentPosition(id: AgentId): Option[Coordinate] = agentsPositions.get(id).map(_.coordinate)
+  def agentPosition(id: AgentId): Option[Env#Coordinate] = agentsPositions.get(id).map(_.coordinate)
 }
 
-trait WorldEnvironmentRef[Coordinate, State <: AtomState[Coordinate, Atom, World], Global <: WorldState[Coordinate, Atom, World],
-                          Action <: WorldAction[Coordinate, Atom, World], Env <: WorldEnvironment[World, Atom, Coordinate, State, Global, Action, Env],
-                          Atom <: WorldAtom[Atom, Coordinate], World <: AbstractWorld[Atom, Coordinate]]
-  extends EnvironmentRef[Coordinate, State, Global, Action, Env]
+trait WorldEnvironmentRef[Env <: Environment[Env],
+                          Atom <: WorldAtom[Atom, Env#Coordinate],
+                          World <: AbstractWorld[Atom, Env#Coordinate]]
+  extends EnvironmentRef[Env]
 {
-  def worldSnapshot: WorldSnapshot[World, Atom, Coordinate]
-  def worldSnapshot(s: EnvironmentSnapshot[Coordinate, State, Global, Action, Env]): WorldSnapshot[World, Atom, Coordinate]
+  def worldSnapshot: WorldSnapshot[World, Atom, Env#Coordinate]
+  def worldSnapshot(s: EnvironmentSnapshot[Env]): WorldSnapshot[World, Atom, Env#Coordinate]
 
-  def asyncWorldSnapshot(e: Env#Ref): Future[WorldSnapshot[World, Atom, Coordinate]]
-  def asyncWorldSnapshot(s: EnvironmentSnapshot[Coordinate, State, Global, Action, Env]): Future[WorldSnapshot[World, Atom, Coordinate]]
+  def asyncWorldSnapshot(e: Env#Ref): Future[WorldSnapshot[World, Atom, Env#Coordinate]]
+  def asyncWorldSnapshot(s: EnvironmentSnapshot[Env]): Future[WorldSnapshot[World, Atom, Env#Coordinate]]
 }
 
-trait InAbstractWorldEnvironment[Position,
-                                 EnvState <: AtomState[Position, Atom, World],
-                                 EnvGlobal <: WorldState[Position, Atom, World],
-                                 Action <: WorldAction[Position, Atom, World],
-                                 Env <: Environment[Position, EnvState, EnvGlobal, Action, Env] with WorldEnvironment[World, Atom, Position, EnvState, EnvGlobal, Action, Env],
-                                 Atom <: WorldAtom[Atom, Position],
-                                 World <: AbstractWorld[Atom, Position]]
-  extends AbstractAgent[Position, EnvState, EnvGlobal, Action, Env]
+trait InAbstractWorldEnvironment[Env <: WorldEnvironment[Env, World, Atom] { type State <: AtomState[Env#Coordinate, Atom, World] },
+                                 Atom <: WorldAtom[Atom, Env#Coordinate],
+                                 World <: AbstractWorld[Atom, Env#Coordinate]]
+  extends AbstractAgent[Env]
 {
 
   agent =>
@@ -125,41 +114,41 @@ trait InAbstractWorldEnvironment[Position,
   type DetailedPerception = AtomPerception
 
   trait WorldPerception extends AbstractGlobalPerception{
-    def worldSnapshot: WorldSnapshot[World, Atom, Position] with World
+    def worldSnapshot: WorldSnapshot[World, Atom, Env#Coordinate] with World
   }
 
   trait AtomPerception extends AbstractDetailedPerception{
-    def shortcut: Route[Position]
+    def shortcut: Route[Env#Coordinate]
   }
 
   //todo: doubling
-  protected def sense(snapshot: WorldEnvironmentSnapshot[World, Atom, Position, EnvState, EnvGlobal, Action, Env]) =
+  protected def sense(snapshot: WorldEnvironmentSnapshot[Env, World, Atom]) =
     new WorldPerception {
-      val worldSnapshot = env.worldSnapshot(snapshot).asInstanceOf[WorldSnapshot[World, Atom, Position] with World]
+      val worldSnapshot = env.worldSnapshot(snapshot).asInstanceOf[WorldSnapshot[World, Atom, Env#Coordinate] with World]
 
-      val perceived: Seq[Position] = snapshot.visibleStates.keys.toSeq
+      val perceived: Seq[Env#Coordinate] = snapshot.visibleStates.keys.toSeq
 
       // todo: need access to AgentsPositionsProvidingMap's agentsPositions method
-      val position: Position = snapshot.asEnv.asInstanceOf[AgentsPositionsProvidingWorld[Atom, Position]].agentsPositions(agent.id).coordinate
+      val position: Env#Coordinate = snapshot.asEnv.asInstanceOf[AgentsPositionsProvidingWorld[Atom, Env#Coordinate]].agentsPositions(agent.id).coordinate
     }
 
   def sense(env: EnvRef): Perception =
     new WorldPerception{
-      val worldSnapshot = env.worldSnapshot.asInstanceOf[WorldSnapshot[World, Atom, Position] with World] // todo: casting
+      val worldSnapshot = env.worldSnapshot.asInstanceOf[WorldSnapshot[World, Atom, Env#Coordinate] with World] // todo: casting
 
-      val perceived: Seq[Position] = env.blocking.visibleStates.keys.toSeq
+      val perceived: Seq[Env#Coordinate] = env.blocking.visibleStates.keys.toSeq
 
-      val position: Position = env.blocking.agentPosition(agent.id).get
+      val position: Env#Coordinate = env.blocking.agentPosition(agent.id).get
     }
 
-  def detailed(env: EnvRef, c: Position): Option[DetailedPerception] =     {
+  def detailed(env: EnvRef, c: Env#Coordinate): Option[DetailedPerception] =     {
     val sensed = sense(env)
-    val shortestRoutes = shortestRouteFinder.shortestRoutes(sensed.worldSnapshot: WorldSnapshot[World, Atom, Position])(sensed.position, sensed.perceived.toSet)
+    val shortestRoutes = shortestRouteFinder.shortestRoutes(sensed.worldSnapshot: WorldSnapshot[World, Atom, Env#Coordinate])(sensed.position, sensed.perceived.toSet)
     if(sensed.perceived contains c) Some(
       new AtomPerception {
-        def shortcut: Route[Position] = shortestRoutes(c)
-        type ActualDetailedPerception = AtomState[Position, Atom, World]
-        def where: Position = c
+        def shortcut: Route[Env#Coordinate] = shortestRoutes(c)
+        type ActualDetailedPerception = AtomState[Env#Coordinate, Atom, World]
+        def where: Env#Coordinate = c
         def what: ActualDetailedPerception = worldStateBuilder.build(sensed.worldSnapshot.getSnapshot(c))
       })
     else None
@@ -167,44 +156,36 @@ trait InAbstractWorldEnvironment[Position,
 
 
 
-  def shortestRouteFinder: ShortestRouteFinder[World, Atom, Position]
+  def shortestRouteFinder: ShortestRouteFinder[World, Atom, Env#Coordinate]
 
-  def worldStateBuilder: WorldStateBuilder[Position, Atom, World, EnvState]
-
-}
-
-trait WorldEnvironmentOverseer[World <: AbstractWorld[Atom, Coordinate],
-                               Atom <: WorldAtom[Atom, Coordinate],
-                               Coordinate,
-                               State <: AtomState[Coordinate, Atom, World],
-                               Global <: WorldState[Coordinate, Atom, World],
-                               Action <: WorldAction[Coordinate, Atom, World],
-                               Env <: WorldEnvironment[World, Atom, Coordinate, State, Global, Action, Env]]{
-  self: EnvironmentOverseer[Coordinate, State, Global, Action, Env] =>
-
-  def worldSnapshot(): WorldSnapshot[World, Atom, Coordinate]
-  def worldSnapshot(s: EnvironmentSnapshot[Coordinate, State, Global, Action, Env]): WorldSnapshot[World, Atom, Coordinate]
+  def worldStateBuilder: WorldStateBuilder[Env, Atom, World]
 
 }
 
-trait WorldEnvironmentOverseerWithActor[World <: AbstractWorld[Atom, Coordinate],
-                                        Atom <: WorldAtom[Atom, Coordinate],
-                                        Coordinate,
-                                        State <: AtomState[Coordinate, Atom, World],
-                                        Global <: WorldState[Coordinate, Atom, World],
-                                        Action <: WorldAction[Coordinate, Atom, World],
-                                        Env <: WorldEnvironment[World, Atom, Coordinate, State, Global, Action, Env]]
-  extends WorldEnvironmentOverseer[World, Atom, Coordinate, State, Global, Action, Env] with EnvironmentOverseerWithActor[Coordinate, State, Global, Action, Env]
+trait WorldEnvironmentOverseer[Env <: WorldEnvironment[Env, World, Atom],
+                               World <: AbstractWorld[Atom, Env#Coordinate],
+                               Atom <: WorldAtom[Atom, Env#Coordinate]]{
+  self: EnvironmentOverseer[Env] =>
+
+  def worldSnapshot(): WorldSnapshot[World, Atom, Env#Coordinate]
+  def worldSnapshot(s: EnvironmentSnapshot[Env]): WorldSnapshot[World, Atom, Env#Coordinate]
+
+}
+
+trait WorldEnvironmentOverseerWithActor[Env <: WorldEnvironment[Env, World, Atom] { type State <: AtomState[Env#Coordinate, Atom, World] },
+                                        World <: AbstractWorld[Atom, Env#Coordinate],
+                                        Atom <: WorldAtom[Atom, Env#Coordinate]]
+  extends WorldEnvironmentOverseer[Env, World, Atom] with EnvironmentOverseerWithActor[Env]
 {
   overseer =>
 
-  private type Ag = AbstractAgent[Coordinate, State, Global, Action, Env] with InAbstractWorldEnvironment[Coordinate, State, Global, Action, Env, Atom, World]
+  private type Ag = AbstractAgent[Env] with InAbstractWorldEnvironment[Env, Atom, World]
 
   case class GetWorldByEnvRef(e: Env#Ref) extends UUIDed
-  case class WorldByEnvRef(uuid: UUID, snapshot: WorldSnapshot[World, Atom, Coordinate]) extends HasUUID
+  case class WorldByEnvRef(uuid: UUID, snapshot: WorldSnapshot[World, Atom, Env#Coordinate]) extends HasUUID
 
-  case class GetWorldBySnapshot(s: EnvironmentSnapshot[Coordinate, State, Global, Action, Env]) extends UUIDed
-  case class WorldBySnapshot(uuid: UUID, snapshot: WorldSnapshot[World, Atom, Coordinate]) extends HasUUID
+  case class GetWorldBySnapshot(s: EnvironmentSnapshot[Env]) extends UUIDed
+  case class WorldBySnapshot(uuid: UUID, snapshot: WorldSnapshot[World, Atom, Env#Coordinate]) extends HasUUID
 
 
 
@@ -217,24 +198,25 @@ trait WorldEnvironmentOverseerWithActor[World <: AbstractWorld[Atom, Coordinate]
     case msg@GetWorldBySnapshot(s) => WorldBySnapshot(msg.uuid, worldSnapshot(s)).lifted
   }
 
-  trait WorldEnvironmentRefImpl extends WorldEnvironmentRef[Coordinate, State, Global, Action, Env, Atom, World]{
-    def worldSnapshot: WorldSnapshot[World, Atom, Coordinate] = overseer.worldSnapshot()
-    def worldSnapshot(s: EnvironmentSnapshot[Coordinate, State, Global, Action, Env]): WorldSnapshot[World, Atom, Coordinate] = overseer.worldSnapshot(s)
+  trait WorldEnvironmentRefImpl extends WorldEnvironmentRef[Env, Atom, World]{
+    def worldSnapshot: WorldSnapshot[World, Atom, Env#Coordinate] = overseer.worldSnapshot()
+    def worldSnapshot(s: EnvironmentSnapshot[Env]): WorldSnapshot[World, Atom, Env#Coordinate] = overseer.worldSnapshot(s)
 
-    def asyncWorldSnapshot(e: Env#Ref): Future[WorldSnapshot[World, Atom, Coordinate]] =
+    def asyncWorldSnapshot(e: Env#Ref): Future[WorldSnapshot[World, Atom, Env#Coordinate]] =
       overseer.actorRef.send(GetWorldByEnvRef(e)).awaitingResponse[WorldBySnapshot](positionMaxDelay).map(_.snapshot)
-    def asyncWorldSnapshot(s: EnvironmentSnapshot[Coordinate, State, Global, Action, Env]): Future[WorldSnapshot[World, Atom, Coordinate]] =
+    def asyncWorldSnapshot(s: EnvironmentSnapshot[Env]): Future[WorldSnapshot[World, Atom, Env#Coordinate]] =
       overseer.actorRef.send(GetWorldBySnapshot(s)).awaitingResponse[WorldBySnapshot](positionMaxDelay).map(_.snapshot)
   }
 
 }
 
 
-trait WorldEnvironmentSnapshot[World <: AbstractWorld[Atom, Coordinate], Atom <: WorldAtom[Atom, Coordinate], Coordinate,
-                               State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]]
-  extends EnvironmentSnapshot[Coordinate, State, Global, Action, Env]
+trait WorldEnvironmentSnapshot[Env <: Environment[Env],
+                               World <: AbstractWorld[Atom, Env#Coordinate],
+                               Atom <: WorldAtom[Atom, Env#Coordinate]]
+  extends EnvironmentSnapshot[Env]
 {
-  self: Env =>
+  self: Env with World =>
 
-  def worldSnapshot: WorldSnapshot[World, Atom, Coordinate]
+  def worldSnapshot: WorldSnapshot[World, Atom, Env#Coordinate]
 }

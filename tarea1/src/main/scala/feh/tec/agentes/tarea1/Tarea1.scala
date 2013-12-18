@@ -44,7 +44,7 @@ object Tarea1 {
                          pauseBetweenExecs: FiniteDuration,
                          execControlTimeout: FiniteDuration)
                       (implicit val actorSystem: ActorSystem)
-      extends AgentInfiniteExecution[Position, EnvState, EnvGlobal, Action, Env, MyDummyAgent[InfExec]]
+      extends AgentInfiniteExecution[MyDummyAgent[InfExec]]
 
     case class ConditionalExec(agent: MyDummyAgent[ConditionalExec],
                                pauseBetweenExecs: FiniteDuration,
@@ -52,7 +52,7 @@ object Tarea1 {
                                stopConditions: Set[ConditionalExec#StopCondition],
                                onFinished: () => Unit)
                               (implicit val actorSystem: ActorSystem)
-      extends AgentExecutionEnvironmentStopCondition[Position, EnvState, EnvGlobal, Action, Env, MyDummyAgent[ConditionalExec]]
+      extends AgentExecutionEnvironmentStopCondition[Env, MyDummyAgent[ConditionalExec]]
     {
       def notifyFinished(): Unit = onFinished()
     }
@@ -92,9 +92,9 @@ object Tarea1 {
 
 
     object MyDummyAgent{
-      type Exec[Self <: Exec[Self]] = ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, MyDummyAgent[Self]]
+      type Exec[Self <: Exec[Self]] = ActorAgentExecutionLoop[MyDummyAgent[Self]]
     }
-    class MyDummyAgent[Exec <: ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, MyDummyAgent[Exec]]](
+    class MyDummyAgent[Exec <: ActorAgentExecutionLoop[MyDummyAgent[Exec]]](
                        e: Env#Ref,
                        criteria: Measure#Criteria,
                        backupCriteria: Measure#Criteria,
@@ -103,8 +103,8 @@ object Tarea1 {
                        val foreseeingDepth: Int,
                        worldVisualisationCalls: WorldVisualisationCalls[Tile, Position])
                       (implicit val actorSystem: ActorSystem, exBuilder: ExecLoopBuilder[AbstractAgent[Exec], Exec])
-      extends AbstractAgent[Exec](e, criteria, Environment.mapStateBuilder, shortestRouteFinder, Measure)
-        with IdealForeseeingDummyAgent[Position, EnvState, EnvGlobal, Action, Env, Exec, Measure]
+      extends AbstractAgent[Exec](e, criteria, Environment.mapStateBuilder, shortestRouteFinder, new Measure)
+        with IdealForeseeingDummyAgent[Env, Exec, Measure]
         with GlobalDebugging
     {
       agent =>
@@ -114,8 +114,8 @@ object Tarea1 {
         findPossibleActions(this)(currentPerception)
       }
 
-      def perceiveFromSnapshot(sn: EnvironmentSnapshot[Position, EnvState, EnvGlobal, Action, Env]): Perception =
-        sense(sn.asInstanceOf[WorldEnvironmentSnapshot[Map, Tile, Position, EnvState, EnvGlobal, Action, Env]]) // todo: casting
+      def perceiveFromSnapshot(sn: EnvironmentSnapshot[Env]): Perception =
+        sense(sn.asInstanceOf[WorldEnvironmentSnapshot[Env, Map, Tile]]) // todo: casting
 
       protected def setup: DebuggingSetup = Tarea1.Debug
 
@@ -133,7 +133,7 @@ object Tarea1 {
       }
 
       private class BackupMeasureBasedForeseeingDecisionStrategy
-        extends IdealForeseeingAgentDecisionStrategies.MeasureBasedForeseeingDecisionStrategy[Position, EnvState, EnvGlobal, Action, Env, Exec, Measure, agent.type](foreseeingDepth, debug, notifyRouteChosen)
+        extends IdealForeseeingAgentDecisionStrategies.MeasureBasedForeseeingDecisionStrategy[Env, Measure, agent.type](foreseeingDepth, debug, notifyRouteChosen)
       {
         override lazy val rewriteCriteria: Option[Measure#Criteria] = Some(backupCriteria)
 
@@ -147,13 +147,14 @@ object Tarea1 {
         }
       }
 
-      def criteriaFailed: ExtendedCriteriaBasedDecision[ActionExplanation, Position, EnvState, EnvGlobal, Action, Env, Exec, Measure] => Boolean =
+      def criteriaFailed: ExtendedCriteriaBasedDecision[ActionExplanation, Env, Measure] => Boolean =
         _.consideredOptionsCriteriaValues |> {
           ops =>
             ops.length != 1 && ops.distinct.length == 1
         }
 
-      override protected def createBehaviorSelectionStrategy: DecisionStrategy[Action, DecisionArg, ExtendedCriteriaBasedDecision[ActionExplanation, Position, EnvState, EnvGlobal, Action, Env, Exec, Measure]] =
+      override protected def createBehaviorSelectionStrategy:
+        DecisionStrategy[Env#Action, DecisionArg, ExtendedCriteriaBasedDecision[ActionExplanation, Env, Measure]] =
         {
           val strategy = super.createBehaviorSelectionStrategy
           FailsafeDecisionStrategy.Builder(strategy)
@@ -236,7 +237,7 @@ object Tarea1 {
 
     val initGlobal = NoGlobal
 
-    val mapStateBuilder: WorldStateBuilder[Agent.Position, Agent.Tile, Map, Agent.EnvState] = new MStateBuilder(Agents.Id.dummy) // todo: id
+    val mapStateBuilder: WorldStateBuilder[Environment, Agent.Tile, Map] = new MStateBuilder(Agents.Id.dummy) // todo: id
   }
 
   val timeouts = OverseerTimeouts(
@@ -276,9 +277,9 @@ object Tarea1 {
 trait Tarea1AppSetup{
   import Agent._
 
-  def criteria: Seq[Criterion[Position, EnvState, EnvGlobal, Action, Env, Measure]]
+  def criteria: Seq[Criterion[Env, Measure]]
   def backupCriteria: Measure#Criteria
-  def findPossibleActions[Exec <: ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, MyDummyAgent[Exec]]]
+  def findPossibleActions[Exec <: ActorAgentExecutionLoop[MyDummyAgent[Exec]]]
     (ag: MyDummyAgent[Exec], perc: MyDummyAgent[Exec]#Perception): Set[Action]
 }
 
@@ -300,14 +301,14 @@ class Tarea1App extends AppBasicControlApi{
   implicit val actorSystem = ActorSystem()
 
   val setup: Tarea1AppSetup = new Tarea1AppSetup {
-    def findPossibleActions[Exec <: ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, MyDummyAgent[Exec]]]
+    def findPossibleActions[Exec <: ActorAgentExecutionLoop[MyDummyAgent[Exec]]]
       (ag: MyDummyAgent[Exec], perc: MyDummyAgent[Exec]#Perception): Set[Action] =
         perc.worldSnapshot.getSnapshot(perc.position).neighboursSnapshots
           .filterNot(_.asAtom.contents.exists(_.isHole))
           .map(tile => perc.worldSnapshot.asWorld.relativeNeighboursPosition(tile.coordinate, perc.position))
           .map(Move(_)).toSet
 
-    def criteria: Seq[Criterion[Position, EnvState, EnvGlobal, Action, Env, Measure]] =
+    def criteria: Seq[Criterion[Env, Measure]] =
       new PlugsMovingAgentCriteria
         with NumberOfHolesCriterion
       {
@@ -328,9 +329,9 @@ class Tarea1App extends AppBasicControlApi{
 
       val minDistsMapCache = mutable.HashMap.empty[Set[Position], FloydWarshall#MinDistMap]
 
-      def getHolesCoordinates(s: Measure.Snapshot) = s.asEnv.worldSnapshot.tilesSnapshots.withFilter(_.asAtom.exists(_.isHole)).map(_.coordinate).toSet
+      def getHolesCoordinates(s: Measure#Snapshot) = s.asEnv.worldSnapshot.tilesSnapshots.withFilter(_.asAtom.exists(_.isHole)).map(_.coordinate).toSet
 
-      def minDists(s: Measure.Snapshot) = {
+      def minDists(s: Measure#Snapshot) = {
         val holesCoords = getHolesCoordinates(s)
         minDistsMapCache.getOrElse(holesCoords, {
           val t1 = Calendar.getInstance.getTimeInMillis
@@ -346,16 +347,16 @@ class Tarea1App extends AppBasicControlApi{
         })
       }
 
-      def findClosetRespectingHoles(relativelyTo: Position, cond: (Tile#Snapshot) => Boolean, sn: Measure.Snapshot): Seq[Tile#Snapshot] =
+      def findClosetRespectingHoles(relativelyTo: Position, cond: (Tile#Snapshot) => Boolean, sn: Measure#Snapshot): Seq[Tile#Snapshot] =
         minDists(sn).withFilter{case ((c1, c2), d) => c1 == relativelyTo && cond(sn.asEnv.worldSnapshot.getSnapshot(c2))}.map(p => sn.asEnv.worldSnapshot.getSnapshot(p._1._2)).toSeq
-      def findClosetDisregardingHoles(relativelyTo: Position, cond: Tile#Snapshot => Boolean, sn: Measure.Snapshot): Seq[Tile#Snapshot] =
+      def findClosetDisregardingHoles(relativelyTo: Position, cond: Tile#Snapshot => Boolean, sn: Measure#Snapshot): Seq[Tile#Snapshot] =
         sn.asEnv.worldSnapshot.tilesSnapshots.filter(cond).filterMin(distanceDisregardingHoles(relativelyTo, _, sn)) // might be slow; can search recursively, increasing search distance
 
-      def distanceRespectingHoles(p1: Position, p2: Position, sn: Measure.Snapshot): Int =
+      def distanceRespectingHoles(p1: Position, p2: Position, sn: Measure#Snapshot): Int =
         minDists(sn).collectFirst{
           case ((`p1`, `p2`), d) => d
         }.get
-      def distanceDisregardingHoles(p1: Position, p2: Position, sn: Measure.Snapshot): Int = {
+      def distanceDisregardingHoles(p1: Position, p2: Position, sn: Measure#Snapshot): Int = {
         import scala.math._
         val distX = min(abs(p1._1 - p2._1), abs(p2._1 - p1._1))
         val distY = min(abs(p1._2 - p2._2), abs(p2._2 - p1._2))

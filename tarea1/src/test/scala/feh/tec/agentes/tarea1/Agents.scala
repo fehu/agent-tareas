@@ -12,7 +12,7 @@ object Agents {
   import Agent._
 
   object MyDummyAgent{
-    object RandomlyChosenCriteriaValue extends StatelessAgentPerformanceMeasure.CalculatedCriterion[Position, EnvState, EnvGlobal, Action, Env, Measure]("Randomly chosen", 0)
+    object RandomlyChosenCriteriaValue extends StatelessAgentPerformanceMeasure.CalculatedCriterion[Env, Measure]("Randomly chosen", 0)
 
     def randomlyMoving(ref: Environment#Ref, freq: FiniteDuration) ={
       implicit def pauseBetweenExecs = PauseBetweenExecs(freq)
@@ -20,7 +20,7 @@ object Agents {
       new MyDummyAgent[InfExec](ref, Nil, Nil, _ => _ => Set(), agentId, -1, null) { agent =>
 
         override def decide(currentPerception: Perception): ActionExplanation =
-          CriteriaReasonedDecision[Position, EnvState, EnvGlobal, Action, Env, InfExec, Measure](Move.all.toSeq.randomChoice, Set(RandomlyChosenCriteriaValue), 0)
+          CriteriaReasonedDecision[Env, Measure](Move.all.toSeq.randomChoice, Set(RandomlyChosenCriteriaValue), 0)
       }
     }
   }

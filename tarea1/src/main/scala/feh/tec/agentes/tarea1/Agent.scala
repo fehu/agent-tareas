@@ -19,31 +19,29 @@ object Agent{
 
   type Easel = Environment.Easel // todo: shouldn't be here
 
-  class Measure extends StatelessAgentPerformanceDoubleMeasure[Position, EnvState, EnvGlobal, Action, Env, Measure]
-  object Measure extends Measure
-
+  class Measure extends StatelessAgentPerformanceDoubleMeasure[Env, Measure]
 }
 
 import Agent._
 
-abstract class AbstractAgent[Exec <: ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, AbstractAgent[Exec]]]
+abstract class AbstractAgent[Exec <: ActorAgentExecutionLoop[AbstractAgent[Exec]]]
                 (val env: AbstractAgent[Exec]#EnvRef,
-                 val mainPerformanceCriteria: Seq[Criterion[Position, EnvState, EnvGlobal, Action, Env, Measure]],
-                 val worldStateBuilder: WorldStateBuilder[Position, Tile, Map, EnvState],
+                 val mainPerformanceCriteria: Seq[Criterion[Env, Measure]],
+                 val worldStateBuilder: WorldStateBuilder[Env, Tile, Map],
                  val shortestRouteFinder: ShortestRouteFinder[Map, Tile, Position],
                  val measure: Measure)
                 (implicit val execLoopBuilder: ExecLoopBuilder[AbstractAgent[Exec], Exec])
-  extends Agent[Position, EnvState, EnvGlobal, Action, Env, Exec] with AgentWithActor[Position, EnvState, EnvGlobal, Action, Env, Exec]
-    with IdealRationalAgent[Position, EnvState, EnvGlobal, Action, Env, Exec, Measure]
-    with InAbstractWorldEnvironment[Position, EnvState, EnvGlobal, Action, Env, Tile, Map]
+  extends Agent[Env, Exec] with AgentWithActor[Env, Exec]
+    with IdealRationalAgent[Env, Exec, Measure]
+    with InAbstractWorldEnvironment[Env, Tile, Map]
 {
-  agent: DecisiveAgent[Position, EnvState, EnvGlobal, Action, Env, Exec] =>
+  agent: DecisiveAgent[Env, Exec] =>
 
   protected def actorSystem: ActorSystem
 
-  private var _criteria = mainPerformanceCriteria
+  private var _criteria: Measure#Criteria = mainPerformanceCriteria.asInstanceOf[measure.Criteria]
   def performanceCriteria = _criteria
-  def withCriteria[R](c: Agent.Measure#Criteria)(f: => R): R = {
+  def withCriteria[R](c: Measure#Criteria)(f: => R): R = {
     val old = performanceCriteria
     _criteria = c
     val r = f
@@ -52,7 +50,7 @@ abstract class AbstractAgent[Exec <: ActorAgentExecutionLoop[Position, EnvState,
   }
 
 
-  def calcPerformance(prediction: Env#Prediction) = measure.performance(prediction)(performanceCriteria)
+  def calcPerformance(prediction: Env#Prediction) = measure.performance(prediction)(performanceCriteria.asInstanceOf[measure.Criteria])
 
   lazy val executionLoop: Exec = execLoopBuilder.buildExec(agent)
 
@@ -70,18 +68,18 @@ class AbstractAgentActor(agentReceive: PartialFunction[Any, Option[Any]]) extend
 }
 
 
-trait ExecLoopBuilder[Ag <: AbstractAgent[Exec], Exec <: ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, Ag]]{
+trait ExecLoopBuilder[Ag <: AbstractAgent[Exec], Exec <: ActorAgentExecutionLoop[Ag]]{
   def buildExec(ag: Ag): Exec
 }
 
-class AgentInfiniteExecLoopBuilder[Ag <: AbstractAgent[AgentInfiniteExecution[Position, EnvState, EnvGlobal, Action, Env, Ag]]]
+class AgentInfiniteExecLoopBuilder[Ag <: AbstractAgent[AgentInfiniteExecution[Ag]]]
   (pauseBetweenExecs: FiniteDuration, stopTimeout: FiniteDuration, actorSystem: ActorSystem)
-  extends ExecLoopBuilder[Ag, AgentInfiniteExecution[Position, EnvState, EnvGlobal, Action, Env, Ag]]
+  extends ExecLoopBuilder[Ag, AgentInfiniteExecution[Ag]]
 {
   outer =>
 
   def buildExec(ag: Ag) =
-    new AgentInfiniteExecution[Position, EnvState, EnvGlobal, Action, Env, Ag]{
+    new AgentInfiniteExecution[Ag]{
       def agent: Ag = ag
       def pauseBetweenExecs: FiniteDuration = outer.pauseBetweenExecs
       def execControlTimeout: FiniteDuration = outer.stopTimeout

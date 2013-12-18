@@ -18,7 +18,7 @@ trait AbstractScopedState[T]{
   }
 }
 
-trait ScopedStateInThread[T] extends AbstractScopedState[T]{
+trait ScopedInThreadState[T] extends AbstractScopedState[T]{
   private val _state = new ThreadLocal[T]{
     override def initialValue(): T = default
   }
@@ -27,8 +27,8 @@ trait ScopedStateInThread[T] extends AbstractScopedState[T]{
   protected def state_=(t: T) = _state.set(t)
 }
 
-class ScopedState[T](protected val default: T) extends ScopedStateInThread[T]
-class ScopedStates[T](protected val default: Set[T]) extends ScopedStateInThread[Set[T]]{
+class ScopedState[T](protected val default: T) extends ScopedInThreadState[T]
+class ScopedStates[T](protected val default: Set[T]) extends ScopedInThreadState[Set[T]]{
   def doWithAdditional[R](t: Set[T])(r: => R): R = {
     val c = get.filter(t.contains)
     state = get ++ t

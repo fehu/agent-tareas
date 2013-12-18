@@ -6,28 +6,26 @@ import scala.collection.mutable
 import feh.tec.util._
 
 object IdealRationalAgentDecisionStrategies {
-  class MeasureBasedDecisionStrategy[Position, EnvState, EnvGlobal, Action <: AbstractAction,
-                                     Env <: Environment[Position, EnvState, EnvGlobal, Action, Env] with PredictableEnvironment[Position, EnvState, EnvGlobal, Action, Env],
-                                     Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env],
-                                     M <: AgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action, Env, M],
-                                     Ag <: IdealRationalAgent[Position, EnvState, EnvGlobal, Action, Env, Exec, M] with AgentExecution[Position, EnvState, EnvGlobal, Action, Env, Exec]]
-  (agentPosition: Env#Prediction => Position)
-    extends DecisionStrategy[Action, Ag#DecisionArg, ExtendedCriteriaBasedDecision[Ag#ActionExplanation, Position, EnvState, EnvGlobal, Action, Env, Exec, M]]
+  class MeasureBasedDecisionStrategy[Env <: Environment[Env] with PredictableEnvironment[Env],
+                                     M <: AgentPerformanceMeasure[Env, M],
+                                     Ag <: IdealRationalAgent[Env, Exec, M] with AgentExecution[Env, Exec] forSome {type Exec <: AgentExecutionLoop}]
+  (agentPosition: Env#Prediction => Env#Coordinate)
+    extends DecisionStrategy[Env#Action, Ag#DecisionArg, ExtendedCriteriaBasedDecision[Ag#ActionExplanation, Env, M]]
   {
     outer =>
 
     def name: String = "Measure Based Decision Strategy"
 
-    def decide: (Ag#DecisionArg) => ExtendedCriteriaBasedDecision[Ag#ActionExplanation, Position, EnvState, EnvGlobal, Action, Env, Exec, M] =
+    def decide: (Ag#DecisionArg) => ExtendedCriteriaBasedDecision[Ag#ActionExplanation, Env, M] =
       {
         case (ag, possibleActions) =>
-          implicit val num = ag.measure.measureNumeric.asInstanceOf[Numeric[M#Measure]]
+          implicit val num = ag.measure.measureIsNumeric.asInstanceOf[Numeric[M#Measure]]
           val possibleDecisions = for {
             a <- possibleActions
             prediction = ag.env.predict(a)
             criteriaV = rewriteCriteria.map(ag.withCriteria(_)(ag.calcPerformance(prediction))) getOrElse ag.calcPerformance(prediction)
             performance = criteriaV.map(_.value).sum
-          } yield CriteriaReasonedDecision[Position, EnvState, EnvGlobal, Action, Env, Exec, M](a, criteriaV.toSet, performance)
+          } yield CriteriaReasonedDecision[Env, M](a, criteriaV.toSet, performance)
 
           ExtendedCriteriaBasedDecision(possibleDecisions.filterMax(_.measure).randomChoose, possibleDecisions.toSeq.map(_.criteria))
       }
@@ -40,22 +38,20 @@ object IdealRationalAgentDecisionStrategies {
 
 object IdealForeseeingAgentDecisionStrategies{
 
-  class MeasureBasedForeseeingDecisionStrategy[Position, EnvState, EnvGlobal, Action <: AbstractAction,
-                                               Env <: Environment[Position, EnvState, EnvGlobal, Action, Env] with ForeseeableEnvironment[Position, EnvState, EnvGlobal, Action, Env],
-                                               Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env],
-                                               M <: AgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action, Env, M],
-                                               Ag <: IdealForeseeingDummyAgent[Position, EnvState, EnvGlobal, Action, Env, Exec, M] with AgentExecution[Position, EnvState, EnvGlobal, Action, Env, Exec]]
-      (val foreseeingDepth: Int, val debug: Boolean, notifyRouteChosen: Option[Seq[Action]] => Unit)
-    extends IdealRationalAgentDecisionStrategies.MeasureBasedDecisionStrategy[Position, EnvState, EnvGlobal, Action, Env, Exec, M, Ag](null) with Debugging
+  class MeasureBasedForeseeingDecisionStrategy[Env <: Environment[Env] with ForeseeableEnvironment[Env] ,
+                                               M <: AgentPerformanceMeasure[Env, M],
+                                               Ag <: IdealForeseeingDummyAgent[Env, Exec, M] with AgentExecution[Env, Exec] forSome {type Exec <: AgentExecutionLoop} ]
+      (val foreseeingDepth: Int, val debug: Boolean, notifyRouteChosen: Option[Seq[Env#Action]] => Unit)
+    extends IdealRationalAgentDecisionStrategies.MeasureBasedDecisionStrategy[Env, M, Ag](null) with Debugging
   {
     override def name: String = "Foreseeing Measure Based Decision Strategy"
 
     def debugMessagePrefix: String = "[IdealForeseeingAgentDecisionStrategies: MeasureBasedForeseeingDecisionStrategy] "
 
-    type ReasonedDecisions = CriteriaReasonedDecisions[Position, EnvState, EnvGlobal, Action, Env, Exec, M]
+    type ReasonedDecisions = CriteriaReasonedDecisions[Env, M]
 
-    type Decisions = ExtendedCriteriaBasedDecision[ReasonedDecisions, Position, EnvState, EnvGlobal, Action, Env, Exec, M]
-    type Decision = ExtendedCriteriaBasedDecision[Ag#ActionExplanation, Position, EnvState, EnvGlobal, Action, Env, Exec, M]
+    type Decisions = ExtendedCriteriaBasedDecision[ReasonedDecisions, Env, M]
+    type Decision = ExtendedCriteriaBasedDecision[Ag#ActionExplanation, Env, M]
 
     private var _currentDecisions: Option[Decisions] = None
     def currentDecisions = _currentDecisions
@@ -67,7 +63,7 @@ object IdealForeseeingAgentDecisionStrategies{
 
     def tacticalOptionsIncludeShorter = true
     def tacticalOptionsExcludeTurningBack = true
-    def tacticalOptionsFilterAgentIgnoringComparator: Option[(EnvState, EnvState) => Boolean] = None
+    def tacticalOptionsFilterAgentIgnoringComparator: Option[(Env#State, Env#State) => Boolean] = None
     final def tacticalOptionsFilterLeadingToSameState = tacticalOptionsFilterAgentIgnoringComparator.isDefined
     def bestOptionsPreferShorter = true
 //    def filter
@@ -75,12 +71,12 @@ object IdealForeseeingAgentDecisionStrategies{
 
     protected def makeDecisions(arg: Ag#DecisionArg): Decisions = arg match {
       case (ag, possibleActions) =>
-        implicit val num = ag.measure.measureNumeric.asInstanceOf[Numeric[M#Measure]]
+        implicit val num = ag.measure.measureIsNumeric
         def behavioursFunc = ag.perceiveFromSnapshot _ andThen ag.possibleBehaviors
-        def filterTacticalOptions(ops: Map[Seq[Action], Env#Prediction]) =
+        def filterTacticalOptions(ops: Map[Seq[Env#Action], Env#Prediction]) =
           tacticalOptionsFilterAgentIgnoringComparator.map{
             compar =>
-              EnvironmentSnapshot.withStateComparator[EnvState, Map[Seq[Action], Env#Prediction]](compar){
+              EnvironmentSnapshot.withStateComparator[Env#State, Map[Seq[Env#Action], Env#Prediction]](compar){
                 ops.groupBy(_._2).map{
                   case (prediction, map) => map.keys.toSeq.randomChoice -> prediction
                 }
@@ -91,6 +87,7 @@ object IdealForeseeingAgentDecisionStrategies{
 
         val tacticalOptions = ag.env
           .foresee(foreseeingDepth, _ => behavioursFunc, includeShorter = tacticalOptionsIncludeShorter, excludeTurningBack = tacticalOptionsExcludeTurningBack)
+          .asInstanceOf[Map[Seq[Env#Action], Env#Prediction]]
           .pipe(filterTacticalOptions)
           .debugLog(ops => s"considering ${ops.size} tactical options")
           .debugLogElapsedTime("tacticalOptions calc time: "+)

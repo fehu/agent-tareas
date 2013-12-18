@@ -1,6 +1,7 @@
 package feh.tec.agent.game
 
 import feh.tec.agent.conf.AppConfig
+import feh.tec.util.SideEffect
 
 abstract class GenericGameCoordinator[Game <: GenericGame, Env <: GenericGameEnvironment[Game, Env]]
   extends GameCoordinator[Game, Env]
@@ -20,10 +21,15 @@ trait GenericMutableGameCoordinator[Game <: GenericGame, Env <: GenericMutableGa
 
 }
 
-trait GenericActorGameCoordinator[Game <: GenericGame, Env <: GenericGameEnvironment[Game, Env]]
+trait GenericActorGameCoordinator[Game <: GenericGame,
+                                  Env <: GenericGameEnvironment[Game, Env]]
   extends GenericGameCoordinator[Game, Env] with GameCoordinatorWithActor[Game, Env]
+{
+  override def affect(act: Env#Action): SideEffect[Env] = SideEffect(env) // do nothing or register choice, depending on "lifetimeCycle" implementation
+}
 
-abstract class GenericMutableActorGameCoordinator[Game <: GenericGame, Env <: GenericMutableGameEnvironment[Game, Env]]
+abstract class GenericMutableActorGameCoordinator[Game <: GenericGame,
+                                                  Env <: GenericMutableGameEnvironment[Game, Env]]
   extends GenericMutableGameCoordinator[Game, Env] with GenericActorGameCoordinator[Game, Env]
 {
   protected def config: AppConfig

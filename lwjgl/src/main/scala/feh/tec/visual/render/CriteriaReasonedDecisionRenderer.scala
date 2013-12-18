@@ -13,21 +13,20 @@ object CriteriaReasonedDecisionRenderer{
                     frameColor: Option[Color], sepLineColor: Option[Color])
 }
 
-class CriteriaReasonedDecisionRenderer[Coord, State, Global, Action <: AbstractAction,
-                                       Env <: Environment[Coord, State, Global, Action, Env],
-                                       Exec <: AgentExecutionLoop[Coord, State, Global, Action, Env],
-                                       M <: AgentPerformanceMeasure[Coord, State, Global, Action, Env, M]]
+class CriteriaReasonedDecisionRenderer[Env <: Environment[Env],
+                                       Exec <: AgentExecutionLoop,
+                                       M <: AgentPerformanceMeasure[Env, M]]
     (val scheme: CriteriaReasonedDecisionRenderer.Scheme)
-  extends Renderer[CriteriaReasonedDecision[Coord, State, Global, Action, Env, Exec, M], NicolLike2DEasel]
+  extends Renderer[CriteriaReasonedDecision[Env, M], NicolLike2DEasel]
 {
 
   def criteriaValueOps = BasicStringDrawOps[NicolLike2DEasel](StringAlignment.Left, scheme.criterionColor, scheme.criterionFont, 12, 3)
-  lazy val criteriaValueRenderer = new DecisionCriterionValueRenderer[Coord, State, Global, Action, Env, Exec, M](criteriaValueOps)
+  lazy val criteriaValueRenderer = new DecisionCriterionValueRenderer[Env, M](criteriaValueOps)
 
   lazy val beforeCriteriaOps = BasicStringDrawOps[NicolLike2DEasel](StringAlignment.Left, scheme.beforeCriteriaColor, scheme.beforeCriteriaFont, 12, 3)
   lazy val afterCriteriaOps = BasicStringDrawOps[NicolLike2DEasel](StringAlignment.Left, scheme.afterCriteriaColor, scheme.afterCriteriaFont, 12, 3)
 
-  def render(t: CriteriaReasonedDecision[Coord, State, Global, Action, Env, Exec, M])(implicit easel: NicolLike2DEasel): Unit = {
+  def render(t: CriteriaReasonedDecision[Env, M])(implicit easel: NicolLike2DEasel): Unit = {
     import easel.WithoutTextures
 
     val frameWidth = 450
@@ -62,12 +61,10 @@ class CriteriaReasonedDecisionRenderer[Coord, State, Global, Action <: AbstractA
   }
 }
 
-class DecisionCriterionValueRenderer[Coord, State, Global, Action <: AbstractAction,
-                                     Env <: Environment[Coord, State, Global, Action, Env],
-                                     Exec <: AgentExecutionLoop[Coord, State, Global, Action, Env],
-                                     M <: AgentPerformanceMeasure[Coord, State, Global, Action, Env, M]]
+class DecisionCriterionValueRenderer[Env <: Environment[Env],
+                                     M <: AgentPerformanceMeasure[Env, M]]
     (val how: NicolLike2DEasel#StrDrawOptions)
-  extends CriterionValueRenderer[Coord, State, Global, Action, Env, M, NicolLike2DEasel]
+  extends CriterionValueRenderer[Env, M, NicolLike2DEasel]
 {
   def render(t: M#CriterionValue)(implicit easel: NicolLike2DEasel): Unit = easel.drawString(s"${t.name}: ${t.value}", how)
 }

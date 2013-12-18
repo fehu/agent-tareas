@@ -5,9 +5,7 @@ import akka.actor.{Scheduler, ActorSystem, ActorRef, Actor}
 import scala.concurrent.duration._
 import akka.pattern._
 
-trait AgentExecutionLoop[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env]] {
-  type EnvRef = EnvironmentRef[Position, EnvState, EnvGlobal, Action, Env]
-
+trait AgentExecutionLoop{
   type Execution
   def execution: Execution
 
@@ -18,16 +16,15 @@ trait AgentExecutionLoop[Position, EnvState, EnvGlobal, Action <: AbstractAction
 
 }
 
-trait PausableAgentExecution[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env]]{
-  self: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env] =>
+trait PausableAgentExecution {
+  self: AgentExecutionLoop =>
 
   def pause()
   def resume()
 }
 
-trait ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
-                              +Ag <: AgentWithActor[Position, EnvState, EnvGlobal, Action, Env, ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, Ag]]]
-  extends AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env]
+trait ActorAgentExecutionLoop[+Ag <: AgentWithActor[Env, ActorAgentExecutionLoop[Ag]] forSome {type Env <: Environment[Env]}]
+  extends AgentExecutionLoop
 {
   def receive: PartialFunction[Any, Option[Any]]
   def agent: Ag
@@ -36,9 +33,8 @@ trait ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action <: AbstractA
   protected def scheduler = agent.env.sys.scheduler
 }
 
-trait ActorAgentExec[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
-                     Ag <: AgentWithActor[Position, EnvState, EnvGlobal, Action, Env, ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, Ag]]]
-  extends ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, Ag]
+trait ActorAgentExec[Ag <: AgentWithActor[Env, ActorAgentExecutionLoop[Ag]] forSome {type Env <: Environment[Env]}]
+  extends ActorAgentExecutionLoop[Ag]
 {
   protected def exec(ag: Ag)
   protected def exec(): Unit = exec(agent)
@@ -46,9 +42,8 @@ trait ActorAgentExec[Position, EnvState, EnvGlobal, Action <: AbstractAction, En
 
 trait ByTimerAgentExecution // todo: very important
 
-trait AgentExecutionStopPauseImplementation[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
-                                            Ag <: AgentWithActor[Position, EnvState, EnvGlobal, Action, Env, ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, Ag]]]{
-  self: ActorAgentExec[Position, EnvState, EnvGlobal, Action, Env, Ag] with PausableAgentExecution[Position, EnvState, EnvGlobal, Action, Env] =>
+trait AgentExecutionStopPauseImplementation[Ag <: AgentWithActor[Env, ActorAgentExecutionLoop[Ag]] forSome {type Env <: Environment[Env]}]{
+  self: ActorAgentExec[Ag] with PausableAgentExecution =>
 
   type Execution = () => StopFunc
   type StopFunc = () => Future[Stopped.type]
@@ -116,10 +111,9 @@ trait AgentExecutionStopPauseImplementation[Position, EnvState, EnvGlobal, Actio
   def execution: Execution = () => startExec()
 }
 
-trait AgentInfiniteExecution[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
-                             Ag <: AgentWithActor[Position, EnvState, EnvGlobal, Action, Env, ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, Ag]]]
-  extends ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, Ag] with PausableAgentExecution[Position, EnvState, EnvGlobal, Action, Env]
-    with AgentExecutionStopPauseImplementation[Position, EnvState, EnvGlobal, Action, Env, Ag] with ActorAgentExec[Position, EnvState, EnvGlobal, Action, Env, Ag]
+trait AgentInfiniteExecution[Ag <: AgentWithActor[Env, ActorAgentExecutionLoop[Ag]] forSome {type Env <: Environment[Env]}]
+  extends ActorAgentExecutionLoop[Ag] with PausableAgentExecution
+    with AgentExecutionStopPauseImplementation[Ag] with ActorAgentExec[Ag]
 {
   protected def exec(ag: Ag) {
     ag.lifetimeCycle(ag.env)
@@ -128,10 +122,8 @@ trait AgentInfiniteExecution[Position, EnvState, EnvGlobal, Action <: AbstractAc
   }
 }
 
-trait AgentConditionalExecution[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
-                                Ag <: AgentWithActor[Position, EnvState, EnvGlobal, Action, Env, ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, Ag]],
-                                StopConditionParams <: Product]
-  extends AgentInfiniteExecution[Position, EnvState, EnvGlobal, Action, Env, Ag]
+trait AgentConditionalExecution[StopConditionParams <: Product, Ag <: AgentWithActor[Env, ActorAgentExecutionLoop[Ag]] forSome {type Env <: Environment[Env]}]
+  extends AgentInfiniteExecution[Ag]
 {
   type StopCondition = StopConditionParams => Boolean
   
@@ -151,19 +143,17 @@ trait AgentConditionalExecution[Position, EnvState, EnvGlobal, Action <: Abstrac
   }
 }
 
-trait AgentExecutionEnvironmentStopCondition[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
-                                   Ag <: AgentWithActor[Position, EnvState, EnvGlobal, Action, Env, ActorAgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env, Ag]]]
-  extends AgentConditionalExecution[Position, EnvState, EnvGlobal, Action, Env, Ag, (EnvGlobal, Set[EnvState])]
+trait AgentExecutionEnvironmentStopCondition[Env <: Environment[Env], Ag <: AgentWithActor[Env, ActorAgentExecutionLoop[Ag]]]
+  extends AgentConditionalExecution[(Env#Global, Set[Env#State]), Ag]
 {
   private def envApi = agent.env.blocking
 
   def testCondition: StopCondition => Boolean = _(envApi.globalState -> envApi.visibleStates.values.toSet)
 }
 
-trait SimultaneousAgentsExecutor[Position, EnvState, EnvGlobal, Action <: AbstractAction, Env <: Environment[Position, EnvState, EnvGlobal, Action, Env]]
-  extends AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env]
+trait SimultaneousAgentsExecutor extends AgentExecutionLoop
 {
-  final type Ag = Agent[Position, EnvState, EnvGlobal, Action, Env, SimultaneousAgentsExecutor[Position, EnvState, EnvGlobal, Action, Env]]
+  final type Ag = Agent[Env, SimultaneousAgentsExecutor] forSome {type Env <: Environment[Env]}
 
   def register(agent: Ag*)
   protected def agents: Set[Ag]
