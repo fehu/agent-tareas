@@ -26,7 +26,9 @@ object InUnitInterval{
   }
 }
 
-class InUnitInterval protected (val d: Double) extends AnyVal
+class InUnitInterval protected (val d: Double) extends AnyVal{
+  override def toString = d.toString
+}
 
 trait SumInUnitInterval{
   self: TraversableOnce[Double] =>

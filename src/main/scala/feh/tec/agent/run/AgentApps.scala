@@ -15,7 +15,7 @@ object AgentAppsHelpers{
 
 import AgentAppsHelpers._
 
-object AgentApps extends SwingAppsRunner(                                                           "Apps Runner #0.3.2",
+object AgentApps extends SwingAppsRunner(                                                           "Apps Runner #0.3.3",
   "Hole-Plug"                       -> (() => new Tarea1App with StopNotifications),
   "Prisoner Dilemma"                -> (() => (new PrisonerDilemmaCreator).app),
   "Paper-Scissors-Stone"            -> (() => (new PaperScissorsStone).app),

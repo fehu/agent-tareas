@@ -11,7 +11,7 @@ import org.sbtidea.SbtIdeaPlugin._
 object Build extends sbt.Build {
 
   val ScalaVersion = "2.10.3"
-  val Version = "0.3.2"
+  val Version = "0.3.3"
 
   val runPlugHole = InputKey[Unit]("run-plug-hole", "[Tarea1] Runs Plug-Hole Agent Application")
   val runPrisonerDilemma = InputKey[Unit]("run-prisoner-dilemma", "[Tarea3] Runs Prisoner Dilemma Game")
@@ -28,7 +28,7 @@ object Build extends sbt.Build {
     version      := Version,
     scalaVersion := ScalaVersion,
 //    scalacOptions ++= Seq("-explaintypes"),
-    scalacOptions ++= Seq("-deprecation"),
+//    scalacOptions ++= Seq("-deprecation"),
     scalacOptions in (Compile, doc) ++= Seq("-diagrams", "-diagrams-debug"),
     resolvers += Release.spray,
     mainClass in Compile := Some("feh.tec.agent.run.AgentApps")
