@@ -13,9 +13,15 @@ import feh.tec.agent._
 import scala.Some
 import feh.tec.agent.AgentDecision.ExplainedActionStub
 import feh.tec.agent.AgentId
+import akka.util.Timeout
 
-trait GameEnvironment[Game <: AbstractGame, Env <: GameEnvironment[Game, Env]] extends Environment[Null, Null, GameScore[Game], GameAction, Env]{
+trait GameEnvironment[Game <: AbstractGame, Env <: GameEnvironment[Game, Env]] extends Environment[Env]{
   self : Env =>
+
+  final type Coordinate = Null
+  final type State = Null
+  final type Global = GameScore[Game]
+  type Action <: GameAction
 
   type Ref <: GameRef[Game, Env]
   final type Choice = StrategicChoice[Game#Player]
@@ -28,6 +34,8 @@ trait GameEnvironment[Game <: AbstractGame, Env <: GameEnvironment[Game, Env]] e
 
   def updateScores(scoresUpdate: Score)
   def setScore(score: Score)
+
+  def bulkAffected(act: StrategicChoices[Game#Player]): SideEffect[Env]
 
   // those are not used
   def states: PartialFunction[Null, Null] = PartialFunction.empty
@@ -54,7 +62,7 @@ object GameScore{
 }
 
 trait DeterministicGameEnvironment[Game <: AbstractDeterministicGame, Env <: DeterministicGameEnvironment[Game, Env]]
-  extends GameEnvironment[Game, Env] with Deterministic[Null, Null, GameScore[Game], GameAction, Env]
+  extends GameEnvironment[Game, Env] with Deterministic[Env]
 {
   self: Env =>
 
@@ -66,19 +74,19 @@ trait DeterministicGameEnvironment[Game <: AbstractDeterministicGame, Env <: Det
 
   private def strategies = game.layout.asInstanceOf[PartialFunction[Map[Player, Player#Strategy], Map[Player, Game#Utility]]]
 
-  def play(choices: StrategicChoices[Game#Player]): Score = GameScore(strategies(choices.toMap))
+  def play(choices: StrategicChoices[Game#Player]): Score = GameScore[Game](strategies(choices.toMap))
 }
 
 trait MutableGameEnvironmentImpl[Game <: AbstractGame, Env <: MutableGameEnvironmentImpl[Game, Env]]
-  extends GameEnvironment[Game, Env] with MutableEnvironment[Null, Null, GameScore[Game], GameAction, Env]
+  extends GameEnvironment[Game, Env] with MutableEnvironment[Env]
 {
   self: Env =>
 
   def initGlobalState: GameScore[Game] = GameScore.zero(game)
 
-  def affected(act: GameAction): SideEffect[Env] = affected(act.asInstanceOf[StrategicChoices[Game#Player]])
-  def affected(act: StrategicChoices[Game#Player]): SideEffect[Env] = SideEffect{
-    val  score = play(act)
+  def affected(act: Env#Action): SideEffect[Env] = ???
+  def bulkAffected(act: StrategicChoices[Game#Player]): SideEffect[Env] = SideEffect{
+    val score = play(act)
     _lastScore = Option(score)
     updateScores(score)
     this
@@ -107,41 +115,38 @@ object Turn{
   def first = Turn(0)
 }
 
-trait GameRef[Game <: AbstractGame, Env <: GameEnvironment[Game, Env]] extends EnvironmentRef[Null, Null, GameScore[Game], GameAction, Env]
+trait GameRef[Game <: AbstractGame, Env <: GameEnvironment[Game, Env]] extends EnvironmentRef[Env]
 {
   def turn: Turn
   //  def asyncTurn: Future[Turn]
   def choose(choice: StrategicChoice[Game#Player])
-  def awaitEndOfTurn()
+  def chooseAndWait(choice: StrategicChoice[Game#Player])
   def strategies: Game
   def listenToEndOfTurn(f: (Turn, Game#PlayersChoices, Game#PlayersUtility) => Unit)
-
 //  def blocking: BlockingApi = ???
 //  def async: AsyncApi = ???
 }
 
-trait GameCoordinator[Game <: AbstractGame, Env <: GameEnvironment[Game, Env]]
-  extends EnvironmentOverseer[Null, Null, GameScore[Game], GameAction, Env]
-{
-
+trait GameCoordinator[Game <: AbstractGame, Env <: GameEnvironment[Game, Env]] extends EnvironmentOverseer[Env]{
   def currentTurn: Turn
   def registerChoice(choice: StrategicChoice[Game#Player])
-//  protected def allChoicesRegistered(): SideEffect[Env]
-  def awaitEndOfTurn()
+  def registerChoiceAndWait(choice: StrategicChoice[Game#Player])
   def reset()
 
   // no snapshots
-  def snapshot: EnvironmentSnapshot[Null, Null, GameScore[Game], GameAction, Env] = ???
+  def snapshot: EnvironmentSnapshot[Env] with Env = ???
 }
 
 trait GameCoordinatorWithActor[Game <: AbstractGame, Env <: GameEnvironment[Game, Env]]
-  extends GameCoordinator[Game, Env] with EnvironmentOverseerWithActor[Null, Null, GameScore[Game], GameAction, Env]
+  extends GameCoordinator[Game, Env] with EnvironmentOverseerWithActor[Env]
 {
   coordinator =>
 
   import GameCoordinatorActor._
 
   def awaitEndOfTurnTimeout: FiniteDuration
+
+  def bulkAffect = env.bulkAffected _
 
   def currentTurn: Turn = Await.result(asyncCurrentTurn, defaultBlockingTimeout millis)
 
@@ -151,17 +156,18 @@ trait GameCoordinatorWithActor[Game <: AbstractGame, Env <: GameEnvironment[Game
   }
 
   def registerChoice(choice: StrategicChoice[Game#Player]): Unit = actorRef ! RegisterChoice(choice)
-
-  def awaitEndOfTurn(): Unit = AwaitEndOfTurn() |> {
-    msg => Await
-      .result((actorRef ? msg)(awaitEndOfTurnTimeout), awaitEndOfTurnTimeout)
+  def registerChoiceAndWait(choice: StrategicChoice[Game#Player]): Unit = RegisterChoiceAndWait(choice) |> {
+    msg =>
+      implicit def timeout = awaitEndOfTurnTimeout: Timeout
+      Await
+      .result(actorRef ? msg, awaitEndOfTurnTimeout)
       .tryAs[TurnEnded].havingSameUUID(msg).ensuring(_.nonEmpty)
   }
 
   trait GameRefBaseImpl extends GameRef[Game, Env] with BaseEnvironmentRef{
     def turn: Turn = currentTurn
     def choose(choice: StrategicChoice[Game#Player]): Unit = registerChoice(choice)
-    def awaitEndOfTurn(): Unit = coordinator.awaitEndOfTurn()
+    def chooseAndWait(choice: StrategicChoice[Game#Player]): Unit = registerChoiceAndWait(choice)
     def strategies: Game = coordinator.env.game
     def listenToEndOfTurn(f: (Turn, Game#PlayersChoices, Game#PlayersUtility) => Unit): Unit = coordinator.listenToEndOfTurn(f)
   }
@@ -187,12 +193,16 @@ object GameCoordinatorActor{
   case class GetTurn() extends UUIDed
   case class TurnResponse(uuid: UUID, turn: Turn) extends HasUUID
   case class RegisterChoice[Game <: AbstractGame](choice: StrategicChoice[Game#Player]) extends UUIDed
-  case class AwaitEndOfTurn() extends UUIDed
+  case class RegisterChoiceAndWait[Game <: AbstractGame](choice: StrategicChoice[Game#Player]) extends UUIDed
+  @deprecated case class AwaitEndOfTurn() extends UUIDed
   case class TurnEnded(uuid: UUID) extends HasUUID
   case object Reset
 }
 
-class GameCoordinatorActor[Game <: AbstractGame, Env <: GameEnvironment[Game, Env]](coordinator: GameCoordinatorWithActor[Game, Env]) extends Actor{
+class GameCoordinatorActor[Game <: AbstractGame, Env <: GameEnvironment[Game, Env] { type Action = StrategicChoices[Game#Player] }]
+  (coordinator: GameCoordinatorWithActor[Game, Env])
+  extends Actor
+{
   import GameCoordinatorActor._
 
   val log = Logging(context.system, this)
@@ -222,7 +232,7 @@ class GameCoordinatorActor[Game <: AbstractGame, Env <: GameEnvironment[Game, En
   protected def turnFinished_? = currentTurnChoicesMap.keySet == coordinator.env.game.players
 
   protected def endTurn() = {
-    coordinator.affect(StrategicChoices(currentTurnChoices)).flatExec
+    coordinator.bulkAffect(StrategicChoices(currentTurnChoices)).flatExec
     coordinator.lastScore
   } 
   protected def notifyAwaiting() = awaitingEndOfTurn.foreach{ case (waiting, id) => waiting ! TurnEnded(id) }
@@ -239,18 +249,22 @@ class GameCoordinatorActor[Game <: AbstractGame, Env <: GameEnvironment[Game, En
   protected def notifyEndOfTurnListeners() =
     coordinator.endOfTurnListeners.foreach(t => Future{ t.tupled(lastHistory) }(context.dispatcher))
 
+  private case class TurnFinished(id: Long)
+
   def receive: Actor.Receive = {
     case msg@GetTurn() => sender ! TurnResponse(msg.uuid, turn)
+    case TurnFinished(id) if id == turn.id =>
+      val Some(score) = endTurn()
+      guardHistory(score)
+      notifyAwaiting()
+      notifyEndOfTurnListeners()
+      nextTurn()
     case RegisterChoice(choice) =>
       newChoice(choice.asInstanceOf[StrategicChoice[Game#Player]])
-      if(turnFinished_?) {
-        val Some(score) = endTurn()
-        notifyAwaiting()
-        guardHistory(score)
-        notifyEndOfTurnListeners()
-        nextTurn()
-      }
-    case msg@AwaitEndOfTurn() => awaiting(sender, msg.uuid)
+    case msg@RegisterChoiceAndWait(choice) =>
+      newChoice(choice.asInstanceOf[StrategicChoice[Game#Player]])
+      awaiting(sender, msg.uuid)
+      if(turnFinished_?) self ! TurnFinished(turn.id)
     case Reset =>
       notifyAwaiting()
       turn = Turn.first
@@ -267,7 +281,7 @@ class GameCoordinatorActor[Game <: AbstractGame, Env <: GameEnvironment[Game, En
 
 trait MutableGameCoordinator[Game <: AbstractGame, Env <: MutableGameEnvironmentImpl[Game, Env]]
   extends GameCoordinator[Game, Env]
-  with MutableEnvironmentOverseer[Null, Null, GameScore[Game], GameAction, Env]
+  with MutableEnvironmentOverseer[Env]
 {
 
 
@@ -316,15 +330,15 @@ trait AbstractTurnBasedGame extends AbstractGame{
 }
 
 object PlayerAgent {
-  type Exec[Game <: AbstractGame, Env <: GameEnvironment[Game, Env]] = SimultaneousAgentsExecutor[Null, Null, GameScore[Game], GameAction, Env]
+  type Exec[Game <: AbstractGame, Env <: GameEnvironment[Game, Env]] = SimultaneousAgentsExecutor
   trait Resettable[Game <: AbstractGame, Env <: GameEnvironment[Game, Env]] extends PlayerAgent[Game, Env]{
-    agent: DecisiveAgent[Null, Null, GameScore[Game], GameAction, Env, PlayerAgent.Exec[Game, Env]] =>
+    agent: DecisiveAgent[Env, PlayerAgent.Exec[Game, Env]] =>
 
     def reset()
   }
 
   trait RandomBehaviour[Game <: AbstractGame, Env <: GameEnvironment[Game, Env]] extends PlayerAgent[Game, Env]{
-    agent: DecisiveAgent[Null, Null, GameScore[Game], GameAction, Env, PlayerAgent.Exec[Game, Env]] =>
+    agent: DecisiveAgent[Env, PlayerAgent.Exec[Game, Env]] =>
 
     def randomChance: InUnitInterval
     def randomChance_=(p: InUnitInterval)
@@ -335,26 +349,28 @@ object PlayerAgent {
 }
 
 trait PlayerAgent[Game <: AbstractGame, Env <: GameEnvironment[Game, Env]]
-  extends Agent[Null, Null, GameScore[Game], GameAction, Env, PlayerAgent.Exec[Game, Env]]
-  with SimultaneousAgentExecution[Null, Null, GameScore[Game], GameAction, Env, PlayerAgent.Exec[Game, Env]]
+  extends Agent[Env, PlayerAgent.Exec[Game, Env]]
+  with SimultaneousAgentExecution[Env, PlayerAgent.Exec[Game, Env]]
 {
-  agent: DecisiveAgent[Null, Null, GameScore[Game], GameAction, Env, PlayerAgent.Exec[Game, Env]] =>
+  agent: DecisiveAgent[Env, PlayerAgent.Exec[Game, Env]] =>
 
   def player: Game#Player    
     
   executionLoop.register(this)
 
-  override def act(a: GameAction): SideEffect[Env#Ref] = SideEffect{
-    env.choose(a.asInstanceOf[StrategicChoice[Game#Player]])
+  protected def actionToStrategicChoice(a: Env#Action): Option[StrategicChoice[Game#Player]]
+
+  override def act(a: Env#Action): SideEffect[Env#Ref] = SideEffect{
+    actionToStrategicChoice(a).map(env.chooseAndWait)
     env
   }.flatExec
 }
 
 trait DummyPlayer[Game <: AbstractGame, Env <: GameEnvironment[Game, Env]]
   extends PlayerAgent[Game, Env]
-  with DummyAgent[Null, Null, GameScore[Game], GameAction, Env, PlayerAgent.Exec[Game, Env]]
+  with DummyAgent[Env, PlayerAgent.Exec[Game, Env]]
 {
-  type ActionExplanation = ExplainedActionStub[GameAction]
+  type ActionExplanation = ExplainedActionStub[Env#Action]
   type DetailedPerception = AbstractDetailedPerception
   type Perception = Game
 
@@ -399,9 +415,9 @@ trait ByTurnExec[Game <: AbstractGame, Env <: GameEnvironment[Game, Env]] extend
 
   def onSuccess: () => Unit
 
-  protected def exec() = Future.sequence(agents.map(ag => {
+  protected def exec() = Future.sequence[SideEffect[Env#Ref], Set](agents.map(ag => {
     Future {
-      ag.lifetimeCycle(ag.env) }
+      ag.lifetimeCycle(ag.env).andThen(_.asInstanceOf[Env#Ref]) }
   }))
 
   private val _agents = mutable.HashSet.empty[Ag]

@@ -7,6 +7,7 @@ abstract class GenericGameEnvironment[Game <: GenericGame, Env <: GenericGameEnv
 {
   self: Env =>
 
+  type Action = StrategicChoice[Game#Player]
 }
 
 object AbstractGenericGameEnvironment{
@@ -31,7 +32,7 @@ trait GenericDeterministicMutableGameEnvironment[Game <: GenericDeterministicGam
   extends GenericMutableGameEnvironment[Game, Env] with DeterministicGameEnvironment[Game, Env]
 {
   self: Env =>
-  override def affected(act: GameAction): SideEffect[Env] = super[GenericMutableGameEnvironment].affected(act)
+  override def affected(act: Env#Action): SideEffect[Env] = super[GenericMutableGameEnvironment].affected(act)
 }
 
 object DeterministicMutableGenericGameEnvironment{
@@ -40,4 +41,3 @@ object DeterministicMutableGenericGameEnvironment{
 
   case class Env2[Game <: Game2](game: Game) extends Environment2[Game, Env2[Game]] with GenericDeterministicMutableGameEnvironment[Game, Env2[Game]]
 }
-

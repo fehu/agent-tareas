@@ -10,9 +10,9 @@ object Criteria {
     def debugMessagePrefix: String = "[Criteria] "
 
     protected def criterion(name: String, assess: Measure#Snapshot => Measure#Measure) =
-      Criterion[Position, EnvState, EnvGlobal, Action, Env, Measure](name, assess)
+      Criterion[Env, Measure](name, assess)
 
-    def toList: List[Criterion[Position, EnvState, EnvGlobal, Action, Env, Measure]] = Nil
+    def toList: List[Criterion[Env, Measure]] = Nil
   }
 
   /**
@@ -56,11 +56,11 @@ object Criteria {
     /**
      *  todo: cannot be used to find holes
      */
-    def findClosetRespectingHoles(relativelyTo: Position, cond: Tile#Snapshot => Boolean, sn: Measure.Snapshot): Seq[Tile#Snapshot]
-    def findClosetDisregardingHoles(relativelyTo: Position, cond: Tile#Snapshot => Boolean, sn: Measure.Snapshot): Seq[Tile#Snapshot]
+    def findClosetRespectingHoles(relativelyTo: Position, cond: Tile#Snapshot => Boolean, sn: Measure#Snapshot): Seq[Tile#Snapshot]
+    def findClosetDisregardingHoles(relativelyTo: Position, cond: Tile#Snapshot => Boolean, sn: Measure#Snapshot): Seq[Tile#Snapshot]
 
-    def distanceRespectingHoles(p1: Position, p2: Position, map: Measure.Snapshot): Int
-    def distanceDisregardingHoles(p1: Position, p2: Position, map: Measure.Snapshot): Int
+    def distanceRespectingHoles(p1: Position, p2: Position, map: Measure#Snapshot): Int
+    def distanceDisregardingHoles(p1: Position, p2: Position, map: Measure#Snapshot): Int
 
     implicit def tileSnapshotToCoordinateWrapper = (_: Tile#Snapshot).coordinate
     implicit def tileToCoordinateWrapper = (_: Tile).coordinate

@@ -27,23 +27,27 @@ class Environment(buildTilesMap: Map => Seq[Tile],
                   val yRange: Range,
                   val effects: PartialFunction[Action, Environment => Environment],
                   val initGlobalState: Global,
-                  mapStateBuilder: WorldStateBuilder[Coordinate, Tile, Map, State])
+                  mapStateBuilder: WorldStateBuilder[Environment, Tile, Map])
   extends Map(xRange, yRange, null)
-  with MutableWorldEnvironment[Map, Tile, Coordinate, State, Global, Action, Environment]
-  with FullyAccessible[Coordinate, State, Global, Action, Environment]
-  with Deterministic[Coordinate, State, Global, Action, Environment]
-  with PredictableDeterministicEnvironment[Coordinate, State, Global, Action, Environment]
-  with ForeseeableEnvironment[Coordinate, State, Global, Action, Environment]
-  with Static[Coordinate, State, Global, Action, Environment]
+  with MutableWorldEnvironment[Environment, Map, Tile]
+  with FullyAccessible[Environment]
+  with Deterministic[Environment]
+  with PredictableDeterministicEnvironment[Environment]
+  with ForeseeableEnvironment[Environment]
+  with Static[Environment]
 {
+  type State = MState
+  type Global = NoGlobal
+  type Action = Move
+
   def this(map: Map,
            effects: PartialFunction[Action, Environment => Environment],
            initGlobalState: Global,
-           mapStateBuilder: WorldStateBuilder[Coordinate, Tile, Map, State]) =
+           mapStateBuilder: WorldStateBuilder[Environment, Tile, Map]) =
     this(_ => map.atoms, map.coordinates.xRange, map.coordinates.yRange, effects, initGlobalState, mapStateBuilder)
 
-  type Ref = ForeseeableEnvironmentRef[Coordinate, State, Global, Action, Environment] with WorldEnvironmentRef[Coordinate, State, Global, Action, Environment, Tile, Map]
-  type Snapshot = EnvironmentSnapshot[Coordinate, State, Global, Action, Environment]
+  type Ref = ForeseeableEnvironmentRef[Environment] with WorldEnvironmentRef[Environment, Tile, Map]
+  type Snapshot = EnvironmentSnapshot[Environment]
 
   lazy val definedAt: Seq[Coordinate] = xRange.flatMap(x => yRange.map(x ->))
 
@@ -72,15 +76,15 @@ class Environment(buildTilesMap: Map => Seq[Tile],
 
 class Overseer(actorSystem: ActorSystem,
                initEnvironment: Environment,
-               val mapStateBuilder: WorldStateBuilder[Coordinate, Tile, Map, State],
+               val mapStateBuilder: WorldStateBuilder[Environment, Tile, Map],
                timeouts: OverseerTimeouts)
-  extends EnvironmentOverseerWithActor[Coordinate, State, Global, Action, Environment]
-  with MutableEnvironmentOverseer[Coordinate, State, Global, Action, Environment]
-  with PredictingMutableDeterministicEnvironmentOverseer[Coordinate, State, Global, Action, Environment]
-  with ForeseeingMutableDeterministicEnvironmentOverseer[Coordinate, State, Global, Action, Environment]
-  with PredictingEnvironmentOverseerWithActor[Coordinate, State, Global, Action, Environment]
-  with ForeseeingEnvironmentOverseerWithActor[Coordinate, State, Global, Action, Environment]
-  with WorldEnvironmentOverseerWithActor[Map, Tile, Coordinate, State, Global, Action, Environment]
+  extends EnvironmentOverseerWithActor[Environment]
+  with MutableEnvironmentOverseer[Environment]
+  with PredictingMutableDeterministicEnvironmentOverseer[Environment]
+  with ForeseeingMutableDeterministicEnvironmentOverseer[Environment]
+  with PredictingEnvironmentOverseerWithActor[Environment]
+  with ForeseeingEnvironmentOverseerWithActor[Environment]
+  with WorldEnvironmentOverseerWithActor[Environment, Map, Tile]
   with GlobalDebugging
 {
   
@@ -94,17 +98,17 @@ class Overseer(actorSystem: ActorSystem,
   override val currentEnvironment: Environment = initEnvironment
 
 
-  def snapshot: EnvironmentSnapshot[Coordinate, State, Global, Action, Environment] = SnapshotBuilder.snapshot()
+  def snapshot: EnvironmentSnapshot[Environment] with Environment = SnapshotBuilder.snapshot()
 
   protected lazy val SnapshotBuilder = new SnapshotBuilder(env)
 
   class SnapshotBuilder(env: Environment){
     def snapshot(_states: Predef.Map[Coordinate, State] = env.statesMap,
                  _globalState: Global = env.globalState,
-                 _tilesMap: Predef.Map[(Int, Int), SqTile] = env.atomsMap ): EnvironmentSnapshot[Coordinate, State, Global, Action, Environment] =
+                 _tilesMap: Predef.Map[(Int, Int), SqTile] = env.atomsMap ) =
       new Environment(null, env.xRange, env.yRange, env.effects, _globalState, mapStateBuilder)
-        with EnvironmentSnapshot[Coordinate, State, Global, Action, Environment]
-        with WorldEnvironmentSnapshot[Map, Tile, Coordinate, State, Global, Action, Environment]
+        with EnvironmentSnapshot[Environment]
+        with WorldEnvironmentSnapshot[Environment, Map, Tile]
       {
 
         override val worldSnapshot: WorldSnapshot[Map, Tile, Coordinate] = Map.snapshotBuilder.snapshot(env)
@@ -122,7 +126,7 @@ class Overseer(actorSystem: ActorSystem,
   /**
    * a snapshot of mutable environment that have setter functions active and has
    */
-  def mutableSnapshot(): CustomisableEnvironmentSnapshot[Coordinate, State, Global, Action, Environment] with Environment =
+  def mutableSnapshot(): CustomisableEnvironmentSnapshot[Environment] with Environment =
     buildMutableSnapshot(env.xRange, env.yRange, env.effects, env.globalState, env.atoms)
 
 
@@ -130,17 +134,17 @@ class Overseer(actorSystem: ActorSystem,
                                      yRange: Range,
                                      effects: PartialFunction[Action, Environment => Environment],
                                      globalState: Global,
-                                     _initTiles: Seq[Tile]): CustomisableEnvironmentSnapshot[Coordinate, State, Global, Action, Environment] with Environment =
+                                     _initTiles: Seq[Tile]): CustomisableEnvironmentSnapshot[Environment] with Environment =
     new Environment(null, xRange, yRange, effects, globalState, mapStateBuilder)
-      with CustomisableEnvironmentSnapshot[Coordinate, State, Global, Action, Environment]
+      with CustomisableEnvironmentSnapshot[Environment]
     {
       lazy val SnapshotBuilder = new SnapshotBuilder(this)
 
       override def initAtoms: Seq[Tile] = _initTiles
 
-      def snapshot(): EnvironmentSnapshot[Coordinate, State, Global, Action, Environment] = SnapshotBuilder.snapshot()
+      def snapshot(): EnvironmentSnapshot[Environment] = SnapshotBuilder.snapshot()
 
-      def copy(): CustomisableEnvironmentSnapshot[Coordinate, State, Global, Action, Environment] with Environment =
+      def copy(): CustomisableEnvironmentSnapshot[Environment] with Environment =
         buildMutableSnapshot(this.xRange, this.yRange, this.effects, this.globalState, this.atoms)
     }
 
@@ -148,11 +152,11 @@ class Overseer(actorSystem: ActorSystem,
 
   def worldSnapshot(): WorldSnapshot[Map, Tile, Coordinate] = mapSnapshotBuilder.snapshot(env)
 
-  def worldSnapshot(s: EnvironmentSnapshot[Coordinate, State, Global, Action, Environment]): WorldSnapshot[Map, Tile, Coordinate] =
-    mapSnapshotBuilder.snapshot(s.asInstanceOf[Environment with EnvironmentSnapshot[Coordinate, State, Global, Action, Environment]])
+  def worldSnapshot(s: EnvironmentSnapshot[Environment]): WorldSnapshot[Map, Tile, Coordinate] =
+    mapSnapshotBuilder.snapshot(s.asInstanceOf[Environment with EnvironmentSnapshot[Environment]])
 
 
-  def position(a: feh.tec.agent.AbstractAgent[Coordinate, State, Global, Action, Environment] with InAbstractWorldEnvironment[Coordinate, State, Global, Action, Environment, Tile, Map]): Coordinate =
+  def position(a: feh.tec.agent.AbstractAgent[Environment] with InAbstractWorldEnvironment[Environment, Tile, Map]): Coordinate =
     position(a.id).get
   def position(id: AgentId): Option[Coordinate] = env.agentsPositions.get(id).map(_.coordinate)
 
@@ -245,7 +249,7 @@ case class MState(self: Boolean = false,
   def empty = !(self || otherAgent || hole || plug)
 }
 
-class MStateBuilder(selfId: AgentId) extends WorldStateBuilder[Coordinate, Tile, Map,MState]{
+class MStateBuilder(selfId: AgentId) extends WorldStateBuilder[Environment, Tile, Map]{
   def build(tile: Tile): MState = tile.contents match {
     case Some(AgentAvatar(id@AgentId(_))) if selfId == id => MState(self = true)
     case Some(AgentAvatar(_)) => MState(otherAgent = true)

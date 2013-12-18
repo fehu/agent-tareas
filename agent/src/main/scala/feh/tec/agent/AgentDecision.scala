@@ -75,17 +75,16 @@ object AgentDecision{
     }
   }
   
-  case class ExtendedCriteriaBasedDecision[D, Position, EnvState, EnvGlobal, Action <: AbstractAction,
-                                           Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
-                                           Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env],
-                                           M <: AgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action, Env, M]]
+  case class ExtendedCriteriaBasedDecision[D,
+                                           Env <: Environment[Env],
+                                           M <: AgentPerformanceMeasure[Env, M]]
   (decision: D, consideredOptionsCriteriaValues: Seq[Set[M#CriterionValue]]) extends AbstractDecision[D]
   {
-    def map[R](f: D => R): ExtendedCriteriaBasedDecision[R, Position, EnvState, EnvGlobal, Action, Env, Exec, M] =
+    def map[R](f: D => R): ExtendedCriteriaBasedDecision[R, Env, M] =
       copy(f(decision), consideredOptionsCriteriaValues)
 
-    def flatMap[R](f: D => Seq[R]): Seq[ExtendedCriteriaBasedDecision[R, Position, EnvState, EnvGlobal, Action, Env, Exec, M]] =
-      f(decision).map(ExtendedCriteriaBasedDecision[R, Position, EnvState, EnvGlobal, Action, Env, Exec, M](_, consideredOptionsCriteriaValues))
+    def flatMap[R](f: D => Seq[R]): Seq[ExtendedCriteriaBasedDecision[R, Env, M]] =
+      f(decision).map(ExtendedCriteriaBasedDecision[R, Env, M](_, consideredOptionsCriteriaValues))
   }
 
 
@@ -101,11 +100,7 @@ object AgentDecision{
     def explain: Explanation = None
   }
 
-  trait CriteriaReasonedExplanation[Position, EnvState, EnvGlobal, Action <: AbstractAction,
-                                    Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
-                                    Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env],
-                                    M <: AgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action, Env, M]]
-  {
+  trait CriteriaReasonedExplanation[Env <: Environment[Env], M <: AgentPerformanceMeasure[Env, M]]{
     type Explanation = (Set[M#CriterionValue], M#Measure)
 
     def criteria: Set[M#CriterionValue]
@@ -120,21 +115,15 @@ object AgentDecision{
     def afterOpt = Option(afterCriteria)
   }
 
-  case class CriteriaReasonedDecisions[Position, EnvState, EnvGlobal, Action <: AbstractAction,
-                                       Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
-                                       Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env],
-                                       M <: AgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action, Env, M]]
-    (action: Seq[Action], criteria: Set[M#CriterionValue], measure: M#Measure, message: CriteriaMessage[M#CriterionValue] = CriteriaMessage[M#CriterionValue]())
-      extends ExplainedAction[Seq[Action]] with CriteriaReasonedExplanation[Position, EnvState, EnvGlobal, Action, Env, Exec, M]
+  case class CriteriaReasonedDecisions[Env <: Environment[Env], M <: AgentPerformanceMeasure[Env, M]]
+    (action: Seq[Env#Action], criteria: Set[M#CriterionValue], measure: M#Measure, message: CriteriaMessage[M#CriterionValue] = CriteriaMessage[M#CriterionValue]())
+      extends ExplainedAction[Seq[Env#Action]] with CriteriaReasonedExplanation[Env, M]
   {
-    def toSeq = action.map(d => CriteriaReasonedDecision[Position, EnvState, EnvGlobal, Action, Env, Exec, M](d, criteria, measure, message))
+    def toSeq = action.map(d => CriteriaReasonedDecision[Env, M](d, criteria, measure, message))
   }
 
 
-  case class CriteriaReasonedDecision[Position, EnvState, EnvGlobal, Action <: AbstractAction,
-                                      Env <: Environment[Position, EnvState, EnvGlobal, Action, Env],
-                                      Exec <: AgentExecutionLoop[Position, EnvState, EnvGlobal, Action, Env],
-                                      M <: AgentPerformanceMeasure[Position, EnvState, EnvGlobal, Action, Env, M]]
-    (action: Action, criteria: Set[M#CriterionValue], measure: M#Measure, message: CriteriaMessage[M#CriterionValue] = CriteriaMessage[M#CriterionValue]())
-      extends ExplainedAction[Action] with CriteriaReasonedExplanation[Position, EnvState, EnvGlobal, Action, Env, Exec, M]
+  case class CriteriaReasonedDecision[Env <: Environment[Env], M <: AgentPerformanceMeasure[Env, M]]
+    (action: Env#Action, criteria: Set[M#CriterionValue], measure: M#Measure, message: CriteriaMessage[M#CriterionValue] = CriteriaMessage[M#CriterionValue]())
+      extends ExplainedAction[Env#Action] with CriteriaReasonedExplanation[Env, M]
 }

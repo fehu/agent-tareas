@@ -1,32 +1,29 @@
 package feh.tec.agent
 
 import scala.concurrent._
-import concurrent.duration._
 import feh.tec.util.{MapZipperWrapper, SideEffect, ScopedState}
 import akka.actor.Scheduler
 
 /**
  * provides access to current environment instance, which is hidden from agent
  */
-trait EnvironmentRef[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]]{
-
-//  type EnvRef = EnvironmentRef[Coordinate, State, Global, Action, Env]
+trait EnvironmentRef[Env <: Environment[Env]]{
 
   def blocking: BlockingApi
   def async: AsyncApi
   def sys: SystemApi
 
   trait BlockingApi{
-    def globalState: Global
-    def stateOf(c: Coordinate): Option[State]
-    def affect(act: Action): SideEffect[Env#Ref]
-    def visibleStates: Map[Coordinate, State]
-    def agentPosition(id: AgentId): Option[Coordinate]
+    def globalState: Env#Global
+    def stateOf(c: Env#Coordinate): Option[Env#State]
+    def affect(act: Env#Action): SideEffect[Env#Ref]
+    def visibleStates: Map[Env#Coordinate, Env#State]
+    def agentPosition(id: AgentId): Option[Env#Coordinate]
 
     /**
      * makes a snapshot (a static image) of current environment state
      */
-    def snapshot: Env with EnvironmentSnapshot[Coordinate, State, Global, Action, Env]
+    def snapshot: Env with EnvironmentSnapshot[Env]
   }
 
   trait SystemApi{
@@ -37,32 +34,26 @@ trait EnvironmentRef[Coordinate, State, Global, Action <: AbstractAction, Env <:
   trait AsyncApi {
     def withTimeout[R](t: Int)(r: => R): R
 
-    def globalState: Future[Global]
-    def stateOf(c: Coordinate): Future[Option[State]]
-    def affect(act: Action): Future[SideEffect[Env#Ref]]
-    def visibleStates: Future[Map[Coordinate, State]]
-    def agentPosition(id: AgentId): Future[Option[Coordinate]]
+    def globalState: Future[Env#Global]
+    def stateOf(c: Env#Coordinate): Future[Option[Env#State]]
+    def affect(act: Env#Action): Future[SideEffect[Env#Ref]]
+    def visibleStates: Future[Map[Env#Coordinate, Env#State]]
+    def agentPosition(id: AgentId): Future[Option[Env#Coordinate]]
 
     /**
      * makes a snapshot (a static image) of current environment state
      */
-    def snapshot: Future[Env with EnvironmentSnapshot[Coordinate, State, Global, Action, Env]]
+    def snapshot: Future[Env with EnvironmentSnapshot[Env]]
   }
 
 }
 
-trait PredictableEnvironmentRef[Coordinate, State, Global, Action <: AbstractAction,
-                                Env <: Environment[Coordinate, State, Global, Action, Env] with PredictableEnvironment[Coordinate, State, Global, Action, Env]]
-  extends EnvironmentRef[Coordinate, State, Global, Action, Env]
-{
-  def predict(a: Action): Env#Prediction
-  def asyncPredict(a: Action): Future[Env#Prediction]
+trait PredictableEnvironmentRef[Env <: Environment[Env] with PredictableEnvironment[Env]] extends EnvironmentRef[Env]{
+  def predict(a: Env#Action): Env#Prediction
+  def asyncPredict(a: Env#Action): Future[Env#Prediction]
 }
 
-trait ForeseeableEnvironmentRef[Coordinate, State, Global, Action <: AbstractAction,
-                                Env <: Environment[Coordinate, State, Global, Action, Env] with ForeseeableEnvironment[Coordinate, State, Global, Action, Env]]
-  extends PredictableEnvironmentRef[Coordinate, State, Global, Action, Env]
-{
+trait ForeseeableEnvironmentRef[Env <: Environment[Env] with ForeseeableEnvironment[Env]] extends PredictableEnvironmentRef[Env]{
   /**
    *
    * @param possibleActions previous actions => current snapshot => possible actions
@@ -70,13 +61,13 @@ trait ForeseeableEnvironmentRef[Coordinate, State, Global, Action <: AbstractAct
    * @param excludeTurningBack exclude action seqs that pass twice same state
    */
   def foresee(depth: Int,
-              possibleActions: Seq[Action] => EnvironmentSnapshot[Coordinate, State, Global, Action, Env] => Set[Action],
+              possibleActions: Seq[Env#Action] => EnvironmentSnapshot[Env] => Set[Env#Action],
               includeShorter: Boolean,
-              excludeTurningBack: Boolean): Map[Seq[Action], Env#Prediction]
+              excludeTurningBack: Boolean): Map[Seq[Env#Action], Env#Prediction]
   def asyncForesee(depth: Int,
-                   possibleActions: Seq[Action] => EnvironmentSnapshot[Coordinate, State, Global, Action, Env] => Set[Action],
+                   possibleActions: Seq[Env#Action] => EnvironmentSnapshot[Env] => Set[Env#Action],
                    includeShorter: Boolean,
-                   excludeTurningBack: Boolean): Future[Map[Seq[Action], Env#Prediction]]
+                   excludeTurningBack: Boolean): Future[Map[Seq[Env#Action], Env#Prediction]]
 }
 
 /*
@@ -113,33 +104,30 @@ object EnvironmentSnapshot{
 /**
  * should be mixed-in last
  */
-trait EnvironmentSnapshot[Coordinate, State, Global, Action <: AbstractAction, Env <: Environment[Coordinate, State, Global, Action, Env]]
-  extends Environment[Coordinate, State, Global, Action, Env]
-{
+trait EnvironmentSnapshot[Env <: Environment[Env]] extends Environment[Env]{
   self: Env =>
 
-  def states: Map[Coordinate, State]
-  val effects: PartialFunction[Action, (Env) => Env]
-  val definedAt: Seq[Coordinate]
-  val globalState: Global
+  def states: Map[Env#Coordinate, Env#State]
+  val effects: PartialFunction[Env#Action, Env => Env]
+  val definedAt: Seq[Env#Coordinate]
+  val globalState: Env#Global
 
   /**
    * @return self, no effect should be produced
    */
-//  abstract override def affected(act: Action): EnvironmentSnapshot[Coordinate, State, Global, Action, Env] = this
-  def affected(act: Action): SideEffect[Env] = SideEffect(this)
+  def affected(act: Env#Action): SideEffect[Env] = SideEffect(this)
 
-  def asEnv: Env with EnvironmentSnapshot[Coordinate, State, Global, Action, Env] = self
+  def asEnv: Env with EnvironmentSnapshot[Env] = self
 
-  override def equals(obj: scala.Any): Boolean = PartialFunction.cond(obj){
-    case snap: EnvironmentSnapshot[Coordinate, State, Global, Action, Env] =>
+  override def equals(obj: Any): Boolean = PartialFunction.cond(obj){
+    case snap: EnvironmentSnapshot[Env] with Env =>
       snap.globalState == this.globalState &&
       snap.states.zipByKey(this.states).forall{
-        case (_, (s1, s2)) => EnvironmentSnapshot.stateComparator[State](s1, s2)
+        case (_, (s1, s2)) => EnvironmentSnapshot.stateComparator[Env#State](s1, s2)
       }
   }
 
-  def diff(that: EnvironmentSnapshot[Coordinate, State, Global, Action, Env]) =
+  def diff(that: EnvironmentSnapshot[Env]) =
     this.states.zipByKey(that.states).filter{ case (_, (v1, v2)) => v1 != v2 }
 
   override def toString: String = s"EnvironmentSnapshot($globalState, $states)"
@@ -149,14 +137,10 @@ trait EnvironmentSnapshot[Coordinate, State, Global, Action <: AbstractAction, E
  *  Use with copies of current mutable environment for making predictions
  */
 
-trait CustomisableEnvironmentSnapshot[Coordinate, State, Global, Action <: AbstractAction,
-                                      Env <: Environment[Coordinate, State, Global, Action, Env]
-                                        with MutableEnvironment[Coordinate, State, Global, Action, Env]]
-  extends MutableEnvironment[Coordinate, State, Global, Action, Env]
-{
+trait CustomisableEnvironmentSnapshot[Env <: Environment[Env] with MutableEnvironment[Env]] extends MutableEnvironment[Env]{
   self: Env =>
 
-  def copy(): CustomisableEnvironmentSnapshot[Coordinate, State, Global, Action, Env] with Env
+  def copy(): CustomisableEnvironmentSnapshot[Env] with Env
 
-  def snapshot(): EnvironmentSnapshot[Coordinate, State, Global, Action, Env]
+  def snapshot(): EnvironmentSnapshot[Env]
 }

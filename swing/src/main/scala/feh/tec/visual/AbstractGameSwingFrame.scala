@@ -98,8 +98,10 @@ object AbstractGameSwingFrame{
       def appendHistory(turn: Turn, choices: Game#PlayersChoices, utility: Game#PlayersUtility) = {
         history += turn.id -> players.toList.map{
           p =>
-            updateScore(p, utility(p.cast))
-            HistoryEntry(p, choices(p.cast).asInstanceOf[Game#Player#Strategy], utility(p.cast), score(p))
+            val ch = choices.asInstanceOf[Map[Game#Player, Game#Player#Strategy]]
+            val ut = utility.asInstanceOf[Map[Game#Player, Game#Utility]]
+            updateScore(p, ut(p))
+            HistoryEntry(p, ch(p), ut(p), score(p))
         }
       }
       var description: NodeSeq

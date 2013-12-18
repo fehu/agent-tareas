@@ -28,6 +28,7 @@ object Build extends sbt.Build {
     version      := Version,
     scalaVersion := ScalaVersion,
 //    scalacOptions ++= Seq("-explaintypes"),
+    scalacOptions ++= Seq("-deprecation"),
     scalacOptions in (Compile, doc) ++= Seq("-diagrams", "-diagrams-debug"),
     resolvers += Release.spray,
     mainClass in Compile := Some("feh.tec.agent.run.AgentApps")

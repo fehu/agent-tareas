@@ -13,13 +13,17 @@ abstract class GenericPlayer[Game <: GenericGame, Env <: GenericGameEnvironment[
                              val player: Game#Player,
                              val executionLoop: PlayerAgent.Exec[Game, Env], 
                              val env: Env#Ref,
-                             decisionTaken: GenericPlayer[Game, Env]#ActionExplanation => Unit = (_: GenericPlayer[Game, Env]#ActionExplanation) => {}
+                             decisionTaken: GenericPlayer[Game, Env]#ActionExplanation => Unit = (_: Any) => {}
                             ) 
   extends DummyPlayer[Game, Env] with PlayerAgent.Resettable[Game, Env]
 {
   final type Player = Game#Player
   final type Strategy = Player#Strategy
   final type Utility = Game#Utility
+
+  protected def actionToStrategicChoice(a: Env#Action): Option[StrategicChoice[Game#Player]] = PartialFunction.condOpt(a){
+    case ch :StrategicChoice[Game#Player] => ch
+  }
 
   def lastDecision: Option[ActionExplanation] = None
   def notifyDecision(a: GenericPlayer[Game, Env]#ActionExplanation): Unit = decisionTaken(a)
@@ -33,7 +37,10 @@ class GenericExecutor[Game <: GenericGame, Env <: GenericGameEnvironment[Game, E
                                                                                     (implicit val executionContext: ExecutionContext) extends ByTurnExec[Game, Env]
 
 object GenericPlayer{
-  trait DummyBestStrategyChooser[Game <: GenericGame, Env <: GenericGameEnvironment[Game, Env]] extends GenericPlayer[Game, Env]{
+  trait DummyBestStrategyChooser[Game <: GenericGame,
+                                 Env <: GenericGameEnvironment[Game, Env] ]
+    extends GenericPlayer[Game, Env]
+  {
     lazy val game = sense(env)
     lazy val gameLayout = game.layout.asInstanceOf[Map[Player, Strategy] => Map[Player, Utility]]
 
@@ -53,7 +60,8 @@ object GenericPlayer{
     }
   }
 
-  trait DummyBestStrategyChooser2[Game <: Game2, Env <: GenericGameEnvironment[Game, Env]]
+  trait DummyBestStrategyChooser2[Game <: Game2,
+                                  Env <: GenericGameEnvironment[Game, Env]]
     extends DummyBestStrategyChooser[Game, Env]
   {
     lazy val opponent = opponents.head
@@ -74,7 +82,8 @@ object GenericPlayer{
   /**
    * Should be mixed in AFTER all other decision traits
    */
-  trait RandomBehaviour[Game <: GenericGame, Env <: GenericGameEnvironment[Game, Env]]
+  trait RandomBehaviour[Game <: GenericGame,
+                        Env <: GenericGameEnvironment[Game, Env]]
     extends GenericPlayer[Game, Env] with PlayerAgent.RandomBehaviour[Game, Env]
   {
     var randomChance: InUnitInterval = 0
@@ -120,7 +129,8 @@ object GenericPlayer{
     }
   }
 
-  trait SimpleStatistics[Game <: GenericGame, Env <: GenericGameEnvironment[Game, Env]]
+  trait SimpleStatistics[Game <: GenericGame,
+                         Env <: GenericGameEnvironment[Game, Env]]
     extends DummyBestStrategyChooser[Game, Env] 
   {
 
@@ -148,7 +158,8 @@ object GenericPlayer{
     }.liftUnit)
   }
 
-  trait SimpleExpectedUtility[Game <: GenericGame, Env <: GenericGameEnvironment[Game, Env]] 
+  trait SimpleExpectedUtility[Game <: GenericGame,
+                              Env <: GenericGameEnvironment[Game, Env]]
     extends SimpleStatistics[Game, Env]
   {
     protected def probabilityByCount(c: Int) = InUnitInterval(env.turn match{ // returns count as probability on first move, this can be used to setup 1 move
@@ -185,7 +196,8 @@ object GenericPlayer{
     }.toMap
   }
 
-  trait SimpleExpectedUtility2[Game <: Game2, Env <: GenericGameEnvironment[Game, Env]]
+  trait SimpleExpectedUtility2[Game <: Game2,
+                               Env <: GenericGameEnvironment[Game, Env]]
     extends DummyBestStrategyChooser2[Game, Env]  with  SimpleExpectedUtility[Game, Env]
   {
 
