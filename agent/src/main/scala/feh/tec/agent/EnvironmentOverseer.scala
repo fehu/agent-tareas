@@ -303,9 +303,9 @@ trait ForeseeingMutableDeterministicEnvironmentOverseer[Env <: Environment[Env]
       val previousActs = previousActsWithPredictions.map(_._1)
       debugLog(s"foreseeing recursively: depth=$depth, previous actions=$previousActs, current action=$currentAction")
       val currentActions =  previousActs :+ currentAction
-      val currentSnapshot = snapshot.snapshot()
       val prediction = getPrediction(currentAction, snapshot)
-      def nextLengthPossActions = getPossActions(currentActions, snapshot)
+      val currentSnapshot = snapshot.snapshot()
+      def nextLengthPossActions = getPossActions(currentActions, snapshot) // todo: slow
         .flatMap(rec(depth + 1, prediction, previousActsWithPredictions :+ (currentAction -> currentSnapshot), _))
       def currentActionsWithPrediction = (previousActs :+ currentAction) -> prediction.snapshot()
 

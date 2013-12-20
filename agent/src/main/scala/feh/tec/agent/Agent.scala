@@ -58,21 +58,18 @@ sealed trait AgentExecution[Env <: Environment[Env], +Exec <: AgentExecutionLoop
 
 trait SimultaneousAgentExecution[Env <: Environment[Env], Exec <: SimultaneousAgentsExecutor]
   extends AgentExecution[Env, Exec]
-{
-
-}
 
 /** Abstract trait for agents with decision part;
  *  [[feh.tec.agent.Agent]] implementation makes it necessary to mix-in one of decision strategies in it
  */
-sealed trait DecisiveAgent[Env <: Environment[Env], +Exec <: AgentExecutionLoop]{
+  sealed trait DecisiveAgent[Env <: Environment[Env], +Exec <: AgentExecutionLoop]{
   indecisiveSelf: AgentExecution[Env, Exec] =>
 }
 
 /**
- *  Stupid agent, that makes decisions based only on current environment perception
+ *  Simple agent, that makes decisions based only on current environment perception
  */
-trait DummyAgent[Env <: Environment[Env], +Exec <: AgentExecutionLoop] extends DecisiveAgent[Env, Exec]{
+trait SimpleAgent[Env <: Environment[Env], +Exec <: AgentExecutionLoop] extends DecisiveAgent[Env, Exec]{
   indecisiveSelf: AgentExecution[Env, Exec] =>
 
   def decide(currentPerception: Perception): ActionExplanation
@@ -86,9 +83,11 @@ trait DummyAgent[Env <: Environment[Env], +Exec <: AgentExecutionLoop] extends D
 trait WiserAgent[Env <: Environment[Env], Exec <: AgentExecutionLoop] extends DecisiveAgent[Env, Exec]{
   self: AgentExecution[Env, Exec] =>
 
-  def decide(past: Past[Env], currentPerception: Perception): ActionExplanation
+  type P <: Past
 
-  def past: Past[Env]
+  def decide(past: P, currentPerception: Perception): ActionExplanation
+
+  def past: P
 
   def lifetimeCycle = executionSequence(decide(past, _))
 }
@@ -166,10 +165,10 @@ trait IdealRationalAgent[Env <: Environment[Env] with PredictableEnvironment[Env
 /**
  * LOL the name
  */
-trait IdealDummyAgent[Env <: Environment[Env] with PredictableEnvironment[Env],
+trait IdealSimpleAgent[Env <: Environment[Env] with PredictableEnvironment[Env],
 Exec <: AgentExecutionLoop,
                       M <: AgentPerformanceMeasure[Env, M]]
-  extends IdealRationalAgent[Env, Exec, M] with DummyAgent[Env, Exec]
+  extends IdealRationalAgent[Env, Exec, M] with SimpleAgent[Env, Exec]
 {
   self: AgentExecution[Env, Exec] =>
 
@@ -179,10 +178,10 @@ Exec <: AgentExecutionLoop,
 }
 
 
-trait IdealForeseeingDummyAgent[Env <: Environment[Env] with ForeseeableEnvironment[Env],
+trait IdealForeseeingSimpleAgent[Env <: Environment[Env] with ForeseeableEnvironment[Env],
                                 Exec <: AgentExecutionLoop,
                                 M <: AgentPerformanceMeasure[Env, M]]
-  extends IdealDummyAgent[Env, Exec, M] with Debugging
+  extends IdealSimpleAgent[Env, Exec, M] with Debugging
 {
   self: AgentExecution[Env, Exec] =>
 

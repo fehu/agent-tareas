@@ -1,8 +1,8 @@
 package feh.tec.agent
 
-trait Past[Env <: Environment[Env]] {
+trait Past{
 
-  type History = (EnvironmentSnapshot[Env], Env#Action)
+  type History
 
-  def history: Seq[History]
+  def history: History
 }

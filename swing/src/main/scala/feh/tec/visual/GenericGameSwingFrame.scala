@@ -51,7 +51,7 @@ object GenericGameSwingFrame{
       game.players.map(_.asInstanceOf[Game#Player]).zipMap{
         q =>
           Elem(html(q)(p => <center><b>{p.toString}</b><br/>{messages.score(p).toString}</center>))
-      }.toMap //: Map[Game#Player, Elem[LabelBuilder[Game#Player]]]
+      }.toMap
 
 
     def resetButton = Elem(triggerFor(reset()).button("Reset"))

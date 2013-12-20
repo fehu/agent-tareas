@@ -1,6 +1,6 @@
 package feh.tec.agentes.tarea1
 
-import feh.tec.agentes.tarea1.Tarea1.Agents.{InfExec, MyDummyAgent}
+import feh.tec.agentes.tarea1.Tarea1.Agents.{InfExec, MySimpleAgent}
 import feh.tec.util.RandomWrappers._
 import scala.concurrent.duration.FiniteDuration
 import feh.tec.agent.StatelessAgentPerformanceMeasure
@@ -17,7 +17,7 @@ object Agents {
     def randomlyMoving(ref: Environment#Ref, freq: FiniteDuration) ={
       implicit def pauseBetweenExecs = PauseBetweenExecs(freq)
 
-      new MyDummyAgent[InfExec](ref, Nil, Nil, _ => _ => Set(), agentId, -1, null) { agent =>
+      new MySimpleAgent[InfExec](ref, Nil, Nil, _ => _ => Set(), agentId, -1, null) { agent =>
 
         override def decide(currentPerception: Perception): ActionExplanation =
           CriteriaReasonedDecision[Env, Measure](Move.all.toSeq.randomChoice, Set(RandomlyChosenCriteriaValue), 0)

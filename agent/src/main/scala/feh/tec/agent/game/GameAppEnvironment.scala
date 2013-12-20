@@ -8,6 +8,7 @@ import feh.tec.agent.game.GenericPlayer._
 import feh.tec.agent.game.DeterministicMutableGenericGameEnvironment.Env2
 import feh.tec.agent.conf.AppConfig
 import feh.tec.visual.api.{StopNotifications, AppBasicControlApi}
+import feh.tec.agent.AgentDecision.ExplainedActionStub
 
 trait GameAppEnvironment{
   type App <: AppBasicControlApi with StopNotifications
@@ -51,17 +52,20 @@ trait DeterministicMutableGameAppEnvironment2 extends GameAppEnvironment{
   def dummyPlayer(sel: Game2 => Game2#Player): Agent = {
     val p = sel(game)
     val pl = new GenericPlayer[Game2, Env2[Game2]](p, executor, coordinator.ref)
-      with DummyBestStrategyChooser2[Game2, Env2[Game2]]
-      with RandomBehaviour[Game2, Env2[Game2]]
+      with SimpleBestStrategyChooser2[Game2, Env2[Game2]]
+      with SimpleRandomBehaviour[Game2, Env2[Game2]]
     register(pl)
   }
 
   def statisticEnforcedPlayer(sel: Game2 => Game2#Player): Agent = {
     val p = sel(game)
     val pl = new GenericPlayer[Game2, Env2[Game2]](p, executor, coordinator.ref)
-      with DummyBestStrategyChooser2[Game2, Env2[Game2]]
-      with SimpleExpectedUtility2[Game2, Env2[Game2]]
-      with RandomBehaviour[Game2, Env2[Game2]]
+      with ExpectedUtilityByPastOnly2[Game2, Env2[Game2]]
+      with WiserRandomBehaviour[Game2, Env2[Game2]]
+    {
+      type ActionExplanation = ExplainedActionStub[Env#Action]
+      protected def buildActionExplanation(s: StrategicChoice[Player]) = ExplainedActionStub(s)
+    }
     register(pl)
   }
 

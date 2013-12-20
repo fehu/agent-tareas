@@ -61,9 +61,9 @@ class PrisonerDilemmaCreator{
   val executor = new GenericExecutor[Game, Env](config.awaitEndOfTurnTimeout)(config.executionContext)
 
   val player1 = new GenericPlayer[Game, Env](PrisonerDilemma.A, executor, coordinator.ref)
-    with DummyBestStrategyChooser2[Game, Env] with GenericPlayer.RandomBehaviour[Game, Env]
+    with SimpleBestStrategyChooser2[Game, Env] with GenericPlayer.SimpleRandomBehaviour[Game, Env]
   val player2 = new GenericPlayer[Game, Env](PrisonerDilemma.B, executor, coordinator.ref)
-    with DummyBestStrategyChooser2[Game, Env] with GenericPlayer.RandomBehaviour[Game, Env]
+    with SimpleBestStrategyChooser2[Game, Env] with GenericPlayer.SimpleRandomBehaviour[Game, Env]
 
   val description =
     <html>

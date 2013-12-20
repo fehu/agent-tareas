@@ -5,7 +5,7 @@ import feh.tec.visual.api._
 import nicol.{Game, Scene, Init}
 import feh.tec.util.{ImplicitLift, LiftWrapper}
 import ImplicitLift._
-import feh.tec.agentes.tarea1.Tarea1.Agents.MyDummyAgent
+import feh.tec.agentes.tarea1.Tarea1.Agents.MySimpleAgent
 import feh.tec.visual.api.BasicDrawEnvironmentSettings
 import feh.tec.visual.api.Layout
 import feh.tec.visual.api.LayoutElem
@@ -15,9 +15,9 @@ import LwjglSquareMapRenderer.BuildTDrawOpsParams
 import feh.tec.agent.AgentId
 import feh.tec.visual.api.WorldVisualisationCalls
 
-case class AgentRef(ag: MyDummyAgent[Nothing])
+case class AgentRef(ag: MySimpleAgent[Nothing])
 object AgentRef{
-  def create(ag: MyDummyAgent[_]): AgentRef = new AgentRef(ag.asInstanceOf[MyDummyAgent[Nothing]])
+  def create(ag: MySimpleAgent[_]): AgentRef = new AgentRef(ag.asInstanceOf[MySimpleAgent[Nothing]])
   implicit def AgentRefToRef(ref: AgentRef) = ref.ag
 }
 
