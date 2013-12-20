@@ -40,7 +40,7 @@ object IdealForeseeingAgentDecisionStrategies{
 
   class MeasureBasedForeseeingDecisionStrategy[Env <: Environment[Env] with ForeseeableEnvironment[Env] ,
                                                M <: AgentPerformanceMeasure[Env, M],
-                                               Ag <: IdealForeseeingDummyAgent[Env, Exec, M] with AgentExecution[Env, Exec] forSome {type Exec <: AgentExecutionLoop} ]
+                                               Ag <: IdealForeseeingSimpleAgent[Env, Exec, M] with AgentExecution[Env, Exec] forSome {type Exec <: AgentExecutionLoop} ]
       (val foreseeingDepth: Int, val debug: Boolean, notifyRouteChosen: Option[Seq[Env#Action]] => Unit)
     extends IdealRationalAgentDecisionStrategies.MeasureBasedDecisionStrategy[Env, M, Ag](null) with Debugging
   {

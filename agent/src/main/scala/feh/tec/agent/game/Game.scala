@@ -194,7 +194,6 @@ object GameCoordinatorActor{
   case class TurnResponse(uuid: UUID, turn: Turn) extends HasUUID
   case class RegisterChoice[Game <: AbstractGame](choice: StrategicChoice[Game#Player]) extends UUIDed
   case class RegisterChoiceAndWait[Game <: AbstractGame](choice: StrategicChoice[Game#Player]) extends UUIDed
-  @deprecated case class AwaitEndOfTurn() extends UUIDed
   case class TurnEnded(uuid: UUID) extends HasUUID
   case object Reset
 }
@@ -366,19 +365,38 @@ trait PlayerAgent[Game <: AbstractGame, Env <: GameEnvironment[Game, Env]]
   }.flatExec
 }
 
-trait DummyPlayer[Game <: AbstractGame, Env <: GameEnvironment[Game, Env]]
+trait SimplePlayer[Game <: AbstractGame, Env <: GameEnvironment[Game, Env]]
   extends PlayerAgent[Game, Env]
-  with DummyAgent[Env, PlayerAgent.Exec[Game, Env]]
+  with SimpleAgent[Env, PlayerAgent.Exec[Game, Env]]
 {
   type ActionExplanation = ExplainedActionStub[Env#Action]
   type DetailedPerception = AbstractDetailedPerception
   type Perception = Game
 
-  def player: Game#Player
-
   def sense(env: EnvRef): Perception = env.strategies
 
   def detailed(env: EnvRef, c: Null): Option[AbstractDetailedPerception] = None
+}
+
+trait WiserPlayer[Game <: AbstractGame, Env <: GameEnvironment[Game, Env]]
+  extends PlayerAgent[Game, Env] with WiserAgent[Env, PlayerAgent.Exec[Game, Env]]
+{
+  type Perception = (Game, P)
+
+  def sense(env: EnvRef): Perception = env.strategies -> past
+
+  def detailed(env: EnvRef, c: Env#Coordinate) = None
+}
+
+trait StatefulPlayer[Game <: AbstractGame, Env <: GameEnvironment[Game, Env], State]
+  extends PlayerAgent[Game, Env] with StatefulAgent[Env, PlayerAgent.Exec[Game, Env], State]
+{
+  self: AgentWithActor[Env, PlayerAgent.Exec[Game, Env]] =>
+  type Perception = (Game, State)
+
+  def sense(env: EnvRef): Perception = env.strategies -> state
+
+  def detailed(env: EnvRef, c: Env#Coordinate) = None
 }
 
 trait ByTurnExec[Game <: AbstractGame, Env <: GameEnvironment[Game, Env]] extends PlayerAgent.Exec[Game, Env]{

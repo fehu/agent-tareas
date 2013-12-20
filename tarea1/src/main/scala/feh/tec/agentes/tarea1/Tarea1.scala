@@ -6,7 +6,7 @@ import java.util.{Calendar, UUID}
 import feh.tec.world._
 import akka.actor.ActorSystem
 import scala.concurrent.duration._
-import feh.tec.agentes.tarea1.Tarea1.Agents.MyDummyAgent
+import feh.tec.agentes.tarea1.Tarea1.Agents.MySimpleAgent
 import feh.tec.visual.api._
 import feh.tec.visual.{PauseScene, NicolLike2DEasel}
 import nicol._
@@ -40,19 +40,19 @@ object Tarea1 {
 
     val shortestRouteFinder: ShortestRouteFinder[Map, Tile, Position] = new MapShortestRouteFinder
 
-    case class InfExec(agent: MyDummyAgent[InfExec],
+    case class InfExec(agent: MySimpleAgent[InfExec],
                          pauseBetweenExecs: FiniteDuration,
                          execControlTimeout: FiniteDuration)
                       (implicit val actorSystem: ActorSystem)
-      extends AgentInfiniteExecution[MyDummyAgent[InfExec]]
+      extends AgentInfiniteExecution[MySimpleAgent[InfExec]]
 
-    case class ConditionalExec(agent: MyDummyAgent[ConditionalExec],
+    case class ConditionalExec(agent: MySimpleAgent[ConditionalExec],
                                pauseBetweenExecs: FiniteDuration,
                                execControlTimeout: FiniteDuration,
                                stopConditions: Set[ConditionalExec#StopCondition],
                                onFinished: () => Unit)
                               (implicit val actorSystem: ActorSystem)
-      extends AgentExecutionEnvironmentStopCondition[Env, MyDummyAgent[ConditionalExec]]
+      extends AgentExecutionEnvironmentStopCondition[Env, MySimpleAgent[ConditionalExec]]
     {
       def notifyFinished(): Unit = onFinished()
     }
@@ -63,7 +63,7 @@ object Tarea1 {
       extends ExecLoopBuilder[AbstractAgent[InfExec], InfExec]
     {
       def buildExec(ag: AbstractAgent[InfExec]): InfExec =
-        InfExec(ag.asInstanceOf[MyDummyAgent[InfExec]], pauseBetweenExecs, stopTimeout)
+        InfExec(ag.asInstanceOf[MySimpleAgent[InfExec]], pauseBetweenExecs, stopTimeout)
     }
 
     case class ConditionalExecBuilder(pauseBetweenExecs: FiniteDuration,
@@ -72,7 +72,7 @@ object Tarea1 {
                                       onFinished: () => Unit)
                                      (implicit val actorSystem: ActorSystem) extends ExecLoopBuilder[AbstractAgent[ConditionalExec], ConditionalExec]{
       def buildExec(ag: AbstractAgent[ConditionalExec]): ConditionalExec =
-        ConditionalExec(ag.asInstanceOf[MyDummyAgent[ConditionalExec]], pauseBetweenExecs, execControlTimeout, stopConditions, onFinished)
+        ConditionalExec(ag.asInstanceOf[MySimpleAgent[ConditionalExec]], pauseBetweenExecs, execControlTimeout, stopConditions, onFinished)
     }
 
     object ExecLoopBuilders{
@@ -91,20 +91,20 @@ object Tarea1 {
     }
 
 
-    object MyDummyAgent{
-      type Exec[Self <: Exec[Self]] = ActorAgentExecutionLoop[MyDummyAgent[Self]]
+    object MySimpleAgent{
+      type Exec[Self <: Exec[Self]] = ActorAgentExecutionLoop[MySimpleAgent[Self]]
     }
-    class MyDummyAgent[Exec <: ActorAgentExecutionLoop[MyDummyAgent[Exec]]](
+    class MySimpleAgent[Exec <: ActorAgentExecutionLoop[MySimpleAgent[Exec]]](
                        e: Env#Ref,
                        criteria: Measure#Criteria,
                        backupCriteria: Measure#Criteria,
-                       findPossibleActions: MyDummyAgent[Exec] => MyDummyAgent[Exec]#Perception => Set[Action],
+                       findPossibleActions: MySimpleAgent[Exec] => MySimpleAgent[Exec]#Perception => Set[Action],
                        override val id: AgentId,
                        val foreseeingDepth: Int,
                        worldVisualisationCalls: WorldVisualisationCalls[Tile, Position])
                       (implicit val actorSystem: ActorSystem, exBuilder: ExecLoopBuilder[AbstractAgent[Exec], Exec])
       extends AbstractAgent[Exec](e, criteria, Environment.mapStateBuilder, shortestRouteFinder, new Measure)
-        with IdealForeseeingDummyAgent[Env, Exec, Measure]
+        with IdealForeseeingSimpleAgent[Env, Exec, Measure]
         with GlobalDebugging
     {
       agent =>
@@ -279,8 +279,8 @@ trait Tarea1AppSetup{
 
   def criteria: Seq[Criterion[Env, Measure]]
   def backupCriteria: Measure#Criteria
-  def findPossibleActions[Exec <: ActorAgentExecutionLoop[MyDummyAgent[Exec]]]
-    (ag: MyDummyAgent[Exec], perc: MyDummyAgent[Exec]#Perception): Set[Action]
+  def findPossibleActions[Exec <: ActorAgentExecutionLoop[MySimpleAgent[Exec]]]
+    (ag: MySimpleAgent[Exec], perc: MySimpleAgent[Exec]#Perception): Set[Action]
 }
 
 object visual{
@@ -301,8 +301,8 @@ class Tarea1App extends AppBasicControlApi{
   implicit val actorSystem = ActorSystem()
 
   val setup: Tarea1AppSetup = new Tarea1AppSetup {
-    def findPossibleActions[Exec <: ActorAgentExecutionLoop[MyDummyAgent[Exec]]]
-      (ag: MyDummyAgent[Exec], perc: MyDummyAgent[Exec]#Perception): Set[Action] =
+    def findPossibleActions[Exec <: ActorAgentExecutionLoop[MySimpleAgent[Exec]]]
+      (ag: MySimpleAgent[Exec], perc: MySimpleAgent[Exec]#Perception): Set[Action] =
         perc.worldSnapshot.getSnapshot(perc.position).neighboursSnapshots
           .filterNot(_.asAtom.contents.exists(_.isHole))
           .map(tile => perc.worldSnapshot.asWorld.relativeNeighboursPosition(tile.coordinate, perc.position))
@@ -396,7 +396,7 @@ class Tarea1App extends AppBasicControlApi{
   implicit def _setFinishedScene: () => Unit = setFinishedScene().lift
 
   type Exec = ConditionalExec
-  lazy val ag: MyDummyAgent[Exec] = new MyDummyAgent[Exec](
+  lazy val ag: MySimpleAgent[Exec] = new MySimpleAgent[Exec](
     overseer.ref,
     setup.criteria,
     setup.backupCriteria,
