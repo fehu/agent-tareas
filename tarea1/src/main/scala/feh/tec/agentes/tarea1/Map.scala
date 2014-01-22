@@ -7,6 +7,7 @@ import feh.tec.agent.{Route, AgentId}
 import scala.collection.mutable
 import feh.tec.util._
 import spray.json._
+import feh.util.ScopedState
 
 /*
   todo: move

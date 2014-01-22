@@ -5,6 +5,7 @@ import feh.tec.util._
 import java.util.UUID
 import feh.tec.agent.AgentDecision._
 import feh.tec.agent.IdealRationalAgentDecisionStrategies.MeasureBasedDecisionStrategy
+import feh.util.{Debugging, HasUUID}
 
 /**
  *  An agent that lacks decision part

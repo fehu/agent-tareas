@@ -7,6 +7,7 @@ import akka.pattern._
 import akka.util.Timeout
 import scala.concurrent.duration._
 import feh.tec.util._
+import feh.util.{Debugging, ScopedState, HasUUID, UUIDed}
 
 /**
  *  manages the environment, hides actual environment change implementation

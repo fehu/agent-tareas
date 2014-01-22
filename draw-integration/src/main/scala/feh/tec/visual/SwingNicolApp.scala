@@ -1,21 +1,33 @@
 package feh.tec.visual
 
-import java.awt.Canvas
-import feh.tec.visual.util.AwtEventUtils
 import scala.swing.event.{WindowClosing, WindowActivated}
-import org.lwjgl.opengl.{GL11, Display}
+import org.lwjgl.opengl.{AWTGLCanvas, GL11, Display}
+import scala.swing.{Swing, Component}
+import feh.tec.visual.swing.Canvas
+import java.awt.Color
 
-/**
- * From http://lwjgl.org/wiki/index.php?title=Using_a_Resizeable_AWT_Frame_with_LWJGL
- */
 trait SwingNicolApp extends AppSurroundingSwingFrame{
-  frame: SwingSurroundingFrameAppCreation#SurroundingLayoutDSL with SwingSurroundingFrameAppCreation#SurroundingLayoutBuilder =>
+  frame: SwingFrameAppCreation#LayoutBuilder with SwingFrameAppCreation#LayoutDSL =>
 
+  case class AWTGLCanvasBuildMeta(component: Component,
+                                  effects: List[AWTGLCanvasBuildMeta#Comp => Unit] = Nil,
+                                  layout: List[(FormCreation.Constraints) => Unit] = Nil)
+    extends SwingFrameAppCreation.BuildMeta with AbstractDSLBuilder
+  {
+    type Comp = LWJGLCanvas
+    def affect(effects: (Comp => Unit) *) = copy(effects = effects.toList)
 
-  lazy val drawComponent = new Canvas() with AwtEventUtils{
-    canvas =>
+    def layout(effects: (FormCreation.Constraints => Unit) *) = copy(layout = effects.toList)
 
-    addComponentListener(ComponentListener(resized = _ => resizeApp(canvas.getSize)))
+    def `type` = "AWTGLCanvas"
+  }
+
+  implicit def aWTGLCanvasToBuildMetaWrapper(c: LWJGLCanvas) = AWTGLCanvasBuildMeta(c)
+
+  lazy val drawComponent = {
+    val c = new LWJGLCanvas
+    c.border = Swing.LineBorder(Color.red)
+    c
   }
 
   frame.reactions += {
@@ -27,7 +39,7 @@ trait SwingNicolApp extends AppSurroundingSwingFrame{
    * binds game display into `drawComponent`; needs OpenGL Context in it's thread
    */
   def bindDisplay(){
-    Display.setParent(drawComponent)
+    Display.setParent(drawComponent.canvas)
     Display.create()
   }
 
@@ -35,7 +47,7 @@ trait SwingNicolApp extends AppSurroundingSwingFrame{
    * sets view port to the size of `drawComponent`; needs OpenGL Context in it's thread
    */
   def setViewPort() {
-    GL11.glViewport(0, 0, drawComponent.getWidth, drawComponent.getHeight)
+    GL11.glViewport(0, 0, drawComponent.size.width, drawComponent.size.height)
     Display.update()
   }
 
@@ -51,3 +63,6 @@ trait SwingNicolApp extends AppSurroundingSwingFrame{
     frame.close()
   }
 }
+
+class LWJGLCanvas extends Canvas(new AWTGLCanvas())
+//class JAWTGLCanvas extends JCanvas(new AWTGLCanvas())

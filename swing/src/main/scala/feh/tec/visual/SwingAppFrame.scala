@@ -590,6 +590,7 @@ trait SwingFrameAppCreation extends FormCreation{
 }
 
 object SwingSurroundingFrameAppCreation extends SwingSurroundingFrameAppCreation
+@deprecated
 trait SwingSurroundingFrameAppCreation extends SwingFrameAppCreation{
 
   trait SurroundingLayoutBuilder extends LayoutBuilder{
@@ -618,10 +619,11 @@ trait SwingSurroundingFrameAppCreation extends SwingFrameAppCreation{
   }
 }
 
-trait AppSurroundingSwingFrame extends SwingAppFrame with AwtWindowedApp
-  with SwingSurroundingFrameAppCreation
+trait AppSurroundingSwingFrame extends SwingAppFrame with SwingWindowedApp
+//  with SwingSurroundingFrameAppCreation
 {
-  self: SwingSurroundingFrameAppCreation#SurroundingLayoutDSL with SwingSurroundingFrameAppCreation#SurroundingLayoutBuilder =>
+  self: SwingFrameAppCreation#LayoutDSL with SwingFrameAppCreation#LayoutBuilder =>
+//  self: SwingSurroundingFrameAppCreation#SurroundingLayoutDSL with SwingSurroundingFrameAppCreation#SurroundingLayoutBuilder =>
 
-  def appWindow = peer
+  def appWindow = this
 }

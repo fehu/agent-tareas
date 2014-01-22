@@ -2,6 +2,7 @@ package feh.tec.agent
 
 import scala.collection.mutable
 import feh.tec.util._
+import feh.util.Debugging
 
 object AgentDecision{
   trait AbstractDecision[D]{

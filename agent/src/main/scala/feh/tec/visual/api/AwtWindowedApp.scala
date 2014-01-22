@@ -10,3 +10,9 @@ trait AwtWindowedApp {
   def drawComponent: Component
   def app: AgentApp with AppBasicControlApi
 }
+
+trait SwingWindowedApp {
+  def appWindow: Window
+  def drawComponent: Component
+  def app: AgentApp with AppBasicControlApi
+}

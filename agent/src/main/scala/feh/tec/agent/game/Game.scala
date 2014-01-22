@@ -7,13 +7,14 @@ import akka.pattern._
 import scala.concurrent.duration._
 import scala.collection.mutable
 import akka.actor.{ActorSystem, Props, Actor, ActorRef}
-import feh.tec.util.HasUUID.AsyncSendMsgHasUUIDWrapper
 import akka.event.Logging
 import feh.tec.agent._
 import scala.Some
 import feh.tec.agent.AgentDecision.ExplainedActionStub
 import feh.tec.agent.AgentId
 import akka.util.Timeout
+import feh.tec.util.HasUUIDForAkka.AsyncSendMsgHasUUIDWrapper
+import feh.util.{ValueSumInUnitInterval, InUnitInterval, HasUUID, UUIDed}
 
 trait GameEnvironment[Game <: AbstractGame, Env <: GameEnvironment[Game, Env]] extends Environment[Env]{
   self : Env =>

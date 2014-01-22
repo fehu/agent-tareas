@@ -24,7 +24,7 @@ object Build extends sbt.Build {
   import Dependencies._
 
   val buildSettings = Defaults.defaultSettings ++ Seq (
-    organization := "feh.tec.agentes",
+    organization := "feh.tec.agents",
     version      := Version,
     scalaVersion := ScalaVersion,
 //    scalacOptions ++= Seq("-explaintypes"),
@@ -131,6 +131,10 @@ object Build extends sbt.Build {
       lazy val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.10.1" % "test"
       lazy val specs2 = "org.specs2" %% "specs2" % "2.2.2" % "test"
     }
+
+    object feh{
+      lazy val util = "feh" %% "util" % "1.0"
+    }
   }
 
   // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // //
@@ -173,7 +177,7 @@ object Build extends sbt.Build {
     id = "agent",
     base = file("agent"),
     settings = buildSettings ++ Seq(
-      libraryDependencies ++= Seq(akka, reflectApi, Apache.ioCommons, scalaCompiler)
+      libraryDependencies ++= Seq(akka, reflectApi, scalaCompiler, shapeless, feh.util)
     )
   )
 

@@ -2,7 +2,7 @@ package feh.tec.agentes.tarea1
 
 import org.specs2.ScalaCheck
 import org.specs2.mutable.Specification
-import feh.tec.util.FileUtils.ByteArrayToFileWrapper
+import feh.util.FileUtils.ByteArrayToFileWrapper
 import java.io.File
 
 class EnvironmentSpec extends Specification with ScalaCheck with Arbitraries{

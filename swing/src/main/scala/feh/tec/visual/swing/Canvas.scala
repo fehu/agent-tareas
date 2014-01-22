@@ -1,19 +1,14 @@
 package feh.tec.visual.swing
 
 import scala.swing.Component
-import scala.swing.Swing._
-import javax.swing.{JPanel, UIManager, JComponent}
-import javax.swing.plaf.ComponentUI
-import java.awt.Graphics
+import javax.swing.JPanel
+import java.awt.{Graphics, Canvas => ACanvas}
 
-class Canvas extends Component{
-  override lazy val peer: JCanvas = new JCanvas with SuperMixin
-  def canvas = peer.canvas
+class Canvas(val canvas: ACanvas) extends Component{
+  override lazy val peer: JCanvas = new JCanvas(canvas) with SuperMixin
 }
 
-class JCanvas extends JPanel{
-  lazy val canvas = new java.awt.Canvas
-
+class JCanvas(val canvas: ACanvas) extends JPanel{
   override def paintComponent(g: Graphics){
     canvas.paint(g)
     super.paintComponent(g)

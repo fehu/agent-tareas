@@ -1,8 +1,9 @@
 package feh.tec.agent
 
 import scala.concurrent._
-import feh.tec.util.{MapZipperWrapper, SideEffect, ScopedState}
+import feh.tec.util.{MapZipperWrapper, SideEffect}
 import akka.actor.Scheduler
+import feh.util.ScopedState
 
 /**
  * provides access to current environment instance, which is hidden from agent

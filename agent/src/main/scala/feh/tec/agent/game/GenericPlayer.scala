@@ -9,6 +9,7 @@ import scala.util.Random
 import scala.collection.mutable
 import feh.tec.agent.game.AbstractGenericGame.Game2
 import feh.tec.agent.{Past => APast, AgentWithActor, DecisiveAgent}
+import feh.util.{ValueSumInUnitInterval, MutableHashMapValueSumInUnitInterval, InUnitInterval}
 
 abstract class GenericPlayer[Game <: GenericGame, Env <: GenericGameEnvironment[Game, Env]](
                              val player: Game#Player,

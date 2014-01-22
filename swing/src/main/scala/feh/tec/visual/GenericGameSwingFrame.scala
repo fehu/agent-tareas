@@ -15,6 +15,7 @@ import feh.tec.visual.api.StopNotifications
 import Swing._
 import java.awt
 import feh.tec.agent.conf.AppConfig
+import feh.util.UnitInterval
 
 abstract class GenericGameSwingFrame extends AbstractGameSwingFrame {
   type Game <: GenericGame

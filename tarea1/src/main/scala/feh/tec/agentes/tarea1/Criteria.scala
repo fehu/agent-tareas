@@ -4,6 +4,7 @@ import feh.tec.util._
 import feh.tec.agentes.tarea1.Agent._
 import feh.tec.agent.StatelessAgentPerformanceMeasure.Criterion
 import feh.tec.agent.AgentId
+import feh.util.Debugging
 
 object Criteria {
   trait PlugsMovingAgentCriteria extends Debugging{

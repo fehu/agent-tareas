@@ -5,6 +5,7 @@ import scala.tools.nsc.{Global, Settings}
 import java.io.File
 import scala.tools.reflect.ToolBox
 import scala.util.Try
+import feh.util.ScopedInThreadState
 
 class RestrictedInterpreter(restrictions: Set[Restriction], additionalClasspath: Set[String])
 {

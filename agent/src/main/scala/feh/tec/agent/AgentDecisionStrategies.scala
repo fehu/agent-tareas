@@ -4,6 +4,7 @@ import feh.tec.agent.AgentDecision._
 import feh.tec.agent.AgentDecision.CriteriaReasonedDecision
 import scala.collection.mutable
 import feh.tec.util._
+import feh.util.Debugging
 
 object IdealRationalAgentDecisionStrategies {
   class MeasureBasedDecisionStrategy[Env <: Environment[Env] with PredictableEnvironment[Env],

@@ -1,7 +1,7 @@
 package feh.tec.agentes.tarea1
 
 import feh.tec.agentes.tarea1.Tarea1.Agents.{InfExec, MySimpleAgent}
-import feh.tec.util.RandomWrappers._
+import feh.util.RandomWrappers._
 import scala.concurrent.duration.FiniteDuration
 import feh.tec.agent.StatelessAgentPerformanceMeasure
 import feh.tec.agent.AgentDecision.CriteriaReasonedDecision

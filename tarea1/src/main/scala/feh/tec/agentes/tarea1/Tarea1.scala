@@ -25,6 +25,7 @@ import feh.tec.agentes.tarea1.Tarea1.Agents.ExecLoopBuilders.PauseBetweenExecs
 import feh.tec.agent.AgentId
 import feh.tec.visual.api.BasicStringDrawOps
 import feh.tec.visual.api.WorldVisualisationCalls
+import feh.util.{DebuggingSetup, GlobalDebugging, GlobalDebuggingSetup}
 
 object Tarea1 {
   object Debug extends GlobalDebuggingSetup

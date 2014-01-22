@@ -1,13 +1,13 @@
 package feh.tec.world
 
 import feh.tec.agent._
-import feh.tec.util.HasUUID
+import feh.util.{UUIDed, HasUUID}
 import scala.concurrent.Future
 import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
-import HasUUID._
 import scala.collection.mutable
 import feh.tec.util._
+import feh.tec.util.HasUUIDForAkka.AsyncSendMsgHasUUIDWrapper
 
 trait WorldEnvironment[Env <: Environment[Env],
                        World <: AbstractWorld[Atom, Env#Coordinate],

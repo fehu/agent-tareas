@@ -1,6 +1,6 @@
 package feh.tec.util.build
 
-import feh.tec.util.FileUtils._
+import feh.util.FileUtils._
 import spray.json._
 import feh.tec.util.{OptionWrapper, TrySeqWrapper, JsonImplicits}
 

@@ -9,7 +9,7 @@ import feh.tec.visual.NicolLike2DEasel
 import feh.tec.visual.api.WorldRenderer
 import feh.tec.agent.AgentId
 import akka.event.Logging
-import feh.tec.util.{DebuggingSetup, GlobalDebugging, Debugging}
+import feh.util.{DebuggingSetup, GlobalDebugging, Debugging}
 
 object Environment{
   type Tile = SqTile
