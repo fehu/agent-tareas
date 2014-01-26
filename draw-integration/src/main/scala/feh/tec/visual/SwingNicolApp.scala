@@ -3,8 +3,9 @@ package feh.tec.visual
 import scala.swing.event.{WindowClosing, WindowActivated}
 import org.lwjgl.opengl.{AWTGLCanvas, GL11, Display}
 import scala.swing.{Swing, Component}
-import feh.tec.visual.swing.Canvas
+import feh.dsl.swing.swing.Canvas
 import java.awt.Color
+import feh.dsl.swing.{FormCreation, SwingFrameAppCreation}
 
 trait SwingNicolApp extends AppSurroundingSwingFrame{
   frame: SwingFrameAppCreation#LayoutBuilder with SwingFrameAppCreation#LayoutDSL =>

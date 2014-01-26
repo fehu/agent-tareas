@@ -2,11 +2,12 @@ package feh.tec.visual.build
 
 import feh.tec.util.build.AppsRunner
 import scala.swing.Frame
-import feh.tec.visual.{SwingFrameAppCreation, SwingAppFrame}
+import feh.tec.visual.SwingAppFrame
 import feh.tec.visual.api.{StopNotifications, AppBasicControlApi}
 import scala.collection.mutable
 import feh.tec.util.LiftWrapper
 import scala.collection.immutable.ListMap
+import feh.dsl.swing.SwingFrameAppCreation
 
 object SwingAppsRunner{
   type Control = AppBasicControlApi with StopNotifications

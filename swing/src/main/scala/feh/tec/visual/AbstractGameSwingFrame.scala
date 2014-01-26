@@ -10,6 +10,7 @@ import scala.xml.NodeSeq
 import feh.tec.agent.game._
 import scala.util.Failure
 import scala.util.Success
+import feh.dsl.swing.{AbstractGUI, SwingFrameAppCreation}
 
 abstract class AbstractGameSwingFrame extends Frame with SwingAppFrame with SwingFrameAppCreation.Frame9PositionsLayoutBuilder{
   frame =>

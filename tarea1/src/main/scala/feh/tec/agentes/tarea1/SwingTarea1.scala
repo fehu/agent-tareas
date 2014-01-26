@@ -1,13 +1,13 @@
 package feh.tec.agentes.tarea1
 
-import feh.tec.visual.{SwingFrameAppCreation, AppSurroundingSwingFrame, SwingNicolApp}
-import feh.tec.visual.api.{AppBasicControlApi, AgentApp}
+import feh.tec.visual.SwingNicolApp
 import feh.tec.agent.AgentDecision.CriteriaMessage
-import feh.tec.visual.util.AwtUtils
 import nicol.Scene
-import feh.tec.visual.SwingFrameAppCreation.{Frame9PositionsLayoutBuilder, Layout9PositionsDSL}
 import scala.swing.GridBagPanel.Fill
 import scala.swing.event.UIElementShown
+import feh.dsl.swing.SwingFrameAppCreation
+import SwingFrameAppCreation._
+import feh.dsl.swing.util.AwtUtils
 
 class SwingTarea1(t1: Tarea1App) extends SwingNicolApp
   /*with SwingFrameAppCreation */with Layout9PositionsDSL with Frame9PositionsLayoutBuilder

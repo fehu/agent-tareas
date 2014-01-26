@@ -134,6 +134,10 @@ object Build extends sbt.Build {
 
     object feh{
       lazy val util = "feh" %% "util" % "1.0"
+
+      object dsl{
+        lazy val swing = "feh" %% "swing-dsl" % "1.0"
+      }
     }
   }
 
@@ -199,7 +203,7 @@ object Build extends sbt.Build {
     id = "swing",
     base = file("swing"),
     settings = buildSettings ++ Seq(
-      libraryDependencies += scalaSwing
+      libraryDependencies ++= Seq(scalaSwing, feh.dsl.swing)
     )
   ) dependsOn agent
 

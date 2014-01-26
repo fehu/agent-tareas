@@ -16,6 +16,7 @@ import Swing._
 import java.awt
 import feh.tec.agent.conf.AppConfig
 import feh.util.UnitInterval
+import feh.dsl.swing.SwingFrameAppCreation
 
 abstract class GenericGameSwingFrame extends AbstractGameSwingFrame {
   type Game <: GenericGame
